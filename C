@@ -1,0 +1,35 @@
+#!/bin/bash
+#Median filter calibrate Horn Astronomy data
+#HISTORY
+#18DEC10 GIL 1st version with comments
+
+if [ "$3" = "" ]
+then
+	echo "M: Median baseline calibrated horn observations"
+	echo "Usage: M <average_seconds> <files>"
+	echo "Where <average_seconds>: Number of seconds of observations to average."
+	echo "      Note this is clock time, not observing time, so 3600. means a plot for each hour"
+	echo "      <files> are Horn Observation files"
+	echo "      <files> must include both data pointed up (.ast) and down (.hot) observations"
+	echo "      All .hot files are assumed to have a system temperature of 290 K"
+	exit
+fi
+
+# if the python program is local, execute it
+if [ -e ./c.py ]
+then
+   python ./c.py "$@"
+else
+# if python is in the bin directory, execute that
+    if [ -e ~/bin/c.py ]
+    then
+	python ~/bin/c.py "$@"
+    else
+	if [ -e ../c.py ]
+	then
+       	    python ../c.py "$@"
+	else  
+	    print "Can not find Calibration plotting python program: c.py" 
+	fi
+    fi
+fi  # end else not in current directory
