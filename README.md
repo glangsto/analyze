@@ -1,6 +1,6 @@
 ## analyze
 ### analyize: plotting tools for reviewing/averaging/calibrated spectra line observations from Science Aficionado Telescopes.   
-<a href=alt="http://www.gb.nrao.edu/~glangsto/LightWorkMemo014r9.pdf"> <img src="images/NathanielReginaHornObs.png" width=200 
+<a href="http://www.gb.nrao.edu/~glangsto/LightWorkMemo014r9.pdf"> <img src="images/NathanielReginaHornObs.png" width=200 
 alt="Horn, Nathaniel and Regina" align="right"></a>
 
 You can use these python programs to view, and understand, observations of our Milky Way galaxy. These observations were made using home-built radio telescopes. These plotting programs expect ascii input spectra in a number of files.  Each file has 
