@@ -100,11 +100,13 @@ To create the plot of calibrated observations (shown above) type:
 ```
 C -B -C 4000. data/*
 ```
-C has a number of arguments
-* -_B_ - Subtract a baseline fit to the observations at the Min and Maximum frequencies.  20 channels of observations are selected at the each of the two velocities.   A linear baseline is fit and subtracted.
-* _-C_ - Interpolate over the center channel in the spectrum. 
-* _4000._ - Average spectra for 4000 seconds. 
-* data/\*  -  Plot all observations in the _data_ sub-directory
+C has a number of arguments.  The ones used here are:
+| Arg | Description |
+| --- | ----------- |
+| -_B_ | Subtract a baseline fit to the observations at the Min and Maximum frequencies.  20 channels of observations are selected at the each of the two velocities.   A linear baseline is fit and subtracted. |
+| _-C_     | Interpolate over the center channel in the spectrum. |
+| _4000._  | Average spectra for 4000 seconds. The average time must be provided just before the first file name. |
+| data/\*  | Plot all observations in the _data_ sub-directory.  Individual files could also be selected. |
 
 ![Averaged, but un-calibrated, spectra for 5 days of Observations, for a few minutes each day](/images/C-Raw.png)
 
