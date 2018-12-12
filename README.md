@@ -35,16 +35,20 @@ export PATH=~/bin:$PATH
 * data      - Selection of data for testing plotting functions.  Small selections of 5 days of observations are provided in the _data_ directory to allow user testing.
 * images    - Directory containing images for documenting the useage
 
-These plotting programs work with spectra created using any of the GnuRadio NsfIntegrate??.grc designs
-These python programs were created using the Gnu Radio Companion (GRC) tool.   These programs
-contained here are for analysis after the observations, not for data taking.
-These observations were made over 5 days, with a Science Aficionados Horn and
+These plotting programs work with spectra created using any of the GnuRadio NsfIntegrate??.grc designs.
+These python programs were created using the Gnu Radio Companion (GRC) tool.   The programs provided here
+are for analysis after the observations, not for data taking.
+The observations in directory _data_ were made over 5 days, with a Science Aficionados Horn and
 an 
-<a href="https://www.analog.com/en/design-center/evaluation-hardware-and-software/evaluation-boards-kits/adalm-pluto.html#eb-overview" ADALM Pluto Software Defined Radio (SDR)</a>   The Gnuradio data taking designs (see http://github.com/glangsto/gr-nsf)
+<a href="https://www.analog.com/en/design-center/evaluation-hardware-and-software/evaluation-boards-kits/adalm-pluto.html#eb-overview" ADALM Pluto Software Defined Radio (SDR)</a>   The Gnuradio data-taking designs (see http://github.com/glangsto/gr-nsf)
 were run on an Odroid XU4 octa-core single-board computer.   The observations were setup for 7 MHz
 bandwidth. The center frequency was 1421.25 MHz.  
 The spectra look good and different arms of our Mikly Way Galaxy are identified
 by emission at different velocities and intensities.
+
+These observations were made to try and detect the Andromeda Galaxy, the spiral galaxy closest to the Milky Way.
+I could not confirm that I saw any signs of Andromeda, but with some hardware improvements it should be possible
+to see the structure and rotation of Andromeda from your own back yard!
 
 The observations are summarized through the _S_ command.  Ie to summarize observations in the _data_ directory type:
 ```
