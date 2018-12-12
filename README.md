@@ -40,7 +40,7 @@ These python programs were created using the Gnu Radio Companion (GRC) tool.   T
 are for analysis after the observations, not for data taking.
 The observations in directory _data_ were made over 5 days, with a Science Aficionados Horn and
 an 
-<a href="https://www.analog.com/en/design-center/evaluation-hardware-and-software/evaluation-boards-kits/adalm-pluto.html#eb-overview" ADALM Pluto Software Defined Radio (SDR)</a>   The Gnuradio data-taking designs (see http://github.com/glangsto/gr-nsf)
+<a href="https://www.analog.com/en/design-center/evaluation-hardware-and-software/evaluation-boards-kits/adalm-pluto.html#eb-overview"> ADALM Pluto Software Defined Radio (SDR)</a>   The Gnuradio data-taking designs (see http://github.com/glangsto/gr-nsf)
 were run on an Odroid XU4 octa-core single-board computer.   The observations were setup for 7 MHz
 bandwidth. The center frequency was 1421.25 MHz.  
 The spectra look good and different arms of our Mikly Way Galaxy are identified
