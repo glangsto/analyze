@@ -102,14 +102,14 @@ C -B -C 4000. data/*
 ```
 C has a number of arguments.  The arguments commonly used are:
 
-| Arg | Description |
-| --- | ----------- |
+| Argument     | Description |
+| --------------- | ----------------- |
 | -_B_ | Subtract a baseline fit to the observations at the Minimum and Maximum Velocities plotted.  20 channels of observations are selected at the each of the two velocities.   A linear baseline is fit and subtracted. |
 | _-C_     | Interpolate over the center channel in the spectrum.  SDRs often create fall signals in the exact middle of the spectra |
 | _4000._  | Average spectra for 4000 seconds. The average time must be provided just before the first file name. |
 | data/\*  | Plot all observations in the _data_ sub-directory.  Individual files could also be selected. |
-| -VA -300 | Set the first velocity for selecting the fitting and plotting range. Not used in this example  |
-| -VB 300 | Set the first velocity for selecting the fitting and plotting range. |
+| -VA -300 | Set first velocity for selecting the fitting and plotting range. Not used in this example  |
+| -VB 300 | Set second velocity for selecting the fitting and plotting range. |
 | -R 1420405571 | Set the Refernce frequency for computing Doppler shift velocities.  Also not used in this example |
 
 ![Averaged, but un-calibrated, spectra for 5 days of Observations, for a few minutes each day](/images/C-Raw.png)
