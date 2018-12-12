@@ -1,6 +1,6 @@
 ## analyze
 ### analyize: plotting tools for reviewing/averaging/calibrated spectra line observations from Science Aficionado Telescopes.   
-[[File:images/NathanielReginaHornObs.png | thumb | A=Light Work Memo 14: Nathaniel and Regina Observing | [[http://www.gb.nrao.edu/~glangsto/LightWorkMemo014r9.pdf]] 
+<a> <img src="images/NathanielReginaHornObs.png" width=200 alt="http://www.gb.nrao.edu/~glangsto/LightWorkMemo014r9.pdf" align="right"></a>
 
 The plotting programs expect Ascii input spectra with 
 extensive headers describing the observations.
@@ -32,7 +32,7 @@ These programs are also compatible with the older NsfWatch output (watch.py)
 ### Directories:
 * data      - Selection of data for testing plotting functions.  Small selections of 5 days of observations are provided in the _data_ directory to allow user testing.
 * images    - Directory containing images for documenting the useage
-
+<a> <img src="images/LW15-Figure1.png" width=200 alt="http://www.gb.nrao.edu/~glangsto/LightWorkMemo015-2.pdf" align="right"></a>
 The observations are summarized through the _S_ command.  Ie to summarize observations in the _data_ directory type:
 ```
 S data/*
@@ -60,9 +60,10 @@ The programs depend on several helper python functions:
 | hotcold.py	    | Python to calibrate hot/cold load observations and accumulate averages. |
 | angles.py	        | Python to process angle sums and differences |
 
-These modules require several python packages, including numpy, statistics and pyephem.
-
-![Full Calibration of 5 days of Observations, for a few minutes each day](/images/C-Cal-Baseline.png)
+These modules require several python packages, including _numpy_, _statistics_ and _pyephem_. These modules are usually installed with pip.  ie:
+```
+sudo pip install numpy statistics pyephem
+```
 
 ## Examples:
 
@@ -73,7 +74,9 @@ R data/*
 ![Full Calibration of 5 days of Observations, for a few minutes each day](/images/R-spectra.png)
 
 These data are in the _data_ subdirectory
-Only a maximum of 25 spectra will be plotted.
+A maximum of 25 spectra will be plotted.
+
+![Full Calibration of 5 days of Observations, for a few minutes each day](/images/C-Cal-Baseline.png)
 
 The main calibration program is C.
 To create the plot of calibrated observations (shown above) type:
