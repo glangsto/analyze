@@ -1,1 +1,23 @@
-python ~/bin/s.py "$@"
+#!/bin/bash
+#Summarize a list of observations 
+#HISTORY
+#18DEC11 GIL Initial version
+
+# if the python program is local, execute it
+if [ -e ./s.py ]
+then
+   python ./s.py "$@"
+else
+# if python is in the bin directory, execute that
+    if [ -e ~/bin/s.py ]
+    then
+	python ~/bin/s.py "$@"
+    else
+	if [ -e ../s.py ]
+	then
+       	    python ../s.py "$@"
+	else
+	    print "Can not find the Summary python program: s.py" 
+	fi
+    fi
+fi  # end else not in current directory
