@@ -110,7 +110,7 @@ C has a number of arguments.  The arguments commonly used are:
 | data/\*  | Plot all observations in the _data_ sub-directory.  Individual files could also be selected. |
 | -VA -300 | Set first velocity (km/sec) for selecting the fitting and plotting range. Not used in this example.  |
 | -VB 300 | Set second velocity (km/sec) for selecting the fitting and plotting range. |
-| -R 1420.4056 | Set the Refernce frequency (MHz) for computing Doppler shift velocities.  Also not used in this example. |
+| -R 1420.406 | Set Reference Frequency (MHz) for computing Doppler shift velocities.  Also not used in this example. |
 
 ![Averaged, but un-calibrated, spectra for 5 days of Observations, for a few minutes each day](/images/C-Raw.png)
 
