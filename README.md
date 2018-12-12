@@ -101,6 +101,7 @@ To create the plot of calibrated observations (shown above) type:
 C -B -C 4000. data/*
 ```
 C has a number of arguments.  The ones used here are:
+
 | Arg | Description |
 | --- | ----------- |
 | -_B_ | Subtract a baseline fit to the observations at the Min and Maximum frequencies.  20 channels of observations are selected at the each of the two velocities.   A linear baseline is fit and subtracted. |
