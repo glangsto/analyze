@@ -47,16 +47,28 @@ The programs depend on several helper python functions:
 ## Examples:
 
 These functions must be executed in the current directry or the python programs copied to the appropriate place in your path. To plot raw data in a directory type:
-
+```
 R data/*
+```
 ![Full Calibration of 5 days of Observations, for a few minutes each day](/images/R-spectra.png)
 
-only a maximum of 25 spectra will be plotted. To plot all the hot load data
+These data are in the _data_ subdirectory
+Only a maximum of 25 spectra will be plotted.
 
-The main calibration program is C.  All these programs provide minimal help if executed without arguments.  Ie:
+The main calibration program is C.
+To create the plot of calibrated observations (shown above) type:
+```
+C -B -C 4000. data/*
+```
+These observations were made over 5 days, with a Science Aficionados Horn and
+Adalm Pluto SDR.   The Gnuradio code (see http://github.com/glangsto/gr-nsf)
+was run on an Odroid XU4 octa-core computer.   The observations were setup for 7 MHz
+bandwidth.  The spectra looked good, but there were some issues with full data transfer.
+
+All these programs provide minimal help if executed without arguments.  Ie:
 
 ```
-C
+% C
 
 C: Calibrate Science Aficonado (NSF) horn observations
 Usage: C [options]  <average_seconds> <files>
