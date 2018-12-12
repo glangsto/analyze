@@ -1,5 +1,6 @@
 ## analyze
 ### analyize: plotting tools for reviewing/averaging/calibrated spectra line observations from Science Aficionado Telescopes.   
+[[File:images/NathanielReginaHornObs.png | thumb | A=Light Work Memo 14: Nathaniel and Regina Observing | [[http://www.gb.nrao.edu/~glangsto/LightWorkMemo014r9.pdf]] 
 
 The plotting programs expect Ascii input spectra with 
 extensive headers describing the observations.
