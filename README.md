@@ -29,9 +29,25 @@ These programs are also compatible with the older NsfWatch output (watch.py)
 * '*.kel' - Calibrated, average observations have extensions based on units.
 
 ### Directories:
-* data      - Selection of data for testing plotting functions.
+* data      - Selection of data for testing plotting functions.  Small selections of 5 days of observations are provided in the _data_ directory to allow user testing.
 * images    - Directory containing images for documenting the useage
 
+The observations are summarized through the _S_ command.  Ie to summarize observations in the _data_ directory type:
+```
+S data/*
+
+Count  Time    Az    El   G-Lon G-Lat  Frequency  BW   Gain    Filename
+   1 05:01:00   0.0, 70.0 134.5, -2.6:  1421.25, 7.00  15.0 - data/18-11-01T050100.ast 
+   8 12:08:31   0.0, 70.0 156.4, 43.2:  1421.25, 7.00  15.0 - data/18-11-01T120831.ast 
+   1 05:00:38   0.0, 40.0 123.6, 25.5:  1421.25, 7.00  15.0 - data/18-11-02T050038.ast 
+  10 12:09:52   0.0, 40.0 124.2, 27.9:  1421.25, 7.00  15.0 - data/18-11-02T120952.ast 
+   1 05:00:59   0.0, 60.0 131.7,  7.1:  1421.25, 7.00  15.0 - data/18-11-03T050059.ast 
+   8 12:08:40   0.0, 60.0 143.8, 39.7:  1421.25, 7.00  15.0 - data/18-11-03T120840.ast 
+   1 05:00:56   0.0, 50.0 128.0, 16.4:  1421.25, 7.00  15.0 - data/18-11-04T050056.ast 
+  27 17:09:42   0.0, 50.0 115.9, 36.8:  1421.25, 7.00  15.0 - data/18-11-05T170942.ast 
+   1 17:40:20   0.0,-40.0 170.6,-37.5:  1421.25, 7.00  15.0 - data/18-11-05T174020.hot 
+   5 17:49:20   0.0,-40.0 172.6,-35.9:  1421.25, 7.00  15.0 - data/18-11-05T174920.hot 
+```
 ### Support functions
 
 The programs depend on several helper python functions:
@@ -106,4 +122,4 @@ Where:
  -- Glen Langston (glangsto@nsf.gov), 2018 December 11
 ```
 
-Glen Langston, National Science Foundation (GIL
+Glen Langston, National Science Foundation (GIL - 2018 December 12)
