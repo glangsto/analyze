@@ -19,6 +19,71 @@ dy = -1.
 nargs = len( sys.argv)
 verbose = True
 
+# some SDRs put spike in center of spectrum; indicate spike flagging here
+flagCenter = False # flag interpolate over spike in center of spectrum
+doDebug = False   # flag printing debug info
+doSave = False    # flag saving intermediate files
+flagRfi = True    # flag flagging RFI
+doFold = False    # fold spectra to address an old issue; not normally used.
+# put your list of known RFI features here.  Must have at least two, if flagRfi is true.
+linelist = [1400.00, 1420.0]  # RFI lines in MHz
+linewidth = [5, 5]   # integer number of channels to interpolate over
+outDir = "./"     # define output directory for saving files
+
+# currently used velocities for baseline fitting
+maxvel = 180.
+minvel = -550.
+
+nargs = len(sys.argv)
+#first argument is the averaging time in seconds
+timearg = 1
+namearg = 2
+iarg = 1          # start searching for input flags
+# for all arguments, read list and exit when no flag argument found
+while iarg < nargs:
+
+    # if folding data
+    if sys.argv[iarg].upper() == '-F':
+        print 'Folding specectra'
+        doFold = True
+    elif sys.argv[iarg].upper() == '-R':
+        flagRfi = True
+    elif sys.argv[iarg].upper() == '-C':
+        flagCenter = True
+    elif sys.argv[iarg].upper() == '-D':
+        print 'Adding Debug Printing'
+        doDebug = True
+    elif sys.argv[iarg].upper() == '-S':
+        print 'Saving Average Spectra in -ave files'
+        doSave = True
+    elif sys.argv[iarg].upper() == '-B':
+        print 'Baseline subtraction'
+        doSub = True
+    elif sys.argv[iarg].upper() == '-O':   # now look for flags with arguments
+        iarg = iarg+1
+        timearg = timearg+1
+        namearg = namearg+1
+        outDir = sys.argv[iarg]
+        print 'Output directory: ', outDir
+    elif sys.argv[iarg].upper() == '-VA':   # now look for flags with arguments
+        iarg = iarg+1
+        timearg = timearg+1
+        namearg = namearg+1
+        minvel = float(sys.argv[iarg])
+        print 'Minimum velocity for baseline fit: %7.2f km/sec ' % (minvel)
+    elif sys.argv[iarg].upper() == '-VB':   # now look for flags with arguments
+        iarg = iarg+1
+        timearg = timearg+1
+        namearg = namearg+1
+        maxvel = float(sys.argv[iarg])
+        print 'Maximum velocity for baseline fit: %7.2f km/sec ' % (maxvel)
+    else:
+        break
+    iarg = iarg + 1
+    timearg = timearg+1
+    namearg = namearg+1
+# end of while not reading file names
+
 linestyles = ['-','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.']
 colors = ['-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g']
 

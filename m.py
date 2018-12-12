@@ -1,7 +1,7 @@
-#Python Script to plot raw NSF record data.
-#import matplotlib.pyplot as plt
+#Python Script to plot calibrated/baseline-fit  NSF record data.
 #plot the raw data from the observation
 #HISTORY
+#18DEC11 GIL minor code cleanup 
 #18MAR05 GIL implement folding option
 #18FEB06 GIL keep track of first az,el
 #17AUG18 GIL plot the last spectrum in the series
@@ -19,17 +19,10 @@ import datetime
 import statistics
 import radioastronomy
 import copy
-from scipy.signal import savgol_filter
 import interpolate
 
 # default values
 avetimesec = 3600.
-# some SDRs put spike in center of spectrum; indicate spike flagging here
-flagCenter = False
-flagCenter = True
-# put list of RFI features here, for interpolation later
-flagRfi = False
-flagRfi = True
 # put your list of known RFI features here.  Must have at least two.
 linelist = [1400.00, 1420.0]  # RFI lines in MHz
 linewidth = [5, 5]
@@ -39,15 +32,40 @@ nargs = len(sys.argv)
 timearg = 1
 namearg = 2
 
-# if folding data
-if sys.argv[1] == '-f':
-    print 'Folding specectra'
-    dofold = True
+# some SDRs put spike in center of spectrum; indicate spike flagging here
+flagCenter = False
+flagCenter = True
+# put list of RFI features here, for interpolation later
+flagRfi = False
+flagRfi = True
+# to address an old problem, optionally allow folding spectra
+doFold = False
+# optionally turn on debug plotting
+
+doDebug = False
+iarg = 1
+# for all arguments, read list and exit when no flag argument found
+while iarg < nargs:
+
+    # if folding data
+    if sys.argv[iarg].upper() == '-F':
+        print 'Folding specectra'
+        doFold = True
+    elif sys.argv[iarg].upper() == '-R':
+        flagRfi = True
+    elif sys.argv[iarg].upper() == '-C':
+        flagCenter = True
+    elif sys.argv[iarg].upper() == '-D':
+        print 'Adding Debug Printing'
+        doDebug = True
+    else:
+        break
+    iarg = iarg + 1
     timearg = timearg+1
     namearg = namearg+1
-else:
-    dofold = False
+# end of while not reading file names
 
+#first argument is the averaging time in seconds
 avetimesec = float(sys.argv[timearg])
 print "Average time: ", avetimesec, " (seconds)"
 newObs = False
@@ -88,9 +106,6 @@ xa = 200
 #xb = 1024-xa
 xb = 1024-200
 
-#for symbol, value in locals().items():
-#    print symbol, value
-
 nplot = 0
 nhot = 0         # number of obs with el < 0
 ncold = 0
@@ -110,10 +125,11 @@ firstaz = -1
 otheraz = -1
 dt = datetime.timedelta(seconds=0.)
 
-#first argument is the averaging time in seconds
+# rest of arguments are file names
 names = sys.argv[namearg:]
 names = sorted(names)
 nFiles = len(names)
+# create the spectrum class/structure to receive spectra
 rs = radioastronomy.Spectrum()
 
 for filename in names:
@@ -138,7 +154,7 @@ for filename in names:
 
     rs.read_spec_ast(filename)
     rs.azel2radec()    # compute ra,dec from az,el
-    if dofold:
+    if doFold:
         rs.foldfrequency()
 
     if rs.telel < 0:
@@ -166,7 +182,7 @@ for filename in names:
             
 if nhot > 0:
     hot.ydataA = scalefactor * hot.ydataA / float(nhot)
-    print "Found %3d hot load obs" % nhot
+    print "Found %3d hot load observations" % nhot
 else:
     print "No hot load data, can not calibrate"
     exit()
@@ -193,15 +209,17 @@ for jjj in range (1, (nData-1)):
     if (maxvel < vel[jjj]) and (maxvel >= vel[jjj+1]):
         xb = jjj
 
-print 'Min Vel at channel: ',xa, minvel
-print 'Max Vel at channel: ',xb, maxvel
+if doDebug:
+    print 'Min Vel at channel: ',xa, minvel
+    print 'Max Vel at channel: ',xb, maxvel
                                    
 # will need smoothed hot load values in remaining calc
 #for iii in range(1,(nData-2)):
 #    hv[iii] = (yv[iii-2]+yv[iii-1]+yv[iii]+yv[iii+1]+yv[iii+2])/5.
 #hv = yv
 
-print 'Min,Max Galactic Latitudes %7.1f,%7.1f (d)' % (minGlat, maxGlat)
+if doDebug:
+    print 'Min,Max Galactic Latitudes %7.1f,%7.1f (d)' % (minGlat, maxGlat)
 
 # assume only a limited range of galactic latitudes are available
 # not range about +/-60.
@@ -227,7 +245,7 @@ for filename in names:
     rs = radioastronomy.Spectrum()
     rs.read_spec_ast(filename)
     rs.azel2radec()    # compute ra,dec from az,el
-    if dofold:
+    if doFold:
         rs.foldfrequency()
 
     if rs.telel < 0:
@@ -247,7 +265,7 @@ if nhigh < 1.:
     exit()
 else:
     high.ydataA = scalefactor * high.ydataA/nhigh
-    print "Found %d High Galactic Latidue spectra" % (nhigh)
+    print "Found %3d High Galactic Latidue spectra" % (nhigh)
     yv = high.ydataA
 
     cv = interpolate.lines( linelist, linewidth, xv, yv) # interpolate rfi
@@ -346,7 +364,7 @@ for iii in range(nData):
     trx[iii] = (cv[iii]/gain[iii]) - tcold
 
 Tsys = statistics.median(trx[bData:eData])
-print "Median Receiver + Antenna Temp: ", Tsys
+print "Median Receiver + Antenna Temp: %7.2f (K)" % ( Tsys)
 
 #plt.plot(xv, trx, colors[1], linestyle=linestyles[0],label="Tsys")
 #plt.legend(loc='upper left')
@@ -368,6 +386,9 @@ for filename in names:
     aname = parts[0]
     extension = parts[1]
     nRead = nRead + 1
+    if doDebug:
+        print "%3d: %s " % (nRead, filename)
+
 # exclude hot load data for averaging
     if extension == 'hot':
         continue
@@ -376,9 +397,10 @@ for filename in names:
 #  print filename
     rs.read_spec_ast(filename)
     rs.azel2radec()    # compute ra,dec from az,el
-    if dofold:
+    if doFold:
         rs.foldfrequency()
 
+    # recreate time/date string from UTC
     autc = str(rs.utc)
     parts = autc.split(' ')
     date = parts[0]
@@ -391,6 +413,7 @@ for filename in names:
 
     if firstdate == "":
         firstdate = date
+
 
 # if a sky observation
     if rs.telel > 0.:
@@ -494,7 +517,7 @@ for filename in names:
                 else:
                     plt.plot(vel, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label)
                 nplot = nplot + 1
-                ncold = 0
+            ncold = 0
 
             # end if a cold file
             if nRead > nFiles:
@@ -538,7 +561,8 @@ for filename in names:
     #end for all files to sum
 # end of all files to read
 
-print 'Number of remaining observations not plotted: ', ncold
+if doDebug:
+    print 'Number of remaining observations not plotted: ', ncold
 
 # if data remaing from summation
 if ncold > 1:
@@ -617,17 +641,10 @@ for tick in ax1.xaxis.get_major_ticks():
     #tick.label.set_rotation('vertical')
 for tick in ax1.yaxis.get_major_ticks():
     tick.label.set_fontsize(14) 
-    # specify integer or one of preset strings, e.g.
-    #tick.label.set_fontsize('x-small') 
-    #tick.label.set_rotation('vertical')
-#plt.xlim(-400., 250.)
-#plt.xlim(-250., 300.)
-#plt.xlim(-500., 300.)
-#plt.xlim(xallmin,xallmax)
-#plt.xlim(-120., 130.)
-#plt.xlim(-200., 200.)
+#plt.xlim(xallmin,xallmax)  # normal plot range
 #plt.xlim(-150., 300.)
 # select the relevant range of velocities (km/sec) for plotting
+#plt.xlim(-400., 250.)      # set velocity range for particular investigation
 plt.xlim(-600., 300.)
 # keep the plot from becoming too narrow
 if yallmax < 8:

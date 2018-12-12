@@ -2,6 +2,7 @@
 Class defining a Radio Frequency Spectrum
 Includes reading and writing ascii files
 HISTORY
+18DEC11 GIL add channel to freq or velocity functions
 18APR18 GIL add NAVE to save complete obsevering setup
 18MAR10 GIL add labels for different integration types
 18APR01 GIL add labels for different observing types
@@ -289,6 +290,21 @@ class Spectrum(object):
         aparts = angles.phmsdms(str(gal.lat))
         self.gallat = angles.sexa2deci(aparts['sign'], *aparts['vals'])
 
+    def datetime(self):
+        """
+        Return the date and time strings (in "standard format") from spectrum utc
+        """
+        autc = str(self.utc)             # get the ISO standard time format
+        parts = autc.split(' ')
+        date = parts[0]
+        nd = len(date)
+        date = date[2:nd]              # remove the "20" part of the year
+        time = parts[1]
+        time = time.replace('_', ':')  # put time back in normal hh:mm:ss format
+        parts = time.split('.')        # trim off seconds part of time
+        time = parts[0]
+        return date, time
+
     def azel2radec(self):
         """
         Compute the ra,dec (J2000) from Az,El location and time
@@ -504,10 +520,33 @@ class Spectrum(object):
         daypart = datestr[0]
         yymmdd = daypart[2:19]
         # distinguish hot load and regular observations
-        if self.telel > 0:
-            outname = yymmdd + '.ast'
-        else:
-            outname = yymmdd + '.hot'
+        extension = '.ast'
+        if self.bunit == 'Kelvins':
+            extension = '.kel'
+        if self.telel < 0:
+            extension = '.hot'
+        outname = yymmdd + extension
+        outname = outname.replace(":", "")
+        self.write_ascii_file(dirname, outname)
+
+    def write_ascii_ave(self, dirname):
+        """
+        Write ascii average file containing astronomy data
+        File name is based on time of observation
+        """
+        now = self.utc
+        strnow = now.isoformat()
+        datestr = strnow.split('.')
+        daypart = datestr[0]
+        yymmdd = daypart[2:19]    # actually date and time parts
+        yymmdd = yymmdd + "-ave"  # distiguish averages from observations
+        # distinguish hot load and regular observations
+        extension = '.ast'
+        if self.bunit == 'Kelvins':
+            extension = '.kel'
+        if self.telel < 0:
+            extension = '.hot'
+        outname = yymmdd + extension
         outname = outname.replace(":", "")
         self.write_ascii_file(dirname, outname)
 
@@ -774,9 +813,7 @@ class Spectrum(object):
         foldfrequency flips and averages the folded xaxis
         """
         yfold = self.ydataA[::-1]
-#        print len(yfold)
         yfold = self.ydataA + yfold
-#        yfold = yfold * 0.5
         yfold = yfold
         return yfold
 
@@ -827,11 +864,11 @@ class Spectrum(object):
 
     def vel2chan( self, vel, nureference):
         """
-        Compute velocities for for an input (array of)  frequency (Hz)
+        Compute channels for an input (array of velocities in km/sec
         """
         
-        vel = numpy.array( vel)
-        freq = vel * 1000. * nureference / clight
+        vel = numpy.array( vel) * 1000.  # convert to m/sec
+        freq = vel * nureference / clight
         freq = nureference - freq 
         chan = self.freq2chan( freq)
 
@@ -840,7 +877,7 @@ class Spectrum(object):
 
     def vel2freq( self, vel, nureference):
         """
-        Compute velocities for for an input (array of)  frequency (Hz)
+        Compute frequencies (Hz) for an input array of velocities (km/sec)
         """
         
         ndata = len(self.xdata)
@@ -852,16 +889,25 @@ class Spectrum(object):
         return freq
     #end of vel2freq
 
+    def freq2vel( self, freq, nureference):
+        """
+        Compute velocity (km/sec) for an input frequency (Hz)
+        should work for an array of frequencies
+        """
+
+        chan = self.freq2chan( freq)
+        vel = self.chan2vel( chan, nureference)   # already in km/sec
+        return vel
+    #end of freq2vel
+
     def velocities( self, nureference):
         """
         velocities takes as input a spectrum and a reference frequency
-        and returns a list of velocities
+        and returns a list/array of velocities in km/sec
         """
-
-        vel = self.xdata
-        vel = self.centerFreqHz - vel
-        vel = clight * vel / (1000. * nureference) # convert to km/sec
-
+        freq = self.xdata
+#        print 'Velocities: freq: ', freq[300], freq[700]
+        vel = self.freq2vel( freq, nureference)  # convert to km/sec
         return vel
 # end of velocities()
 

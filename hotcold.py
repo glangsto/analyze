@@ -12,13 +12,70 @@ import statistics
 EPSILON = 1.
 clight = 299792458. # speed of light in m/sec
 
+def average( names):
+    """
+    Compute an average spectrum from a list of input file names
+    """
+
+    rs = radioastronomy.Spectrum()   # create input and average structures
+    asum = radioastronomy.Spectrum()
+    nsum = 0
+
+    # now average coldest data for calibration
+    for filename in names:
+
+        rs.read_spec_ast(filename)
+        rs.azel2radec()    # compute ra,dec from az,el
+
+        if nsum == 0:
+            asum = copy.deepcopy( rs)
+            firstlon = rs.gallon
+            asum.ydataA = rs.ydataA * rs.durationSec
+            asum.gallat = rs.gallat * rs.durationSec
+            asum.gallon = rs.gallon * rs.durationSec
+            nsum = 1
+            firstutc = rs.utc
+            lastutc = rs.utc
+        else:
+            asum.ydataA = asum.ydataA + (rs.ydataA * rs.durationSec)
+            asum.count = asum.count + rs.count
+            asum.durationSec = asum.durationSec + rs.durationSec
+            # fix wrap of longitudes
+            if abs(rs.gallon - firstlon) > 180:
+                crossZero = True
+                if rs.gallon > firstlon:
+                    rs.gallon = rs.gallon - 360.
+                else:
+                    rs.gallon = rs.gallon + 360.
+            asum.gallon = asum.gallon + (rs.gallon * rs.durationSec)
+            asum.gallat = asum.gallat + (rs.gallat * rs.durationSec)
+            # keep track of observing time for weighted sum
+            lastutc = rs.utc
+            nsum = nsum + 1
+    #end for all files loop
+
+    if nsum < 1:
+        print "No acceptable files in average list"
+    else:
+        asum.ydataA = asum.ydataA/float(asum.durationSec)
+        asum.gallon = asum.gallon/float(asum.durationSec)
+        asum.gallat = asum.gallat/float(asum.durationSec)
+        aveutc,duration = radioastronomy.aveutcs( firstutc, lastutc)
+        print 'First, last ave Utc: ', firstutc, lastutc, aveutc
+        asum.utc = aveutc
+        if (duration < 10.):
+            print 'hotcold.average: very short average interval: ',duration
+    return nsum, asum
+# end of def average()
+
 def hotaverage( names):
     """
     Read in all spectra from a list of names and return the average hot spectrum
     """
     rs = radioastronomy.Spectrum()   # create input and average structures
-    hot = radioastronomy.Spectrum()
     nhot = 0
+
+    avenames = names                 # create a list of files to average
 
     # for all input files
     for filename in names:
@@ -46,32 +103,27 @@ def hotaverage( names):
 
         if rs.telel > 0: # only working with hot load, skip elevation > 0.
             continue
-            
-        if nhot == 0:
-            hot = copy.deepcopy( rs)
-            nhot = 1
-        else:
-            hot.ydataA = hot.ydataA + rs.ydataA
-            hot.count = hot.count + rs.count
-            hot.durationSec = hot.durationSec + rs.durationSec
-            nhot = nhot + 1
-            
-    if nhot > 0:
-        hot.ydataA = hot.ydataA / float(nhot)
-    else:
-        print "No hot load data, can not calibrate"
-            
-    return nhot, hot
 
+        avenames[nhot] = filename
+        nhot = nhot + 1
+    # end of for all files loop
+
+    nhot, hot = average( avenames[0:nhot])   # now use generic program for averages
+    if nhot < 1:
+        print 'No hot load files;  can not calibrate!'
+        exit()
+
+    return nhot, hot
 # end of def hotaverage
 
 def coldaverage( names):
     """
     Compute a reference cold spectrum from a list of input file names
+    Returns number of cold spectra average, cold average spectrum and min and max el in list of names
     """
 
     rs = radioastronomy.Spectrum()   # create input and average structures
-    cold = radioastronomy.Spectrum()
+    avenames = names                 # create an output list to average
 
 # assume only a limited range of galactic latitudes are available
 # not range above +/-60.
@@ -79,6 +131,7 @@ def coldaverage( names):
     minGlat = 90.                    # initialize to extremea
     maxGlat = -90.
     maxEl = -90.
+    minEl =  90.
     ncold = 0
 
     # for all input files
@@ -103,15 +156,16 @@ def coldaverage( names):
         if extension != 'AST':  # speed up by only looking at astronomy files
             continue
         
-        rs.read_spec_ast(filename)
+        rs.read_spec_ast(filename)  # An observation, read values
 
         if rs.telel < 0: # only working with observations, skip elevation <= 0.
             continue
 
         maxGlat = max( rs.gallat, maxGlat)
         minGlat = min( rs.gallat, minGlat)
-        maxEl = min( rs.telel, maxEl)
-    # finish first run through of file names; now check min and max latitudes
+        maxEl = max( rs.telel, maxEl)
+        minEl = min( rs.telel, minEl)
+    # end for all files loop, looking for max el and latitude ranges
 
     # if any high galactic latitudes, use only above +/-60d 
     if minGlat < -60. or maxGlat > 60.:
@@ -142,23 +196,16 @@ def coldaverage( names):
             continue
 
         if rs.gallat > maxGlat or rs.gallat < minGlat:
-            if ncold == 0:
-                cold = copy.deepcopy( rs)
-                cold.ydataA = rs.ydataA
-                ncold = 1
-            else:
-                cold.ydataA = cold.ydataA + rs.ydataA
-                cold.count = cold.count + rs.count
-                cold.durationSec = cold.durationSec + rs.durationSec
-                ncold = ncold + 1
+            avenames[ncold] = filename
+            ncold = ncold + 1
+    # end of for all files loop
 
-    #end for all high latitude sources
-    if ncold < 1.:
-        print "No high galactic latitude data: can not calibrate"
-    else:
-        cold.ydataA = cold.ydataA/float(ncold)
+    ncold, cold = average( avenames[0:ncold])   # now use generic program for averages
+    if ncold < 1:
+        print 'No Cold load files;  can not calibrate!'
+        exit()
 
-    return ncold, cold
+    return ncold, cold, minEl, maxEl
 # end of def coldaverage
 
 def compute_tsky_hot( xv, yv, hv, thot, tcold):
@@ -226,9 +273,7 @@ def compute_gain( hv, cv, thot, tcold):
     n56 = 5*n6
 
     trxmedian = statistics.median( trx[n6:n56])
-
-    print "Trx: ",trxmedian
-    gain = (thot + trx)/hv
+    gain = (thot + trxmedian)/hv
     
     return trxmedian, gain # channel by channel gain in K/counts
 #end of compute_gain
