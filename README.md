@@ -2,9 +2,7 @@
 ### analyize: plotting tools for reviewing/averaging/calibrated spectra line observations from Science Aficionado Telescopes.   
 <a> <img src="images/NathanielReginaHornObs.png" width=200 alt="http://www.gb.nrao.edu/~glangsto/LightWorkMemo014r9.pdf" align="right"></a>
 
-You can use these python programs to view and understand observations of our Milky Way galaxy.  
-These observations were made using home-built radio telescopes.
-These plotting programs expect Ascii input spectra with 
+You can use these python programs to view, and understand, observations of our Milky Way galaxy. These observations were made using home-built radio telescopes. These plotting programs expect ascii input spectra in a number of files.  Each file has 
 extensive headers describing the observations.
 
 Instructions on building your own telescope is found on the website wiki:
@@ -41,8 +39,9 @@ These plotting programs work with spectra created using any of the GnuRadio NsfI
 These python programs were created using the Gnu Radio Companion (GRC) tool.   These programs
 contained here are for analysis after the observations, not for data taking.
 These observations were made over 5 days, with a Science Aficionados Horn and
-Adalm Pluto SDR.   The Gnuradio data taking designs (see http://github.com/glangsto/gr-nsf)
-were run on an Odroid XU4 octa-core computer.   The observations were setup for 7 MHz
+an 
+<a href="https://www.analog.com/en/design-center/evaluation-hardware-and-software/evaluation-boards-kits/adalm-pluto.html#eb-overview" ADALM Pluto Software Defined Radio (SDR)</a>   The Gnuradio data taking designs (see http://github.com/glangsto/gr-nsf)
+were run on an Odroid XU4 octa-core single-board computer.   The observations were setup for 7 MHz
 bandwidth. The center frequency was 1421.25 MHz.  
 The spectra look good and different arms of our Mikly Way Galaxy are identified
 by emission at different velocities and intensities.
