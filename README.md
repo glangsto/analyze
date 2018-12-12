@@ -105,7 +105,7 @@ C has a number of arguments.  The arguments commonly used are:
 | Argument     | Description |
 | --------------- | ----------------- |
 | -_B_ | Subtract a baseline fit to the observations at the Minimum and Maximum Velocities plotted.  20 channels of observations are selected at the each of the two velocities.   A linear baseline is fit and subtracted. |
-| _-C_     | Interpolate over the center channel in the spectrum.  SDRs often create fall signals in the exact middle of the spectra |
+| _-C_     | Interpolate over the center channel in the spectrum.  SDRs often create false signals in the exact middle of the spectra. |
 | _4000._  | Average spectra for 4000 seconds. The average time must be provided just before the first file name. |
 | data/\*  | Plot all observations in the _data_ sub-directory.  Individual files could also be selected. |
 | -VA -300 | Set first velocity (km/sec) for selecting the fitting and plotting range. Not used in this example.  |
