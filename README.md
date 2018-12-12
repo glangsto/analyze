@@ -12,9 +12,9 @@ These programs are also compatible with the older NsfWatch output (watch.py)
 
 ### Programs:
 
-* S     Summarize a set of observations.  Function calls s.py
-* C     _Main_ program which calibrates, averages, flags and plots sets of spectra
-* R     Function to call r.py, which plots raw spectra
+* S     - Summarize a set of observations.  Function calls s.py
+* C     - _Main_ program which calibrates, averages, flags and plots sets of spectra
+* R     - Function to call r.py, which plots raw spectra
 
 ### Python:
 
@@ -36,11 +36,14 @@ These programs are also compatible with the older NsfWatch output (watch.py)
 
 The programs depend on several helper python functions:
     
-* radioastronomy.py   Python to read and write spectra.  This function is shared with the data collecting software.
-* interpolate.py      Python to interpolate over expected Interfering radio lines.  Needed to for more acurate calibration.
-* hotcold.py	        Python to calibrate hot/cold load observations and accumulate averages
-* angles.py	          Python to process angles
+| code module |               Description    |
+| ------------| --------- |
+| radioastronomy.py | Python to read and write spectra.  This function is shared with the data collecting software.  |
+| interpolate.py    | Python to interpolate over expected Interfering radio lines.  Needed to for more acurate calibration. |
+| hotcold.py	    | Python to calibrate hot/cold load observations and accumulate averages. |
+| angles.py	        | Python to process angle sums and differences |
 
+These modules require several python packages, including numpy, statistics and pyephem.
 
 ![Full Calibration of 5 days of Observations, for a few minutes each day](/images/C-Cal-Baseline.png)
 
