@@ -29,8 +29,8 @@ doHanning = False # hanning smooth hot load to reduce calibration noise
 linelist = [1400.00, 1420.0]  # RFI lines in MHz
 linewidth = [5, 5]   # integer number of channels to interpolate over
 # currently used velocities for baseline fitting
-maxvel = 180.
-minvel = -550.
+maxvel = 300.
+minvel = -300.
 thot = 285.0  # define hot and cold in Kelvins
 tcold = 10.0
 nuh1 = 1420.40557177667 # neutral hydrogen frequency (MHz)
@@ -481,7 +481,7 @@ for filename in plotnames:
                 label = '%s L,L=%5.1f,%4.1f' % (labeltime, cold.gallon, cold.gallat)
             else:
                 label = '%s A,E=%.0f,%4.0f L,L=%5.1f,%4.1f' % (labeltime, cold.telaz, cold.telel, cold.gallon, cold.gallat)
-            outstring = ' Max: %7.1f Med: %7.1f %c; %3d %s: ' % (ymax, ymed, cold.bunit[0], ncold, label)
+            outstring = ' Max: %6.1f Med: %6.1f %c; %3d %s: ' % (ymax, ymed, cold.bunit[0], ncold, label)
             sys.stdout.write(outstring)
             sys.stdout.flush()
 
@@ -567,7 +567,7 @@ if ncold > 1:
         label = '%s L,L=%5.1f,%4.1f' % (labeltime, cold.gallon, cold.gallat)
     else:
         label = '%s A,E=%.0f,%4.0f L,L=%5.1f,%4.1f' % (labeltime, cold.telaz, cold.telel, cold.gallon, cold.gallat)
-    outstring = ' Max: %7.1f Med: %7.1f %c; %3d %s: ' % (ymax, ymed, cold.bunit[0], ncold, label)
+    outstring = ' Max: %6.1f Med: %6.1f %c; %3d %s: ' % (ymax, ymed, cold.bunit[0], ncold, label)
     sys.stdout.write(outstring)
     sys.stdout.flush()
     if not doCalibrate:   # if not calibratiing just plot 

@@ -1,5 +1,6 @@
 #Python Scripts to read a list of files and compute raw hot and cold average spectra
 #HISTORY
+#18DEC11 GIL add instructions to install statistics
 #18DEC10 GIL initial version from m.py
 #
 import sys
@@ -7,7 +8,16 @@ import datetime
 import numpy as np
 import radioastronomy
 import copy
-import statistics
+try:
+    import statistics
+except ImportError:
+    print 'Statistics Python Code needed!'
+    print 'In Linux type:'
+    print '       sudo apt-get install python-dev'
+    print '       sudo apt-get install python-pip'
+    print '       sudo pip install statistics'
+    print ''
+    exit()
 
 EPSILON = 1.
 clight = 299792458. # speed of light in m/sec
@@ -61,7 +71,6 @@ def average( names):
         asum.gallon = asum.gallon/float(asum.durationSec)
         asum.gallat = asum.gallat/float(asum.durationSec)
         aveutc,duration = radioastronomy.aveutcs( firstutc, lastutc)
-        print 'First, last ave Utc: ', firstutc, lastutc, aveutc
         asum.utc = aveutc
         if (duration < 10.):
             print 'hotcold.average: very short average interval: ',duration
@@ -314,9 +323,11 @@ def flagCenter( yv):             # if flagging spike in center of plot
     """
     nData = len(yv)    
     icenter = int(nData/2)
-    yv[icenter] = (yv[icenter-2] + yv[icenter+2])*.5
-    yv[icenter-1] = (3.*yv[icenter-2] + yv[icenter+2])*.25
-    yv[icenter+1] = (yv[icenter-2] + 3.*yv[icenter+2])*.25
+    yv[icenter] = (yv[icenter-3] + yv[icenter+3])*.5
+    yv[icenter-2] = ((7.*yv[icenter-3]) + yv[icenter+3])*.125
+    yv[icenter-1] = ((3.*yv[icenter-3]) + yv[icenter+3])*.25
+    yv[icenter+1] = (yv[icenter-3] + (3.*yv[icenter+3]))*.25
+    yv[icenter+2] = (yv[icenter-3] + (7.*yv[icenter+3]))*.125
     return yv
 # end of flagCenter
 
