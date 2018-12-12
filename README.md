@@ -40,13 +40,12 @@ These python programs were created using the Gnu Radio Companion (GRC) tool.   T
 are for analysis after the observations, not for data taking.
 The observations in directory _data_ were made over 5 days, with a Science Aficionados Horn and
 an 
-<a href="https://www.analog.com/en/design-center/evaluation-hardware-and-software/evaluation-boards-kits/adalm-pluto.html#eb-overview"> ADALM Pluto Software Defined Radio (SDR)</a>   The Gnuradio data-taking designs (see http://github.com/glangsto/gr-nsf)
+<a href="https://www.analog.com/en/design-center/evaluation-hardware-and-software/evaluation-boards-kits/adalm-pluto.html#eb-overview"> ADALM Pluto Software Defined Radio (SDR)</a>.   The Gnuradio data-taking designs (see http://github.com/glangsto/gr-nsf)
 were run on an Odroid XU4 octa-core single-board computer.   The observations were setup for 7 MHz
-bandwidth. The center frequency was 1421.25 MHz.  
-The spectra look good and different arms of our Mikly Way Galaxy are identified
+bandwidth. The center frequency was 1421.25 MHz.   The spectra look good and different arms of our Mikly Way Galaxy can be identified
 by emission at different velocities and intensities.
 
-These observations were made to try and detect the Andromeda Galaxy, the spiral galaxy closest to the Milky Way.
+FYI, these observations were made to try and detect the Andromeda Galaxy, the spiral galaxy closest to the Milky Way.
 I could not confirm that I saw any signs of Andromeda, but with some hardware improvements it should be possible
 to see the structure and rotation of Andromeda from your own back yard!
 
@@ -101,6 +100,11 @@ To create the plot of calibrated observations (shown above) type:
 ```
 C -B -C 4000. data/*
 ```
+C has a number of arguments
+* -_B_ - Subtract a baseline fit to the observations at the Min and Maximum frequencies.  20 channels of observations are selected at the each of the two velocities.   A linear baseline is fit and subtracted.
+* _-C_ - Interpolate over the center channel in the spectrum. 
+* _4000._ - Average spectra for 4000 seconds. 
+* data/\*  -  Plot all observations in the _data_ sub-directory
 
 ![Averaged, but un-calibrated, spectra for 5 days of Observations, for a few minutes each day](/images/C-Raw.png)
 
@@ -111,8 +115,7 @@ calibration.   The Hot and Cold load selected spectra are also shown in this cas
 C -C -N 4000. data/*
 ```
 
-The _-C_ argument indicate interpolate over the center channel in the spectrum. The _4000._ argument
-indicates to average spectra for 4000 seconds.   The _data_ directory only has a few minutes of observations, at 5 and 12 hours UTC,
+The _data_ directory only has a few minutes of observations, at 5 and 12 hours UTC,
 on the selected days.
 
 ### Guide to calibrating
