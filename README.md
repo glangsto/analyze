@@ -20,7 +20,7 @@ http://opensourceradiotelescopes.org/wk
 * r.py  - Python function to read and plot the _raw_ spectra
 * s.py  - Python function to read all selected spectra in a directory and summarize the observations
 
-Place the programs an python code in the appropriate place for your system.   I often put all these
+Place the programs and python code in the appropriate place for your system.   I often put all these
 programs and python code in my _Linux_ computer sub-directory _~/bin_ and update my path with:
 ```
 export PATH=~/bin:$PATH
