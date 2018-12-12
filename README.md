@@ -2,14 +2,13 @@
 ### analyize: plotting tools for reviewing/averaging/calibrated spectra line observations from Science Aficionado Telescopes.   
 <a> <img src="images/NathanielReginaHornObs.png" width=200 alt="http://www.gb.nrao.edu/~glangsto/LightWorkMemo014r9.pdf" align="right"></a>
 
-The plotting programs expect Ascii input spectra with 
+You can use these python programs to view and understand observations of our Milky Way galaxy.  
+These observations were made using home-built radio telescopes.
+These plotting programs expect Ascii input spectra with 
 extensive headers describing the observations.
 
-The plotting programs are compatible with spectra created using any of the GnuRadio NsfIntegrate??.grc designs
-These python programs were created using the Gnu Radio Companion (GRC).   These programs
-contained here are for analysis after the observations, not for data taking.
-
-These programs are also compatible with the older NsfWatch output (watch.py)
+Instructions on building your own telescope is found on the website wiki:
+http://opensourceradiotelescopes.org/wk
 
 ### Programs:
 
@@ -23,16 +22,31 @@ These programs are also compatible with the older NsfWatch output (watch.py)
 * r.py  - Python function to read and plot the _raw_ spectra
 * s.py  - Python function to read all selected spectra in a directory and summarize the observations
 
+Place the programs an python code in the appropriate place for your system.   I often put all these
+programs and python code in my _Linux_ computer sub-directory _~/bin_ and update my path with:
+```
+export PATH=~/bin:$PATH
+```
 ### Data:
 
 * '*.ast' - All astronomical observations have names based on date and end with .ast
 * '*.hot' - Calibration requires observations of the ground with assumed temperature of 285 K
 * '*.kel' - Calibrated, average observations have extensions based on units.
-
+<a href="http://www.opensourceradiotelesopes/wk/"> <img src="images/LW15-Figure1.png" width=300 alt="http://www.gb.nrao.edu/~glangsto/LightWorkMemo015-2.pdf" align="right"></a>
 ### Directories:
 * data      - Selection of data for testing plotting functions.  Small selections of 5 days of observations are provided in the _data_ directory to allow user testing.
 * images    - Directory containing images for documenting the useage
-<a> <img src="images/LW15-Figure1.png" width=200 alt="http://www.gb.nrao.edu/~glangsto/LightWorkMemo015-2.pdf" align="right"></a>
+
+These plotting programs work with spectra created using any of the GnuRadio NsfIntegrate??.grc designs
+These python programs were created using the Gnu Radio Companion (GRC) tool.   These programs
+contained here are for analysis after the observations, not for data taking.
+These observations were made over 5 days, with a Science Aficionados Horn and
+Adalm Pluto SDR.   The Gnuradio data taking designs (see http://github.com/glangsto/gr-nsf)
+were run on an Odroid XU4 octa-core computer.   The observations were setup for 7 MHz
+bandwidth. The center frequency was 1421.25 MHz.  
+The spectra look good and different arms of our Mikly Way Galaxy are identified
+by emission at different velocities and intensities.
+
 The observations are summarized through the _S_ command.  Ie to summarize observations in the _data_ directory type:
 ```
 S data/*
@@ -60,6 +74,8 @@ The programs depend on several helper python functions:
 | hotcold.py	    | Python to calibrate hot/cold load observations and accumulate averages. |
 | angles.py	        | Python to process angle sums and differences |
 
+Put these python programs in the appropriate place for your computer, i.e. in your working directory or in your _~/bin_ directory.
+
 These modules require several python packages, including _numpy_, _statistics_ and _pyephem_. These modules are usually installed with pip.  ie:
 ```
 sudo pip install numpy statistics pyephem
@@ -67,14 +83,13 @@ sudo pip install numpy statistics pyephem
 
 ## Examples:
 
-These functions must be executed in the current directry or the python programs copied to the appropriate place in your path. To plot raw data in a directory type:
+These functions may be executed in the current directory. It is better to move all the python programs to  to the appropriate place in your _path_. To plot raw data in a directory type:
 ```
 R data/*
 ```
 ![Full Calibration of 5 days of Observations, for a few minutes each day](/images/R-spectra.png)
 
-These data are in the _data_ subdirectory
-A maximum of 25 spectra will be plotted.
+These observations are in the _data_ subdirectory. A maximum of 25 spectra will be plotted.
 
 ![Full Calibration of 5 days of Observations, for a few minutes each day](/images/C-Cal-Baseline.png)
 
@@ -83,17 +98,28 @@ To create the plot of calibrated observations (shown above) type:
 ```
 C -B -C 4000. data/*
 ```
-These observations were made over 5 days, with a Science Aficionados Horn and
-Adalm Pluto SDR.   The Gnuradio code (see http://github.com/glangsto/gr-nsf)
-was run on an Odroid XU4 octa-core computer.   The observations were setup for 7 MHz
-bandwidth.  The spectra looked good, but there were some issues with full data transfer.
 
-All these programs provide minimal help if executed without arguments.  Ie:
+![Averaged, but un-calibrated, spectra for 5 days of Observations, for a few minutes each day](/images/C-Raw.png)
+
+The averaged, but not calibrated, observations may also be plotted using _C_.  The _-N_ argument indicates no
+calibration.   The Hot and Cold load selected spectra are also shown in this case.   To see the uncalibrated data type:
+
+```
+C -C -N 4000. data/*
+```
+
+The _-C_ argument indicate interpolate over the center channel in the spectrum. The _4000._ argument
+indicates to average spectra for 4000 seconds.   The _data_ directory only has a few minutes of observations, at 5 and 12 hours UTC,
+on the selected days.
+
+### Guide to calibrating
+
+These programs provide minimal help if executed without arguments.  Ie:
 
 ```
 % C
 
-C: Calibrate Science Aficonado (NSF) horn observations
+C: Calibrate Science Aficionado (NSF) horn observations
 Usage: C [options]  <average_seconds> <files>
 
 Where many parameters are optional:
