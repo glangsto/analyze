@@ -16,10 +16,6 @@ S     Function to call s.py, which summarizes a set of observations in a directo
 
 s.py  Python function to read all selected spectra in a directory and summarize the observations
 
-R     Function to call r.py, which plots raw spectra
-
-r.py  Python function to read the spectra and plot them
-
 C     Function to call c.py, which calibrates, averages and plots spectra
 
 c.py  Python function to calibrate.
@@ -28,9 +24,13 @@ c.py  Python function to calibrate.
 
 *.hot Hot load data for calibration.
 
-data-17nov03    Selection of data for testing plotting functions.  Older format spectra
+R     Function to call r.py, which plots raw spectra
 
-data-18apr13    Selection of data for testing plotting functions.  Newer format spectra
+r.py  Python function to read the spectra and plot them
+
+data  Selection of data for testing plotting functions.
+
+images Directory containing images for documenting the useage
 
 Support functions
 =================
@@ -52,40 +52,51 @@ These functions must be executed in the current directry or the python programs 
 
 To plot all the raw data in a directory type:
 
-R data-17nov03/*
+R data/*
 
 only a maximum of 25 spectra will be plotted. To plot all the hot load data
 
-R data-18apr13/*.hot
+R data/*.hot
 
-To compare selected hot load data and one spectrum 5 minutes after each hour type:
-
-R data-17nov03/*.hot data-17nov03/*T???05*
-
-Historical Files, superseeded by C and c.py
-===========================================
-
-T     Function to call t.py, which plots T-sys Calibrated ppectra
-
-t.py  Python function to read the spectra, calibate and plot them
-
-M     Function to call m.py, which plots T-sys Calibrated spectra, with a median baseline subtracted
-
-m.py  Python function to read the spectra, calibate, baseline subtract and plot them
-
-To plot calibrated data, the set of spectra must include some hot-load observations.  These observations
-are taken while pointing the telescope at the ground, to set the gain, assuming a ground temperature of 285 Kelvin.
-
-The calibration scripts take an averaging time argument (in seconds).  To plot all the spectra calibrated with 15 minute averaging time type:
-
-T 900. data-17nov03/*
 
 The scripts monitor the telescope azimuth and elevation and stop averaging each time the angles or
 frequencies of observations change.   
 
-To subtract a median baseline type:
+The main calibration program is C
 
-M 900.  data-18apr13/*
+All these programs provide minimal help if executed without arguments.  Ie C
+
+C: Calibrate Science Aficonado (NSF) horn observations
+Usage: C [options]  <average_seconds> <files>
+
+Where many parameters are optional:
+-B Subtract a linear baseline fit to Spectra at Min and Max Velocities
+   Min and max default velocities are:  -550.0,   180.0 km/sec
+-C Flag the Center channel, using interpolation.
+   This removes a strong narrow feature created by many Software Defined Radios (SDRs)
+-D Additional Debug printing.
+-I Optionally Flag Known Radio Frequency Interference (RFI)
+   Note you need to update the c.py program to add your list of Frequencies
+   RFI frequencies are Location Dependent
+-H <hot load Temperature> Set the effective temperature of the hot load (Kelvins)
+-N Not Calibrate.  This mode is used for tests of raw spectra
+-O <output directory> Set the output directory for saved files
+-R <Reference Frequency> Rest Frequency (Hz) used for Doppler calculations: 1420.406 (MHz)
+-S Save average spectra in files.  The Hot and Cold Load averages are saved, too.
+   Average spectra have -ave added to their names
+   Calibrated spectra have a .kel (for Kelvins) extension
+-X Hanning smooth the hot load observation to reduce calibration noise
+-T <plot title String> Label for plot
+-VA <low velocity> limit to exclude for baseline fitting
+-VB <high velocity> limit to exclude for baseline fitting
+Where:
+   <average_seconds>: Number of seconds of observations to average.
+   <average_seconds> is clock time, not observing time, so 3600. gives one plot for each hour
+   <files> are Horn Observation files
+   <files> must include both data pointed up (.ast) and down (.hot) observations
+      All .hot files are assumed to have a system temperature of   285.0 K
+
+ -- Glen Langston (glangsto@nsf.gov), 2018 December 11
 
 HISTORY
 18DEC11 GIL Upgrade that includes C 
@@ -95,4 +106,4 @@ HISTORY
 
 Glen Langston, National Science Foundation (GIL)
 Kevin Bandura, University of West Virginia 
-
+=============
