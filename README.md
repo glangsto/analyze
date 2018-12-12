@@ -108,9 +108,9 @@ C has a number of arguments.  The arguments commonly used are:
 | _-C_     | Interpolate over the center channel in the spectrum.  SDRs often create fall signals in the exact middle of the spectra |
 | _4000._  | Average spectra for 4000 seconds. The average time must be provided just before the first file name. |
 | data/\*  | Plot all observations in the _data_ sub-directory.  Individual files could also be selected. |
-| -VA -300 | Set first velocity for selecting the fitting and plotting range. Not used in this example  |
-| -VB 300 | Set second velocity for selecting the fitting and plotting range. |
-| -R 1420405571 | Set the Refernce frequency for computing Doppler shift velocities.  Also not used in this example |
+| -VA -300 | Set first velocity (km/sec) for selecting the fitting and plotting range. Not used in this example.  |
+| -VB 300 | Set second velocity (km/sec) for selecting the fitting and plotting range. |
+| -R 1420.4056 | Set the Refernce frequency (MHz) for computing Doppler shift velocities.  Also not used in this example. |
 
 ![Averaged, but un-calibrated, spectra for 5 days of Observations, for a few minutes each day](/images/C-Raw.png)
 
@@ -146,7 +146,7 @@ Where many parameters are optional:
 -H <hot load Temperature> Set the effective temperature of the hot load (Kelvins)
 -N Not Calibrate.  This mode is used for tests of raw spectra
 -O <output directory> Set the output directory for saved files
--R <Reference Frequency> Rest Frequency (Hz) used for Doppler calculations: 1420.406 (MHz)
+-R <Reference Frequency> Rest Frequency (MHz) used for Doppler calculations: 1420.406 (MHz)
 -S Save average spectra in files.  The Hot and Cold Load averages are saved, too.
    Average spectra have -ave added to their names
    Calibrated spectra have a .kel (for Kelvins) extension
