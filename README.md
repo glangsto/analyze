@@ -29,17 +29,17 @@ export PATH=~/bin:$PATH
 
 * '*.ast' - All astronomical observations have names based on date and end with .ast
 * '*.hot' - Calibration requires observations of the ground with assumed temperature of 285 K
-* '*.kel' - Calibrated, average observations have extensions based on units.
+* '*.kel' - Calibrated, average observations have extensions based on units.  _kel_ means Kelvins.
 <a href="http://www.opensourceradiotelesopes/wk/"> <img src="images/LW15-Figure1.png" width=300 alt="http://www.gb.nrao.edu/~glangsto/LightWorkMemo015-2.pdf" align="right"></a>
+
 ### Directories:
 * data      - Selection of data for testing plotting functions.  Small selections of 5 days of observations are provided in the _data_ directory to allow user testing.
 * images    - Directory containing images for documenting the useage
 
 These plotting programs work with spectra created using any of the GnuRadio NsfIntegrate??.grc designs.
-These python programs were created using the Gnu Radio Companion (GRC) tool.   The programs provided here
+The data taking designs were created using the Gnu Radio Companion (GRC) tool.   The programs provided here
 are for analysis after the observations, not for data taking.
-The observations in directory _data_ were made over 5 days, with a Science Aficionados Horn and
-an 
+The observations in directory _data_ were made over 5 days, with a Science Aficionados Horn and an 
 <a href="https://www.analog.com/en/design-center/evaluation-hardware-and-software/evaluation-boards-kits/adalm-pluto.html#eb-overview"> ADALM Pluto Software Defined Radio (SDR)</a>.   The Gnuradio data-taking designs (see http://github.com/glangsto/gr-nsf)
 were run on an Odroid XU4 octa-core single-board computer.   The observations were setup for 7 MHz
 bandwidth. The center frequency was 1421.25 MHz.   The spectra look good and different arms of our Mikly Way Galaxy can be identified
@@ -72,7 +72,7 @@ The programs depend on several helper python functions:
 | code module |               Description    |
 | ------------| --------- |
 | radioastronomy.py | Python to read and write spectra.  This function is shared with the data collecting software.  |
-| interpolate.py    | Python to interpolate over expected Interfering radio lines.  Needed to for more acurate calibration. |
+| interpolate.py    | Python to interpolate over expected Radio Frequency Interference (RFI).  Needed for more acurate calibration. |
 | hotcold.py	    | Python to calibrate hot/cold load observations and accumulate averages. |
 | angles.py	        | Python to process angle sums and differences |
 
