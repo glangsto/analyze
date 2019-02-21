@@ -323,11 +323,9 @@ def flagCenter( yv):             # if flagging spike in center of plot
     """
     nData = len(yv)    
     icenter = int(nData/2)
-    yv[icenter] = (yv[icenter-3] + yv[icenter+3])*.5
-    yv[icenter-2] = ((7.*yv[icenter-3]) + yv[icenter+3])*.125
-    yv[icenter-1] = ((3.*yv[icenter-3]) + yv[icenter+3])*.25
-    yv[icenter+1] = (yv[icenter-3] + (3.*yv[icenter+3]))*.25
-    yv[icenter+2] = (yv[icenter-3] + (7.*yv[icenter+3]))*.125
+    yv[icenter] = (yv[icenter-2] + yv[icenter+2])*.5
+    yv[icenter-1] = (3.*yv[icenter-2] + yv[icenter+2])*.25
+    yv[icenter+1] = (yv[icenter-2] + 3.*yv[icenter+2])*.25
     return yv
 # end of flagCenter
 

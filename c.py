@@ -53,7 +53,7 @@ if nargs < 3:
     print "-H <hot load Temperature> Set the effective temperature of the hot load (Kelvins)"
     print "-N Not Calibrate.  This mode is used for tests of raw spectra"
     print "-O <output directory> Set the output directory for saved files"
-    print "-R <Reference Frequency> Rest Frequency (MHz) used for Doppler calculations: %8.3f (MHz)" % (nureference*1.E-6)
+    print "-R <Reference Frequency> Rest Frequency (Hz) used for Doppler calculations: %8.3f (MHz)" % (nureference*1.E-6)
     print "-S Save average spectra in files.  The Hot and Cold Load averages are saved, too."
     print "   Average spectra have -ave added to their names"
     print "   Calibrated spectra have a .kel (for Kelvins) extension"
@@ -113,14 +113,13 @@ while iarg < nargs:
         timearg = timearg+1
         namearg = namearg+1
         thot = float(sys.argv[iarg])
-        print 'Hot Load Temperature: %7.2f K ' % (thot)
+        print 'Hot Load Temperature: %7.2f K ', thot
     elif sys.argv[iarg].upper() == '-R':   # reference frequency (Hz)
         iarg = iarg+1
         timearg = timearg+1
         namearg = namearg+1
-        nuh1 = float(sys.argv[iarg])
-        nureference = nuh1*1.E6
-        print 'Reference Frequency: %8.3f (MHz): ' % (nureference * 1.E-6)
+        nureference = float(sys.argv[iarg])
+        print 'Reference Frequency: %8.3f (MHz): ', nureference * 1.E-6
     elif sys.argv[iarg].upper() == '-T':   # now look for flags with arguments
         iarg = iarg+1
         timearg = timearg+1
