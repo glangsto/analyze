@@ -2,6 +2,7 @@
 Class defining a Radio Frequency Spectrum
 Includes reading and writing ascii files
 HISTORY
+19FEB21 GIL copy data without interpreting
 19JAN16 GIL add Event Reading and Writing
 18MAY20 GIL code cleanup
 18APR18 GIL add NAVE to save complete obsevering setup
@@ -193,7 +194,7 @@ def time2float(instring, hint):
 
 class Spectrum(object):
     """
-    Define a Radio Spectrum class for processing, reading and
+    Define a Radio Spectrum/Event class for processing, reading and
     writing astronomical data.   Also used for Events
     """
     def __init__(self):

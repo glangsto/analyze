@@ -6,10 +6,10 @@
 #
 import matplotlib.pyplot as plt
 import sys
-import statistics
 import radioastronomy
 import interpolate
 import numpy as np
+import os
 
 dy = -1.
 
@@ -23,33 +23,107 @@ xallmax = -9.e9
 xallmin =  9.e9
 yallmax = -9.e9
 yallmin =  9.e9
+# set magic values to identify new inputs
 NOVALUE = -200.
 newEl = NOVALUE
 newAz = NOVALUE
+newLat = NOVALUE
+newLon = NOVALUE
+newNTime = -200
+observer = ""
+note = ""
+telescope = ""
+device = ""
+# flag replacing file
+replace = False
+aFix = False
 
 ifile = 1
 iii = ifile
 
 while iii < nargs:
     anarg = sys.argv[iii].upper()
-    if anarg == "-EL":
+    if str(anarg[0:3]) == "-EL":
         newEl = np.float( sys.argv[iii+1])
         iii = iii + 1
         print "New El: ", newEl
+        aFix = True
         ifile = ifile + 2
-    if anarg == "-AZ":
+    if anarg[0:3] == "-AZ":
         newAz = np.float( sys.argv[iii+1])
         iii = iii + 1
         print "New Az: ", newAz
         ifile = ifile + 2
+        aFix = True
+    if anarg[0:3] == "-LA":
+        newLat = np.float( sys.argv[iii+1])
+        iii = iii + 1
+        print "New Latitude: ", newLat
+        ifile = ifile + 2
+        aFix = True
+    if anarg[0:3] == "-LO":
+        newLon = np.float( sys.argv[iii+1])
+        iii = iii + 1
+        print "New Longitude: ", newLon
+        ifile = ifile + 2
+        aFix = True
+    if anarg == "-NT":
+        newNTime = np.int( sys.argv[iii+1])
+        iii = iii + 1
+        print "New Number of Samples: ", newNTime
+        ifile = ifile + 2
+        aFix = True
+    if anarg[0:3] == "-OB":
+        observer = sys.argv[iii+1]
+        iii = iii + 1
+        print "Observers: ", observer
+        ifile = ifile + 2
+        aFix = True
+    if anarg[0:3] == "-NO":
+        note = sys.argv[iii+1]
+        iii = iii + 1
+        print "Note: ", note
+        ifile = ifile + 2
+        aFix = True
+    if anarg[0:3] == "-TE":
+        telescope = sys.argv[iii+1]
+        iii = iii + 1
+        print "Telescope: ", telescope
+        ifile = ifile + 2
+        aFix = True
+    if anarg[0:3] == "-DE":
+        device = sys.argv[iii+1]
+        iii = iii + 1
+        print "Device: ", device
+        ifile = ifile + 2
+        aFix = True
+    if anarg[0:3] == "-RE":
+        replace = True 
+        print "Replacing original file"
+        ifile = ifile + 1
+        aFix = True
     iii = iii + 1
 
-linelist = [1420.0, 1418.0]  # RFI lines in MHz
-linewidth = [7, 7]
+#print "Afix: ",aFix, iii
+# if nothing to fix, give help
+if aFix == False:
+    print "FIX: Fix observing file parameters"
+    print "Usage: Fix [-el elevation] [-az azimuth]... <file 1> [<file 2>] ... [<file N>]"
+    print "Where optionally the following paramters may be fixed"
+    print " -az Telescope azimuth in degrees"
+    print " -el Telescope elevation in degrees"
+    print " -lat Telescope latitude in degrees"
+    print " -lon Telescope longitude in degrees"
+    print " -obs Observers names (ascii)"
+    print " -tel Telescope name (ascii)"
+    print " -not Note describing observation (ascii)"
+    print " -dev Software Defined Radio used for observation (ascii)"
+    print " -nt  Number of time samples in the observations"
+    print " -re  Replace original file with revised header"
+    exit()
 
-note = "Events"
 nplot = 0
-print "Ifile: ", ifile, "; Nargs: ",nargs
+#print "Ifile: ", ifile, "; Nargs: ",nargs
 nfiles = nargs-ifile
 for iii in range(min(nfiles,25)):
 
@@ -62,41 +136,90 @@ for iii in range(min(nfiles,25)):
         rs.telaz = newAz
     if newEl != NOVALUE:
         rs.telel = newEl
-    rs.azel2radec()    # compute ra,dec from az,el
+    if newLat != NOVALUE:
+        rs.tellat = newLat
+    if newLon != NOVALUE:
+        rs.tellon = newLon
+    if observer != "":
+        rs.observer = observer
+    if device != "":
+        rs.device = device
+    if note != "":
+        rs.noteA = note
+    if telescope != "":
+        rs.site = telescope
+    if newNTime > 0:
+        rs.nTime = newNTime
+
+    rs.azel2radec()    # compute ra,dec from az,el and telescope location
 
 #    print("GAL Lon,Lat: %8.3f, %8.3f"  % (rs.gallon, rs.gallat))
 
 
     parts = filename.split('/')
     nparts = len(parts)
+    # get the file name without directory name
     aname = parts[nparts-1]
+    filepart = aname
+    # if no directory name
+    if nparts == 1:
+        dirname = "./"   # use current directory
+    else:
+        dirname = ""
+        for i in range(nparts-1):
+            dirname = dirname + parts[i] + "/"
+#    print "Directory: ", dirname
+
     parts = aname.split('.')
     aname = parts[0]
     parts = aname.split('T')
     date  = parts[0]
     time  = parts[1]
     time  = time.replace('_',':')
+
+    # if replacing original file
+    if replace:
+        try:
+            os.remove(filename)
+        except:
+            print "Cound not remove file: ",filename
+        outname = filename
+#        print "Replacing file: ", outname
+    else:
+        parts = filepart.split('.')
+        nparts = len(parts)
+        if (nparts == 2):
+            outname = parts[0] + "-fix." + parts[1]
+        elif (nparts == 1):
+            outname = parts[0] + "-fix"
+        else:
+            outname = parts[0] + "-fix." + parts[nparts-1]
+#    print "Output file name: ", outname
+    rs.write_ascii_file( dirname, outname)
     
     gallon = rs.gallon
     gallat = rs.gallat
     label = '%s, AZ,EL: %5s,%5s, Lon,Lat=%5.1f,%5.1f' % ( time,rs.telaz,rs.telel,gallon,gallat)
     xs = rs.xdata 
-    yc = rs.ydataA
+    ya = rs.ydataA
+    yb = rs.ydataB
+
     if rs.nTime < 1:
         print "Not an Event: ",filename
         continue
 
+    # the remainder of this code only plots events.
     xv = np.zeros(rs.nSamples*2)
     yv = np.zeros(rs.nSamples*2)
     j = 0
     dt = 0.5/rs.bandwidthHz
     t = xs[0]
     for i in range(rs.nSamples):
-        yv[j] = yc[i].real
+        yv[j] = ya[i]
         xv[j] = t
         j = j + 1
         t = t + dt
-        yv[j] = yc[i].imag
+        yv[j] = yb[i]
         xv[j] = t
         j = j + 1
         t = t + dt
@@ -108,7 +231,7 @@ for iii in range(min(nfiles,25)):
 
     ymin = min(yv)
     ymax = max(yv)
-    ymed = statistics.median(yv)
+    ymed = (ymin+ymax)/2.
     count = rs.count
 
     print(' Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ymax, ymed, ymax/ymed, count, label))

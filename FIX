@@ -1,1 +1,12 @@
-python ~/bin/fix.py "$@"
+#!/bin/bash
+
+# find the plotting program
+if [ -e fix.py ]
+then
+    python fix.py "$@"
+else
+    if [ -e ~/bin/fix.py ]
+    then
+       python ~/bin/fix.py "$@"
+    fi     
+fi
