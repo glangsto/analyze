@@ -153,7 +153,6 @@ for iii in range(nfiles):
 
     rs.azel2radec()    # compute ra,dec from az,el and telescope location
 
-
     parts = filename.split('/')
     nparts = len(parts)
     # get the file name without directory name
