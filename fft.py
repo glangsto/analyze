@@ -5,9 +5,10 @@
 #
 import matplotlib.pyplot as plt
 import sys
-import statistics
 import radioastronomy
 import interpolate
+from scipy.fftpack import fft
+import numpy as np
 
 dy = -1.
 
@@ -30,6 +31,8 @@ ifile = 1
 iii = ifile
 
 nblock = 128
+note = ""
+# read through arguments extracting parameters
 while iii < nargs:
     anarg = sys.argv[iii].upper()
     if str(anarg[0:3]) == "-BL":
@@ -38,11 +41,21 @@ while iii < nargs:
         print "FFT Block Size: ", nblock
         aFix = True
         ifile = ifile + 2
+    if anarg[0:3] == "-NO":
+        note = sys.argv[iii+1]
+        iii = iii + 1
+        print "Note: ", note
+        ifile = ifile + 2
+        aFix = True
     iii = iii + 1
 
-note = "Events"
+N = nblock                 # abreviation
+ablock = np.zeros(nblock)  # creat array to FFT
+nu = np.zeros(nblock)  # creat frequency array
+ysum = np.zeros((nblock/2)-1)
 nplot = 0
-nfiles = nargs-ifile
+nfiles = nargs-ifile+1
+
 for iii in range(1, min(nfiles,25)):
 
     filename = sys.argv[iii]
@@ -50,6 +63,8 @@ for iii in range(1, min(nfiles,25)):
     rs = radioastronomy.Spectrum()
 #    print filename
     rs.read_spec_ast( filename)
+    if note != "":
+        rs.noteA = note
     rs.azel2radec()    # compute ra,dec from az,el
 
 #    print("GAL Lon,Lat: %8.3f, %8.3f"  % (rs.gallon, rs.gallat))
@@ -90,37 +105,44 @@ for iii in range(1, min(nfiles,25)):
     # will compute several FFTs, discarding any extra samples at end
     nffts = nSamples/nblock
     lll = 0
-    for jjj in range(nffts):
-        for kkk in range(nblock):
-            ablock[kkk] = yv[lll]
-            lll += 1
-
-    xmin = min(xv)
-    xmax = max(xv)
+    # 
+    BW = 1.E-6*rs.bandwidthHz
+    # frequency axis is always the same
+    nu = np.linspace(0.0, BW, nblock/2) + (1.E-6*rs.centerFreqHz)
+    xmin = min(nu)
+    xmax = max(nu)
     xallmin = min(xmin,xallmin)
     xallmax = max(xmax,xallmax)
 
-    ymin = min(yv)
-    ymax = max(yv)
-    ymed = statistics.median(yv)
-    count = rs.count
+    for jjj in range(nffts):
+        # for each block of samples
+        for kkk in range(nblock):
+            ablock[kkk] = yv[lll]
+            lll += 1
+        yf = fft(ablock)
+        xp = nu[1:N//2]
+        yp = 2.0/N*np.abs(yf[1:N//2])
+        ysum = ysum + yp
 
-    print(' Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ymax, ymed, ymax/ymed, count, label))
-    if nplot <= 0:
-        fig,ax1 = plt.subplots(figsize=(10,6))
-        fig.canvas.set_window_title(date)
+        ymin = min(yp)
+        ymax = max(yp)
+
+        print(' Max: %9.2f Min: %9.2f ; %3d %s' % (ymax, ymax, jjj, label))
+        plabel = ("%d" % (jjj))
+        if nplot <= 0:
+            fig,ax1 = plt.subplots(figsize=(10,6))
+            fig.canvas.set_window_title(date)
         nplot = nplot + 1
-    note = rs.noteA
 #    print('%s' % note)
-    yallmin = min(ymin,yallmin)
-    yallmax = max(ymax,yallmax)
-    plt.xlim(xallmin,xallmax)
-#    plt.ylim(0.9*ymin,1.5*yallmax)
-#    plt.ylim(0.9*ymin,1.25*yallmax)
-    plt.ylim(0.,1.25*yallmax)
+        yallmin = min(ymin,yallmin)
+        yallmax = max(ymax,yallmax)
 
-
-    plt.plot(xv, yv, colors[iii-1], linestyle=linestyles[iii-1],label=label)
+        plt.plot(xp, yp, colors[nplot-1], linestyle=linestyles[nplot-1],label=plabel)
+note = rs.noteA
+ysum = ysum / np.float(nffts)
+plt.plot(xp, ysum, colors[0], linestyle=linestyles[0],label="Sum", lw=3)
+plt.xlim(xallmin,xallmax)
+plt.ylim(yallmin,1.25*yallmax)
 plt.title(note)
 plt.xlabel('Frequency (MHz)')
 plt.ylabel('Intensity (Counts)')

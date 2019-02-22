@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# find the plotting program
+if [ -e fft.py ]
+then
+    python fft.py "$@"
+else
+    if [ -e ~/bin/fft.py ]
+    then
+       python ~/bin/fft.py "$@"
+    fi     
+fi
