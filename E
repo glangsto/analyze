@@ -1,1 +1,12 @@
-python ~/bin/e.py "$@"
+#!/bin/bash
+
+# find the plotting program
+if [ -e e.py ]
+then
+    python e.py "$@"
+else
+    if [ -e ~/bin/e.py ]
+    then
+       python ~/bin/e.py "$@"
+    fi     
+fi

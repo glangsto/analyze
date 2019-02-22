@@ -6,9 +6,9 @@
 #
 import matplotlib.pyplot as plt
 import sys
-import statistics
 import radioastronomy
 import interpolate
+import numpy as np
 
 dy = -1.
 
@@ -84,7 +84,7 @@ for iii in range(1, min(nargs,25)):
 
     ymin = min(yv)
     ymax = max(yv)
-    ymed = statistics.median(yv)
+    ymed = (ymin+ymax)*.5
     count = rs.count
 
     print(' Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ymax, ymed, ymax/ymed, count, label))
@@ -99,7 +99,7 @@ for iii in range(1, min(nargs,25)):
     plt.xlim(xallmin,xallmax)
 #    plt.ylim(0.9*ymin,1.5*yallmax)
 #    plt.ylim(0.9*ymin,1.25*yallmax)
-    plt.ylim(0.,1.25*yallmax)
+    plt.ylim(yallmin,1.25*yallmax)
 
 
     plt.plot(xv, yv, colors[iii-1], linestyle=linestyles[iii-1],label=label)

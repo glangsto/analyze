@@ -125,7 +125,7 @@ if aFix == False:
 nplot = 0
 #print "Ifile: ", ifile, "; Nargs: ",nargs
 nfiles = nargs-ifile
-for iii in range(min(nfiles,25)):
+for iii in range(nfiles):
 
     filename = sys.argv[iii+ifile]
 
@@ -152,8 +152,6 @@ for iii in range(min(nfiles,25)):
         rs.nTime = newNTime
 
     rs.azel2radec()    # compute ra,dec from az,el and telescope location
-
-#    print("GAL Lon,Lat: %8.3f, %8.3f"  % (rs.gallon, rs.gallat))
 
 
     parts = filename.split('/')
@@ -196,7 +194,11 @@ for iii in range(min(nfiles,25)):
             outname = parts[0] + "-fix." + parts[nparts-1]
 #    print "Output file name: ", outname
     rs.write_ascii_file( dirname, outname)
-    
+
+# only plot the first few events
+    if nplot > 10:
+        continue
+    nplot = nplot+1
     gallon = rs.gallon
     gallat = rs.gallat
     label = '%s, AZ,EL: %5s,%5s, Lon,Lat=%5.1f,%5.1f' % ( time,rs.telaz,rs.telel,gallon,gallat)
@@ -234,11 +236,12 @@ for iii in range(min(nfiles,25)):
     ymed = (ymin+ymax)/2.
     count = rs.count
 
-    print(' Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ymax, ymed, ymax/ymed, count, label))
     if nplot <= 0:
         fig,ax1 = plt.subplots(figsize=(10,6))
         fig.canvas.set_window_title(date)
         nplot = nplot + 1
+
+    print(' Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ymax, ymed, ymax/ymed, count, label))
     note = rs.noteA
 #    print('%s' % note)
     yallmin = min(ymin,yallmin)
@@ -248,8 +251,8 @@ for iii in range(min(nfiles,25)):
 #    plt.ylim(0.9*ymin,1.25*yallmax)
     plt.ylim(yallmin,1.25*yallmax)
 
-
-    plt.plot(xv, yv, colors[iii-1], linestyle=linestyles[iii-1],label=label)
+    plt.plot(xv, yv, colors[nplot], linestyle=linestyles[nplot],label=label)
+# put labels on plot
 plt.title(note)
 plt.xlabel('Time (s)')
 plt.ylabel('Intensity (Counts)')
