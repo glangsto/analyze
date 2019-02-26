@@ -18,6 +18,9 @@ http://opensourceradiotelescopes.org/wk
 * R     - Function to call r.py, which plots raw spectra
 * T     - Function to plot Calibrated Observations.   Requires both sky observations and a _hot load_ observation of the ground.
 * M     - Function to plot Calibrated Observations with baseline subtracted in a frequency expected to be free of neutral hydrogen emission.
+* FIX   - Fix parameters in the observing file that we incorrect (like telescope elevation).  Running without arguments provides help.
+* E     - Function to plot Event time series.
+* FFT   - Function to plot the FFTs of Event time series.  This function also counts events in time ranges.
 
 ### Python:
 
@@ -171,4 +174,8 @@ Where:
  -- Glen Langston (glangsto@nsf.gov), 2018 December 11
 ```
 
-Glen Langston, National Science Foundation (GIL - 2018 December 12)
+## Events
+
+The Event processing programs
+
+Glen Langston, National Science Foundation (GIL - 2018 February 26)
