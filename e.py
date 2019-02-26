@@ -57,7 +57,8 @@ for iii in range(1, min(nargs,25)):
     gallat = rs.gallat
     label = '%s, AZ,EL: %5s,%5s, Lon,Lat=%5.1f,%5.1f' % ( time,rs.telaz,rs.telel,gallon,gallat)
     xs = rs.xdata 
-    yc = rs.ydataA
+    ya = rs.ydataA
+    yb = rs.ydataB
     if rs.nTime < 1:
         print "Not an Event: ",filename
         continue
@@ -68,11 +69,11 @@ for iii in range(1, min(nargs,25)):
     dt = 0.5/rs.bandwidthHz
     t = xs[0]
     for i in range(rs.nSamples):
-        yv[j] = yc[i].real
+        yv[j] = ya[i]
         xv[j] = t
         j = j + 1
         t = t + dt
-        yv[j] = yc[i].imag
+        yv[j] = yb[i]
         xv[j] = t
         j = j + 1
         t = t + dt

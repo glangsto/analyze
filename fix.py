@@ -29,6 +29,8 @@ newEl = NOVALUE
 newAz = NOVALUE
 newLat = NOVALUE
 newLon = NOVALUE
+newCen = NOVALUE
+newBan = NOVALUE
 newNTime = -200
 observer = ""
 note = ""
@@ -97,6 +99,18 @@ while iii < nargs:
         print "Device: ", device
         ifile = ifile + 2
         aFix = True
+    if anarg[0:3] == "-CE":
+        newCen = np.float(sys.argv[iii+1])
+        iii = iii + 1
+        print "Center Frequency: ", newCen, " (MHz)"
+        ifile = ifile + 2
+        aFix = True
+    if anarg[0:3] == "-BA":
+        newBan = np.float(sys.argv[iii+1])
+        iii = iii + 1
+        print "Bandwidth ", newBan, " (MHz)"
+        ifile = ifile + 2
+        aFix = True
     if anarg[0:3] == "-RE":
         replace = True 
         print "Replacing original file"
@@ -114,6 +128,8 @@ if aFix == False:
     print " -el Telescope elevation in degrees"
     print " -lat Telescope latitude in degrees"
     print " -lon Telescope longitude in degrees"
+    print " -cen Center Frequency (MHz)"
+    print " -ban Bandwidth (MHz)"
     print " -obs Observers names (ascii)"
     print " -tel Telescope name (ascii)"
     print " -not Note describing observation (ascii)"
@@ -123,7 +139,6 @@ if aFix == False:
     exit()
 
 nplot = 0
-#print "Ifile: ", ifile, "; Nargs: ",nargs
 nfiles = nargs-ifile
 for iii in range(nfiles):
 
@@ -150,6 +165,10 @@ for iii in range(nfiles):
         rs.site = telescope
     if newNTime > 0:
         rs.nTime = newNTime
+    if newBan > 0:
+        rs.bandwidthHz = newBan * 1.E6
+    if newCen > 0:
+        rs.centerFreqHz = newCen * 1.E6
 
     rs.azel2radec()    # compute ra,dec from az,el and telescope location
 
