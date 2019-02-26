@@ -182,9 +182,23 @@ alt="Peak Event in 24 hour observation on February 17, 2019" align="right"></a>
 
 There two Event processing programs
 * E - Overplot a series of Events
-**  To generate the plot at right, type E events/19-02-17T135825.eve
+**  To generate the plot at right, type:
+```
+E events/19-02-17T135825.eve
+```
+
 * FFT - To Count events and FFT event time series to search for RFI in the observations.
 ** I've not yet seen RFI in the observations, mostly just very short term flashes < 1 microsecond in duration.
+** To look at all event near the time of the Crab Pulsar in the telescope beam on February 17, 2019 type:
+```
+FFT -si 6.0 -nd 48 -kp 80000. -no "19-FEB-17 Crab Events >6 sigma" ../events/19-02-17T01[01]*.eve
+```
+Where many FFT arguments are used. These are:
+* -sigma number of sigma to count as an event.
+* -nd number of parts in a day  (48 means count events every half hour
+* -kp kelvinspercount Convert the counts in to Kelvin units
+* -note "Note describing the Observations"  for plot title
+* List of files to examine.
 
 
 Glen Langston, National Science Foundation (GIL - 2018 February 26)
