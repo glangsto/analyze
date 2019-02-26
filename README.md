@@ -200,5 +200,13 @@ Where many FFT arguments are used. These are:
 * -note "Note describing the Observations"  for plot title
 * List of files to examine.
 
-
+<a href="images/EventCaptureCenteredOnCrab.png"> <img src="images/EventCaptureCenteredOnCrab.png" width=200 
+alt="Summary of Crab Observations" align="right"></a>
+The neutral hydrogen in the galactic plan is seen in these observations,  (only about 1/30 of a second averaging).
+<a href="images/EventCaptureCenteredOnHI.png"> <img src="images/EventCaptureCenteredOnHI.png" width=200 
+alt="Neutral Hydrogen is visible in FFT of Samples" align="right"></a>
+The counts per hour for the end of February 16, all of February 17 and the beginning of February 18 are
+shown in the plot below. Only events detected with signficance greater than 6 sigma are counted:
+<a href="images/EventCapture6Sigma-Compare_16+17+18.png"> <img src="images/EventCapture6Sigma-Compare_16+17+18.png" width=200 
+alt="Neutral Hydrogen is visible in FFT of Samples" align="right"></a>
 Glen Langston, National Science Foundation (GIL - 2018 February 26)
