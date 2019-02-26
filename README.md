@@ -180,6 +180,11 @@ The telescopes may be used to detect radio flash events as well as time-average 
 <a href="images/PeakEvent19Feb17.png"> <img src="images/PeakEvent19Feb17.png" width=200 
 alt="Peak Event in 24 hour observation on February 17, 2019" align="right"></a>
 
-The Event processing programs
+There two Event processing programs
+* E - Overplot a series of Events
+**  To generate the plot at right, type E events/19-02-17T135825.eve
+* FFT - To Count events and FFT event time series to search for RFI in the observations.
+** I've not yet seen RFI in the observations, mostly just very short term flashes < 1 microsecond in duration.
+
 
 Glen Langston, National Science Foundation (GIL - 2018 February 26)
