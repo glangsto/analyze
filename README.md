@@ -187,9 +187,8 @@ There two Event processing programs
 E events/19-02-17T135825.eve
 ```
 
-* FFT - To Count events and FFT event time series to search for RFI in the observations.
-** I've not yet seen RFI in the observations, mostly just very short term flashes < 1 microsecond in duration.
-** To look at all event near the time of the Crab Pulsar in the telescope beam on February 17, 2019 type:
+* FFT - To Count events and FFT event time series to search for RFI in the observations. I've not yet seen RFI in the observations, mostly just very short term flashes, < 1 microsecond in duration.
+To summarize all events near the time of the Crab Pulsar in the telescope beam on February 17, 2019 type:
 ```
 FFT -si 6.0 -nd 48 -kp 80000. -no "19-FEB-17 Crab Events >6 sigma" ../events/19-02-17T01[01]*.eve
 ```
