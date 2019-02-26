@@ -6,6 +6,8 @@ alt="Horn, Nathaniel and Regina" align="right"></a>
 You can use these python programs to view, and understand, observations of our Milky Way galaxy. These observations were made using home-built radio telescopes. These plotting programs expect ascii input spectra in a number of files.  Each file has 
 extensive headers describing the observations.
 
+This hub contains python code to analyse Radio Astronomy _Spectra_ and _Event_ observations. The spectral analysis programs are described first, followed by the event detection analysis.
+
 Instructions on building your own telescope is found on the website wiki:
 http://opensourceradiotelescopes.org/wk
 
@@ -14,6 +16,8 @@ http://opensourceradiotelescopes.org/wk
 * S     - Summarize a set of observations.  Function calls s.py
 * C     - _Main_ program which calibrates, averages, flags and plots sets of spectra
 * R     - Function to call r.py, which plots raw spectra
+* T     - Function to plot Calibrated Observations.   Requires both sky observations and a _hot load_ observation of the ground.
+* M     - Function to plot Calibrated Observations with baseline subtracted in a frequency expected to be free of neutral hydrogen emission.
 
 ### Python:
 
@@ -32,10 +36,12 @@ export PATH=~/bin:$PATH
 * '*.hot' - Calibration requires observations of the ground with assumed temperature of 285 K
 * '*.kel' - Calibrated, average observations have extensions based on units.  _kel_ means Kelvins.
 <a href="http://www.opensourceradiotelesopes/wk/"> <img src="images/LW15-Figure1.png" width=300 alt="http://www.gb.nrao.edu/~glangsto/LightWorkMemo015-2.pdf" align="right"></a>
+* '*.eve' - Raw time series samples of events.  The I/Q samples are recorded separately, but I and Q samples alternate in time.
 
 ### Directories:
 * data      - Selection of data for testing plotting functions.  Small selections of 5 days of observations are provided in the _data_ directory to allow user testing.
 * images    - Directory containing images for documenting the useage
+* events    - Directory of observations of detected events.
 
 These plotting programs work with spectra created using any of the GnuRadio NsfIntegrate??.grc designs.
 The data taking designs were created using the Gnu Radio Companion (GRC) tool.   The programs provided here
