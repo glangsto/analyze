@@ -1,6 +1,7 @@
 #Python Script to plot the fourier transform of blocks of raw NSF events 
 #plot the FFT of raw data from an event
 #HISTORY
+#19FEB27 GIL reduce printout if only a few hour ranges have data
 #19FEB25 GIL compute average locations
 #19FEB21 GIL initial version
 #
@@ -89,6 +90,18 @@ nplot = 0
 nfiles = nargs-ifile
 
 print "Number of Files:                ",nfiles
+if nfiles < 1:
+    print "FFT: Fourier Transform and sum a time series of events"
+    print "Usage: FFT [-bl <n samples>] [-sigma <n sigma>] [-nd <n day parts>] [-kp <kelvins per count>] [-note <note for plot title>] <file 1> [<file 2>] ... [<file N>]"
+    print "Where optionally the following paramters may be applied"
+    print " -bl <n samples>     - Number of samples to FFT to produce a spectra (power of 2"
+    print " -sigma <n sigma>    - Number of sigma of a sample to declare an event"
+    print " -kpercount <factor> - Gain factor to convert counts to Kelvin"
+    print "   Estimate by an assumed system temperature for the band pass"
+    print "   And running FFT without this factor to get the value in counts"
+    print " -note <text>        - Note for the top of the plot"
+    exit()
+    
 print "First File     :                ",sys.argv[ifile]
 
 maxMagnitude = 0.
@@ -144,8 +157,11 @@ for iii in range(nfiles):
         j = j + 1
         t = t + dt
 
+    # compute magnitude of I/Q samples with vector math
     ymag = np.absolute(yc)
+    # now find the maximum event in data series
     ymagmax = max(ymag)
+    # compute RMS of entire time series
     yrms = np.sqrt(yv.dot(yv)/yv.size)
     # if a valid, noisy observation
     if yrms > 0. :
@@ -256,9 +272,8 @@ for kkk in range(nchan):
 
 yp2 = kpercount * yp2
 
-# finally plot the sum of all spectra; show band pass accuracy 
 plabel = "Sum of %5d" % nsum
-           
+# finally plot the sum of all spectra; show band pass accuracy 
 plt.plot(xp, yp2, colors[0], linestyle=linestyles[0],label=plabel, lw=2)
 #print 'XP: ', xp
 #print 'YP: ', yp
@@ -274,7 +289,6 @@ print "Event G Lon        :   %6.2f d  Lat %6.2f d" % (maxEvent.gallon, maxEvent
 # event is in the middle of the data samples
 xv = np.zeros(maxEvent.nSamples*2)
 yv = np.zeros(maxEvent.nSamples*2)
-yc = np.zeros(maxEvent.nSamples,dtype=np.complex)
 ymag = np.zeros(maxEvent.nSamples)
 nSamples = 2L * maxEvent.nSamples
 j = 0
@@ -282,7 +296,6 @@ dt = 0.5/maxEvent.bandwidthHz
 t = xs[0]
 for i in range(maxEvent.nSamples):
     yv[j] = maxEvent.ydataA[i]
-    yc[i] = maxEvent.ydataA[i] + 1j*maxEvent.ydataB[i]
     xv[j] = t
     j = j + 1
     t = t + dt
@@ -316,7 +329,7 @@ datetime = "%s" % ( maxEvent.utc)
 parts = datetime.split('.')
 date = parts[0]
 
-# finally plot the sum of all spectra; show band pass accuracy            
+# finally plot the FFT of the event
 plt.plot(xp, yp2, colors[8], linestyle=linestyles[8],label="Event "+date, lw=3)
 
 plt.xlim(xallmin,xallmax)
@@ -334,10 +347,14 @@ plt.show()
 # now summarize events per iday hour of observation
 
 ntotal = 0
+nhours = 0
 for iday in range(nday):
     ntotal += np.float(eventCounts[iday])
+    if eventCounts[iday] > 0:
+        nhours += 1
+        
 print ""
-print "# Total Event Count: ", ntotal
+print "# Total Event  Count:  ", ntotal
 print "# Hours Event  G Lon   G Lat    Ra      Dec"
 print "# (Utc) Count   (d)     (d)     (h)     (d)"
 for iday in range(nday):
@@ -348,4 +365,5 @@ for iday in range(nday):
         eventAveDec[iday] = eventAveDec[iday]/np.float(eventCounts[iday])
         print "%6.3f %5d %7.2f %7.2f %7.2f %7.2f" % ( iday*24./nday, eventCounts[iday], eventAveGLon[iday], eventAveGLat[iday], eventAveRa[iday]/15., eventAveDec[iday])
     else:
-        print "%6.3f %5d     0       0       0       0 " % ( iday*24./nday, eventCounts[iday])
+        if nhours > 5:  # if several hours have data, print zeros to simpiify plotting
+            print "%6.3f %5d     0       0       0       0 " % ( iday*24./nday, eventCounts[iday])
