@@ -31,6 +31,7 @@ newLat = NOVALUE
 newLon = NOVALUE
 newCen = NOVALUE
 newBan = NOVALUE
+newRefSample = NOVALUE
 newNTime = -200
 observer = ""
 note = ""
@@ -111,6 +112,12 @@ while iii < nargs:
         print "Bandwidth ", newBan, " (MHz)"
         ifile = ifile + 2
         aFix = True
+    if anarg[0:3] == "-RS":
+        newRefSample = np.float(sys.argv[iii+1])
+        iii = iii + 1
+        print "Reference Sample ", refSample, " "
+        ifile = ifile + 2
+        aFix = True
     if anarg[0:3] == "-RE":
         replace = True 
         print "Replacing original file"
@@ -135,6 +142,7 @@ if aFix == False:
     print " -not Note describing observation (ascii)"
     print " -dev Software Defined Radio used for observation (ascii)"
     print " -nt  Number of time samples in the observations"
+    print " -rs  Index of the Reference Time Sample"
     print " -re  Replace original file with revised header"
     exit()
 
@@ -169,6 +177,8 @@ for iii in range(nfiles):
         rs.bandwidthHz = newBan * 1.E6
     if newCen > 0:
         rs.centerFreqHz = newCen * 1.E6
+    if newRefSample != NOVALUE:
+        rs.refSample = newRefSample
 
     rs.azel2radec()    # compute ra,dec from az,el and telescope location
 

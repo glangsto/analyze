@@ -883,11 +883,13 @@ class Spectrum(object):
             self.nSamples = len(self.ydataA)                
             self.nChan = self.nSamples
             if nparts == 2:                  # if time not with sample
-                dt = 1./self.bandwidthHz     # compute time per sample
+                dt = 1./(self.bandwidthHz)     # compute time per sample
                 t = -dt * self.refSample     # time tag relative to reference sample
+                if verbose:
+                    print "Time Offset of First Sample (%d): %15.9f (s)" % ( self.refSample, t)
                 self.xdata = np.zeros(self.nSamples)
                 for iii in range( self.nSamples):
-                    self.xdata[0] = t
+                    self.xdata[iii] = t
                     t += dt
         return #end of read_spec_ascii
 

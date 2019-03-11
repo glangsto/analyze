@@ -2,6 +2,7 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#19MAR11 GIL fix plot axies
 #19JAN16 GIL initial version
 #
 import matplotlib.pyplot as plt
@@ -68,6 +69,8 @@ for iii in range(1, min(nargs,25)):
     j = 0
     dt = 0.5/rs.bandwidthHz
     t = xs[0]
+    if iii == -1:  # no op
+        print "First Time %12.9f (s); Delta T = %12.9f (s)" % (t, dt)
     for i in range(rs.nSamples):
         yv[j] = ya[i]
         xv[j] = t
@@ -105,7 +108,7 @@ for iii in range(1, min(nargs,25)):
 
     plt.plot(xv, yv, colors[iii-1], linestyle=linestyles[iii-1],label=label)
 plt.title(note)
-plt.xlabel('Frequency (MHz)')
+plt.xlabel('Time Offset From Event (s)')
 plt.ylabel('Intensity (Counts)')
 plt.legend(loc='upper right')
 plt.show()
