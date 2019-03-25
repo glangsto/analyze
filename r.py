@@ -10,7 +10,7 @@
 #
 import matplotlib.pyplot as plt
 import sys
-import statistics
+import numpy as np
 import radioastronomy
 import interpolate
 
@@ -142,7 +142,7 @@ for iii in range(1, min(nargs,25)):
     yv = rs.ydataA
 
     # The latest versions of the software had a different normalization
-    ymedian = statistics.median(yv[n6:n56])
+    ymedian = np.median(yv[n6:n56])
     # if the latest software, the scale factor is just 1.
     if ymedian > .001:
         scalefactor = 1.0
@@ -157,7 +157,7 @@ for iii in range(1, min(nargs,25)):
 
     ymin = min(yv)
     ymax = max(yv)
-    ymed = statistics.median(yv)
+    ymed = np.median(yv)
     count = rs.count
 
     print(' Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ymax, ymed, ymax/ymed, count, label))

@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys
 import datetime
-import statistics
 import radioastronomy
 import hotcold
 import copy
@@ -16,6 +15,7 @@ import interpolate
 # some SDRs put spike in center of spectrum; indicate spike flagging here
 flagCenter = False # flag interpolate over spike in center of spectrum
 doDebug = False   # flag printing debug info
+doDebug =True     # flag printing debug info
 doSave = False    # flag saving intermediate files
 flagRfi = True    # flag flagging RFI
 doFold = False    # fold spectra to address an old issue; not normally used.
@@ -214,12 +214,18 @@ else:
     print "No Hot Load observations, can not calibrate"
     exit()
 
-xv = hot.xdata * 1.E-6
-yv = copy.deepcopy( hot.ydataA)
+nChan = hot.nChan
+nData = nChan
+xv = hot.xdata[0:nChan] * 1.E-6
+yv = copy.deepcopy( hot.ydataA[0:nChan])
 if doDebug: 
-    print 'Hot x,y[300]:',xv[300],yv[300],'; [700]: ',xv[700],yv[700]
+    na = int(nChan/16)
+    nb = int(15*nChan/16)
+    print ''
+    print 'Hot x,y[%4d]: %7.3f, %7.3f' % (na, xv[na], yv[na])
+    print 'Hot x,y[%4d]: %7.3f, %7.3f' % (nb, xv[nb], yv[nb])
+    print 'N Chan: ', nChan, len(xv)
 
-nData = len(xv)
 # if flagging RFI
 if flagRfi:
     hv = interpolate.lines( linelist, linewidth, xv, yv) # interpolate rfi
@@ -251,6 +257,9 @@ xa = int(chanbaseline[0])
 xb = int(chanbaseline[1])
 
 if doDebug: 
+    print ''
+    print 'velocity range: ',velbaseline
+    print 'channel  range: ', chanbaseline
     print 'Min Vel at channel: ',xa, minvel
     print 'Max Vel at channel: ',xb, maxvel
                                    
@@ -267,6 +276,12 @@ if xb > nData -  21:
     xb = nData - 21
 elif xb < 11:
     xb = 11
+
+if xa == xb:
+    xa = xb - 1
+xa = int(xa)
+xb = int(xb)
+
 
 ncold, cold, minel, maxel  = hotcold.coldaverage( coldnames)  # compute cold load average
 if ncold < 1.:
@@ -316,8 +331,8 @@ if doDebug:
 if not doCalibrate: # if not calibrating, show hot and cold spectra
     tsky = copy.deepcopy(hv)
     if doSub:
-        ya = statistics.median(tsky[(xa-10):(xa+10)])
-        yb = statistics.median(tsky[(xb-10):(xb+10)])
+        ya = np.median(tsky[(xa-10):(xa+10)])
+        yb = np.median(tsky[(xb-10):(xb+10)])
         slope = (yb-ya)/(xb-xa)
         for iii in range( nData):
             tsky[iii] = tsky[iii] - (ya + (slope*(iii-xa)))
@@ -329,8 +344,8 @@ if not doCalibrate: # if not calibrating, show hot and cold spectra
 
     tsky = copy.deepcopy(cv)
     if doSub:
-        ya = statistics.median(tsky[(xa-10):(xa+10)])
-        yb = statistics.median(tsky[(xb-10):(xb+10)])
+        ya = np.median(tsky[(xa-10):(xa+10)])
+        yb = np.median(tsky[(xb-10):(xb+10)])
         slope = (yb-ya)/(xb-xa)
         for iii in range( nData):
             tsky[iii] = tsky[iii] - (ya + (slope*(iii-xa)))
@@ -463,14 +478,16 @@ for filename in plotnames:
             cold.ydataA = tsky
 
             if doSub:
-                ya = statistics.median(tsky[(xa-10):(xa+10)])
-                yb = statistics.median(tsky[(xb-10):(xb+10)])
+                ya = np.median(tsky[(xa-10):(xa+10)])
+                yb = np.median(tsky[(xb-10):(xb+10)])
                 slope = (yb-ya)/(xb-xa)
                 for iii in range( nData):
                     tsky[iii] = tsky[iii] - (ya + (slope*(iii-xa)))
                 cold.ydataA = tsky
 
-            ymed = statistics.median(tsky[(nData/4):(3*nData/4)])
+            ymed = np.median(tsky[(nData/4):(3*nData/4)])
+            if doDebug:
+                print 'xa,xb: ',xa,xb
             ymin = min(tsky[xa:xb])
             ymax = max(tsky[xa:xb])
             yallmin = min(ymin,yallmin)
@@ -548,14 +565,14 @@ if ncold > 1:
         tsky = yv
 
     if doSub:
-        ya = statistics.median(tsky[(xa-10):(xa+10)])
-        yb = statistics.median(tsky[(xb-10):(xb+10)])
+        ya = np.median(tsky[(xa-10):(xa+10)])
+        yb = np.median(tsky[(xb-10):(xb+10)])
         slope = (yb-ya)/(xb-xa)
         for iii in range( nData):
             tsky[iii] = tsky[iii] - (ya + (slope*(iii-xa)))
     cold.yDataA = tsky
 
-    ymed = statistics.median(tsky)
+    ymed = np.median(tsky)
 
     ymin = min(tsky[xa:xb])
     ymax = max(tsky[xa:xb])

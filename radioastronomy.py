@@ -2,6 +2,7 @@
 Class defining a Radio Frequency Spectrum
 Includes reading and writing ascii files
 HISTORY
+19MAR25 GIL remove duplicate __init__
 19FEB21 GIL copy data without interpreting
 19JAN16 GIL add Event Reading and Writing
 18DEC11 GIL add channel to freq or velocity functions
@@ -34,7 +35,7 @@ except ImportError:
     print ''
     exit()
 
-MAXCHAN = 1024
+MAXCHAN = 4096
 OBSSURVEY = 0
 OBSHOT = 1
 OBSCOLD = 2
@@ -61,10 +62,59 @@ clight = 299792458. # speed of light in m/sec
 TIMEPARTS = 2   # define time axis of an event; only I and Q 
 #TIMEPARTS = 4  # defien time axis of an event; N Time I and Q
 
-### average two utcs using the strange steps required by datetime
-def aveutcs(utc1, utc2):
+def degree2float(instring, hint):
     """
-    Ave Utcs takes as input two utc times and returns the average of these utcs
+    degree2float() takes an input angle string in "dd:MM:ss.sss" format or dd.dd
+    and returns a floating point value in degrees
+    """
+    outfloat = 0.0
+    parts = instring.split(':')
+    if len(parts) == 1:  # if only one part, then degrees
+        outfloat = float(instring)
+    elif len(parts) == 3:  # if three parts, then dd:mm:ss
+        anangle = angles.DeltaAngle(instring)
+        outfloat = anangle.d
+    else:
+        print "%s format error: %s, zero returned " % (hint, instring)
+    return outfloat
+
+def hour2float(instring, hint):
+    """
+    hour2float() takes an input hours string in "hh:MM:ss.sss" format or hh.hhh
+    and returns a floating point value in degrees
+    """
+    outfloat = 0.0
+    parts = instring.split(':')
+    if len(parts) == 1:  # if only one part, then degrees
+        outfloat = float(instring)
+    elif len(parts) == 3:  # if three parts, then dd:mm:ss
+        anangle = angles.AlphaAngle(instring)
+        outfloat = anangle.d
+    else:
+        print "%s format error: %s, zero returned " % (hint, instring)
+    return outfloat
+
+def time2float(instring, hint):
+    """
+    time2float() takes an input time string in "hh:MM:ss.sss" or ss.sss format
+    and returns a floating point time value in seconds
+    """
+    outfloat = 0.0
+    parts = instring.split(':')
+    if len(parts) == 1:  # if only one part, then degrees
+        outfloat = float(instring)
+    elif len(parts) == 3:  # if three parts, then dd:mm:ss
+        atime = angles.AlphaAngle(instring)
+        outfloat = atime.h*3600.
+    else:
+        print "%s format error: %s, zero returned " % (hint, instring)
+    return outfloat
+
+
+### average two utcs using the strange steps required by datetime
+def aveutcs( utc1, utc2):
+    """
+    Ave Utcs takes as input two utc time and returns the average of these utcs
     Input and output 1st output are in datetime format.  The second output
     is the time interval between start and stop in seconds
     Glen Langston, 2018 April 20
@@ -80,7 +130,7 @@ def aveutcs(utc1, utc2):
     duration = dt.total_seconds()
     dt2 = dt/2
     # compute the average time of obs
-    utcout = utc1 + dt2
+    utcout  = utc1 + dt2
     return (utcout, duration)
 
 ###
@@ -90,64 +140,64 @@ def aveutcs(utc1, utc2):
 def iplatlon():
     """
     iplatlon() uses the ip address to get the latitude and longitude
-    The latitude and longitude are only rough, but usually
+    The latitude and longitude are only rough, but usually 
     better han 100 km accuracy.  This is good enough for small antennas.
     """
     # default values for Green Bank, WV
-    city = 'Green Bank'
-    region = 'West Virginia'
-    country = 'USA'
-    lon = float(-79.8)
-    lat = float(+38.4)
+    City = 'Green Bank'
+    Region = 'West Virginia'
+    Country = 'USA'
+    lon = float( -79.8)
+    lat = float( +38.4)
     try:
         import re
         import json
         from urllib2 import urlopen
-    except ImportError:
+    except:
         print 'Can not find Python code for:'
         print 'import re'
         print 'import json'
         print 'from urllib2 import urlopen'
         # returning Green bank
-        return city, region, country, lat, lon
+        return City, Region, Country, lat, lon
 
     try:
         data = str(urlopen('http://checkip.dyndns.com/').read())
     except:
         print 'Can not open internet access to get Location'
         # returning Green bank
-        return city, region, country, lat, lon
+        return City, Region, Country, lat, lon
 
     try:
         IP = re.compile(r'(\d+.\d+.\d+.\d+)').search(data).group(1)
     except:
         print 'Can not parse ip string'
-        return city, region, country, lat, lon
+        return City, Region, Country, lat, lon
     try:
         url = 'http://ipinfo.io/' + IP + '/json'
         response = urlopen(url)
         data = json.load(response)
     except:
         print 'Can not get ip location from internet'
-        return city, region, country, lat, lon
+        return City, Region, Country, lat, lon
 
-    org = data['org']
-    city = data['city']
-    country = data['country']
-    region = data['region']
+    org=data['org']
+    City = data['city']
+    Country=data['country']
+    Region=data['region']
 
     loc = data['loc']
     locs = loc.split(',')
-    lat = float(locs[0])
-    lon = float(locs[1])
+    lat = float( locs[0])
+    lon = float( locs[1])
 
     print '\nYour IP details: '
     print 'IP       : {0} '.format(IP)
-    print 'Region   : {0}; Country : {1}'.format(region, country)
-    print 'City     : {0}'.format(city)
+    print 'Region   : {0}; Country : {1}'.format(Region, Country)
+    print 'City     : {0}'.format(City)
     print 'Org      : {0}'.format(org)
-    print 'Latitude : ', lat, ';  Longitude: ', lon
-    return city, region, country, lat, lon
+    print 'Latitude : ',lat,';  Longitude: ',lon
+    return City, Region, Country, lat, lon
 
 def degree2float(instring, hint):
     """
@@ -297,299 +347,6 @@ class Spectrum(object):
         Compute the ra,dec (J2000) from Az,El location and time
         """
         rads = np.pi / 180.
-        radec2000 = ephem.Equatorial(rads*self.ra, rads*self.dec, epoch=ephem.J2000)
-        # to convert to dec degrees need to replace on : with d
-        self.epoch = "2000"
-        gal = ephem.Galactic(radec2000)
-        aparts = angles.phmsdms(str(gal.lon))
-        self.gallon = angles.sexa2deci(aparts['sign'], *aparts['vals'])
-        aparts = angles.phmsdms(str(gal.lat))
-        self.gallat = angles.sexa2deci(aparts['sign'], *aparts['vals'])
-
-"""
-Class defining a Radio Frequency Spectrum
-Includes reading and writing ascii files
-HISTORY
-18DEC11 GIL add channel to freq or velocity functions
-18APR18 GIL add NAVE to save complete obsevering setup
-18MAR10 GIL add labels for different integration types
-18APR01 GIL add labels for different observing types
-18MAR28 GIL merge in iplatlon with gnuradio companion upates
-18MAR05 GIL add device parameter
-18JAN25 GIL add all info included in the notes (.not) file
-16JAN01 GIL initial version
-"""
-
-##################################################
-# Imports
-##################################################
-import datetime
-import numpy
-import copy
-import angles
-try:
-    import ephem
-except ImportError:
-    print 'Ephemerous Python Code needed!'
-    print 'In Linux type:'
-    print '       sudo apt-get install python-dev'
-    print '       sudo apt-get install python-pip'
-    print '       sudo pip install pyephem'
-    print ''
-    exit()
-
-MAXCHAN = 1024
-OBSSURVEY = 0
-OBSHOT = 1
-OBSCOLD = 2
-OBSREF = 3
-NOBSTYPES = 4
-obstypes = [ OBSSURVEY, OBSHOT, OBSCOLD, OBSREF]
-obslabels = [ 'SURVEY', 'HOT', 'COLD', 'REFERENCE' ]
-# flags for recording state (either wait or record)
-INTWAIT = 0
-INTRECORD = 1
-INTSAVE = 2
-NINTTYPES = 3
-intlabels = [ 'WAIT', 'RECORD', 'SAVE']
-# Units for calibration
-UNITCOUNTS = 0
-UNITDB = 1
-UNITKELVIN = 2
-UNITJANSKY = 3
-NUNITTYPES = 4
-units = [ UNITCOUNTS, UNITDB, UNITKELVIN, UNITJANSKY]
-unitlabels = [ 'Counts', 'Power (dB)', 'Kelvin', 'Jansky']
-clight = 299792458. # speed of light in m/sec
-
-### average two utcs using the strange steps required by datetime
-def aveutcs( utc1, utc2):
-    """
-    Ave Utcs takes as input two utc time and returns the average of these utcs
-    Input and output 1st output are in datetime format.  The second output
-    is the time interval between start and stop in seconds
-    Glen Langston, 2018 April 20
-    """
-
-    # expecting utc1 before utc2, check and swap if necessary
-    if utc1 > utc2:
-        temp = utc1
-        utc1 = utc2
-        utc2 = temp
-
-    dt = utc2 - utc1
-    duration = dt.total_seconds()
-    dt2 = dt/2
-    # compute the average time of obs
-    utcout  = utc1 + dt2
-    return (utcout, duration)
-
-###
-### iplatlon() is not a part of the class so that it is not required.
-### These values may be manually entered into the notes file
-###
-def iplatlon():
-    """
-    iplatlon() uses the ip address to get the latitude and longitude
-    The latitude and longitude are only rough, but usually 
-    better han 100 km accuracy.  This is good enough for small antennas.
-    """
-    # default values for Green Bank, WV
-    City = 'Green Bank'
-    Region = 'West Virginia'
-    Country = 'USA'
-    lon = float( -79.8)
-    lat = float( +38.4)
-    try:
-        import re
-        import json
-        from urllib2 import urlopen
-    except:
-        print 'Can not find Python code for:'
-        print 'import re'
-        print 'import json'
-        print 'from urllib2 import urlopen'
-        # returning Green bank
-        return City, Region, Country, lat, lon
-
-    try:
-        data = str(urlopen('http://checkip.dyndns.com/').read())
-    except:
-        print 'Can not open internet access to get Location'
-        # returning Green bank
-        return City, Region, Country, lat, lon
-
-    try:
-        IP = re.compile(r'(\d+.\d+.\d+.\d+)').search(data).group(1)
-    except:
-        print 'Can not parse ip string'
-        return City, Region, Country, lat, lon
-    try:
-        url = 'http://ipinfo.io/' + IP + '/json'
-        response = urlopen(url)
-        data = json.load(response)
-    except:
-        print 'Can not get ip location from internet'
-        return City, Region, Country, lat, lon
-
-    org=data['org']
-    City = data['city']
-    Country=data['country']
-    Region=data['region']
-
-    loc = data['loc']
-    locs = loc.split(',')
-    lat = float( locs[0])
-    lon = float( locs[1])
-
-    print '\nYour IP details: '
-    print 'IP       : {0} '.format(IP)
-    print 'Region   : {0}; Country : {1}'.format(Region, Country)
-    print 'City     : {0}'.format(City)
-    print 'Org      : {0}'.format(org)
-    print 'Latitude : ',lat,';  Longitude: ',lon
-    return City, Region, Country, lat, lon
-
-def degree2float(instring, hint):
-    """
-    degree2float() takes an input angle string in "dd:MM:ss.sss" format or dd.dd
-    and returns a floating point value in degrees
-    """
-    outfloat = 0.0
-    parts = instring.split(':')
-    if len(parts) == 1:  # if only one part, then degrees
-        outfloat = float(instring)
-    elif len(parts) == 3:  # if three parts, then dd:mm:ss
-        anangle = angles.DeltaAngle(instring)
-        outfloat = anangle.d
-    else:
-        print "%s format error: %s, zero returned " % (hint, instring)
-    return outfloat
-
-def hour2float(instring, hint):
-    """
-    hour2float() takes an input hours string in "hh:MM:ss.sss" format or hh.hhh
-    and returns a floating point value in degrees
-    """
-    outfloat = 0.0
-    parts = instring.split(':')
-    if len(parts) == 1:  # if only one part, then degrees
-        outfloat = float(instring)
-    elif len(parts) == 3:  # if three parts, then dd:mm:ss
-        anangle = angles.AlphaAngle(instring)
-        outfloat = anangle.d
-    else:
-        print "%s format error: %s, zero returned " % (hint, instring)
-    return outfloat
-
-def time2float(instring, hint):
-    """
-    time2float() takes an input time string in "hh:MM:ss.sss" or ss.sss format
-    and returns a floating point time value in seconds
-    """
-    outfloat = 0.0
-    parts = instring.split(':')
-    if len(parts) == 1:  # if only one part, then degrees
-        outfloat = float(instring)
-    elif len(parts) == 3:  # if three parts, then dd:mm:ss
-        atime = angles.AlphaAngle(instring)
-        outfloat = atime.h*3600.
-    else:
-        print "%s format error: %s, zero returned " % (hint, instring)
-    return outfloat
-
-class Spectrum(object):
-    """
-    Define a Radio Spectrum class for processing, reading and
-    writing astronomical data.
-    """
-    def __init__(self):
-        """
-        initialize all spectrum class values
-        many will be overwritten laters
-        """
-        noteA = ""
-        noteB = ""
-        gains = [0., 0., 0., 0., 0.] # gains are in dB
-        utc = datetime.datetime.utcnow()
-        telType = "Pyramid Horn"
-        refChan = MAXCHAN/2
-        observer = "Glen Langston"
-        xdata = numpy.zeros(MAXCHAN)
-        ydataA = numpy.zeros(MAXCHAN)
-        ydataB = numpy.zeros(MAXCHAN)
-        #now fill out the spectrum structure.
-        self.writecount = 0
-        self.count = int(0)          # count of spectra summed
-        self.noteA = str(noteA).strip()      # observing note A
-        self.noteB = str(noteB).strip()      # observing note B
-        self.observer = str(observer)# name of the observer
-        device = "airspy=0,pack=1,bias=1 " # AIRSPY with packed data and bias t 0n
-        device = "rtl=0,bias=0 "     # rtl sdr dongle device string
-        self.device = str(device)    # parameter string for SDR type
-        datadir = "../data"
-        self.datadir = str(datadir)  # directory for storing data
-        site = "Moumau House"
-        self.site = str(site)        # name of the observing site
-        self.city = str("Green Bank") # observing city
-        self.region = str("West Virginia") # observing region
-        self.country = str("US")     # observing country
-        self.gains = gains           # one or more gain parameters
-        self.telaz = 0.              # telescope azimuth (degrees)
-        self.telel = 0.    # telescope elevation (degrees)
-        self.tellon = 0.   # geographic longitude negative = West (degrees)
-        self.tellat = 0.   # geopgraphic latitude (degrees)
-        self.telelev = 0.  # geographic elevation above sea-level (meteres)
-        self.centerFreqHz = 1.0   # centerfrequency of the observation (Hz)
-        self.bandwidthHz = 1.0   # sampleRate of the observation (Hz)
-        self.deltaFreq = 1.0   # frequency interval between channels
-        self.utc = utc   # average observation time (datetime class)
-        self.lst = 0.    # local sideral time degrees, ie 12h = 180deg
-        self.durationSec = 0.    # integrated observing time (seconds)
-        self.telType = str(telType) # "Horn, Parabola  Yagi, Sphere"
-        # define size of horn or antenna (for parabola usuall A = B)
-        self.telSizeAm = float(1.)  # A size parameter in meters
-        self.telSizeBm = float(1.)  # B size parameter in meters
-        self.etaA = .8 # antenna efficiency (range 0 to 1)
-        self.etaB = .99 # efficiency main beam (range 0 to 1)
-        self.bunit = 'Counts'       # brightness units
-        self.refChan = refChan
-        self.version = str("2.0.1")
-        self.polA = str("X")        # polariation of A ydata: X, Y, R, L,
-        self.polB = str("Y")        # polariation of B ydata: X, Y, R, L,
-        self.polAngle = float(0.0)  # orientation of polariation of A
-        self.frame = str("TOPO")    # reference frame (LSR, BARY, TOPO)
-# compute coordinates from az,el location and date+time all angles in degrees
-        self.ra = float(0.0)        # degrees, ie 12h => 180deg
-        self.dec = float(0.0)
-        self.gallon = float(0.0)
-        self.gallat = float(0.0)
-        self.az_sun = float(0.0)
-        self.altsun = float(0.0)
-        self.epoch = str("2000")
-        self.fft_rate = 5000
-        self.nave = 20              # setup parameters for NsfIntegrate
-        self.nmedian = 4096         # setup parameters for NsfIntegrate
-# finally the data
-        self.xdata = xdata
-        self.ydataA = ydataA
-        self.ydataB = ydataB
-        self.nChan = len(ydataA)
-        self.nSpec = 1
-        self.nTime = 0
-
-    def __str__(self):
-        """
-        Define a spectrum summary string
-        """
-        secs = self.durationSec
-        return "({0}, {1}, {2})".format(self.site, self.utc, str(secs))
-
-    def radec2gal(self):
-        """
-        Compute the ra,dec (J2000) from Az,El location and time
-        """
-        rads = numpy.pi / 180.
         radec2000 = ephem.Equatorial( rads*self.ra, rads*self.dec, epoch=ephem.J2000)
         # to convert to dec degrees need to replace on : with d
         self.epoch = "2000"
@@ -1175,8 +932,7 @@ class Spectrum(object):
                         y2.append(0.0)
 
         # at this point all data and header keywords are read
-        if nparts > 2:
-            self.xdata = np.array(x1)       # transfer x axis; channels or time
+        self.xdata = np.array(x1)            # transfer x axis; channels or time
         if self.nSpec > 0:
             self.ydataA = np.array(y1)       # always transfer 1 spectrum
             if self.nSpec > 1:               # if more than one spectrum

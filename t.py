@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys
 import datetime
-import statistics
 import radioastronomy
 import copy
 
@@ -143,7 +142,7 @@ n56 = 5*n6
 yv = hot.ydataA
 #yv = hot.foldfrequency()
 
-hotmedian = statistics.median(yv[n6:n56])
+hotmedian = np.median(yv[n6:n56])
 if hotmedian > .001:
     scalefactor = 1.0
 
@@ -163,7 +162,7 @@ ymin = 1000.  # initi to large values
 ymax = 0.
 yallmin = ymin
 yallmax = ymax
-ymed = statistics.median(yv)
+ymed = np.median(yv)
 count = hot.count
 ncold = 0
 
@@ -192,7 +191,7 @@ def compute_tsky( xv, yv, hv, thot, tcold):
     n6 = int(nData/6)
     n56 = 5*n6
 
-    tsysmedian = statistics.median( tsys[n6:n56])
+    tsysmedian = np.median( tsys[n6:n56])
 
     tsky  = np.zeros(nData)    # initialize arrays
     S     = np.zeros(nData)    # initialize arrays
@@ -322,7 +321,7 @@ for filename in names:
         ymax = max(tsky[(nData/8):(7*nData/8)])
         yallmin = min(ymin,yallmin)
         yallmax = max(ymax,yallmax)
-        ymed = statistics.median(tsky)
+        ymed = np.median(tsky)
         aveutc,duration = radioastronomy.aveutcs( firstutc, lastutc)
         strnow = aveutc.isoformat()
         datestr = strnow.split('.')
@@ -409,7 +408,7 @@ if ncold > 0:
     ymax = max(tsky[(nData/8):(7*nData/8)])
     yallmin = min(ymin,yallmin)
     yallmax = max(ymax,yallmax)
-    ymed = statistics.median(tsky)
+    ymed = np.median(tsky)
     if firstdate == lastdate: 
         label = '%s Lon,Lat=%5.1f,%5.1f' % (time, gallon, gallat)
     else:

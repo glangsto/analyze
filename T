@@ -4,7 +4,7 @@
 #18DEC10 GIL 1st version with comments
 
 # if no arguments, print help
-if [ "$3" = "" ]
+if [ "$3" == "" ]
 then
 	echo "T: Temperaturecalibrated horn observations"
 	echo "Usage: T <average_seconds> <files>"
