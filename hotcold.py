@@ -8,16 +8,6 @@ import datetime
 import numpy as np
 import radioastronomy
 import copy
-try:
-    import statistics
-except ImportError:
-    print 'Statistics Python Code needed!'
-    print 'In Linux type:'
-    print '       sudo apt-get install python-dev'
-    print '       sudo apt-get install python-pip'
-    print '       sudo pip install statistics'
-    print ''
-    exit()
 
 EPSILON = 1.
 clight = 299792458. # speed of light in m/sec
@@ -245,7 +235,7 @@ def compute_tsky_hot( xv, yv, hv, thot, tcold):
     n6 = int(nData/6)
     n56 = 5*n6
 
-    tsysmedian = statistics.median( tsys[n6:n56])
+    tsysmedian = np.median( tsys[n6:n56])
 
     tsky  = np.zeros(nData)    # initialize arrays
     S     = np.zeros(nData)    # initialize arrays
@@ -281,7 +271,7 @@ def compute_gain( hv, cv, thot, tcold):
     n6 = int(nData/6)
     n56 = 5*n6
 
-    trxmedian = statistics.median( trx[n6:n56])
+    trxmedian = np.median( trx[n6:n56])
     gain = (thot + trxmedian)/hv
     
     return trxmedian, gain # channel by channel gain in K/counts
@@ -295,8 +285,8 @@ def compute_tsky( xv, yv, gain, nureference):
 
 def compute_baseline( xv, yv, xa, xb):
 
-    ya = statistics.median(yv[(xa-10):(xa+10)])
-    yb = statistics.median(yv[(xb-10):(xb+10)])
+    ya = np.median(yv[(xa-10):(xa+10)])
+    yb = np.median(yv[(xb-10):(xb+10)])
     slope = (yb-ya)/(xb-xa)
 #                baseline = tsky
 #                print 'ya,b: %6.1f,%6.1f; slope: %8.4f' % (ya, yb, slope)
