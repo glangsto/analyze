@@ -261,8 +261,8 @@ class Spectrum(object):
         noteB = ""
         gains = [0., 0., 0., 0., 0.] # gains are in dB
         utc = datetime.datetime.utcnow()
-        telType = "Pyramid Horn"
-        refChan = MAXCHAN/2
+        telType = "Bubble Wrap Horn"
+        refChan = 0
         observer = "Glen Langston"
         xdata = np.zeros(MAXCHAN)
         ydataA = np.zeros(MAXCHAN)
@@ -302,7 +302,7 @@ class Spectrum(object):
         self.etaA = .8 # antenna efficiency (range 0 to 1)
         self.etaB = .99 # efficiency main beam (range 0 to 1)
         self.bunit = 'Counts'       # brightness units
-        self.refChan = refChan
+        self.refChan= refChan
         self.refSample = 0          # identify reference sample in event stream
         self.version = str("2.0.1")
         self.polA = str("X")        # polariation of A ydata: X, Y, R, L,
@@ -957,6 +957,9 @@ class Spectrum(object):
                 for iii in range( self.nSamples):
                     self.xdata[iii] = t
                     t += dt
+
+        if self.refChan == 0:
+            self.refChan = self.nChan/2
         return #end of read_spec_ascii
 
     def foldfrequency(self):

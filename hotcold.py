@@ -62,7 +62,7 @@ def average( names):
         asum.gallat = asum.gallat/float(asum.durationSec)
         aveutc,duration = radioastronomy.aveutcs( firstutc, lastutc)
         asum.utc = aveutc
-        if (duration < 10.):
+        if (duration < 1.):
             print 'hotcold.average: very short average interval: ',duration
     return nsum, asum
 # end of def average()

@@ -15,7 +15,7 @@ import interpolate
 # some SDRs put spike in center of spectrum; indicate spike flagging here
 flagCenter = False # flag interpolate over spike in center of spectrum
 doDebug = False   # flag printing debug info
-doDebug =True     # flag printing debug info
+#doDebug =True     # flag printing debug info
 doSave = False    # flag saving intermediate files
 flagRfi = True    # flag flagging RFI
 doFold = False    # fold spectra to address an old issue; not normally used.
