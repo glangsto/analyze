@@ -68,7 +68,7 @@ for iii in range(1, min(nargs,25)):
     yv = np.zeros(rs.nSamples*2)
     j = 0
     dt = 0.5/rs.bandwidthHz
-    t = xs[0]
+    t = -2. * dt * rs.refSample
     if iii == -1:  # no op
         print "First Time %12.9f (s); Delta T = %12.9f (s)" % (t, dt)
     for i in range(rs.nSamples):
