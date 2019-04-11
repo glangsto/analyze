@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# find the folding program
+if [ -e fold.py ]
+then
+    python fold.py "$@"
+else
+    if [ -e ~/bin/fold.py ]
+    then
+       python ~/bin/fold.py "$@"
+    fi     
+fi
