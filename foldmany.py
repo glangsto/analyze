@@ -1,5 +1,6 @@
 #Python Script to plot and the fourier transform of blocks of raw NSF events 
 #HISTORY
+#19APR11 GIL initial version for folding many files
 #19APR11 GIL improve labeling
 #19APR10 GIL initial version based on FFT
 #
@@ -103,10 +104,10 @@ files = sys.argv[ifile:]
 print "First File     :                ",files[0]
 
 
-def gridAFile( nChan = 128, filename = ""):
+def gridManyFiles( nChan, names):
     """
     Compute a grided image of the fourier transform of a time series
-    Inputs: filename - name of the Event file to read
+    Inputs: names  names of files to fold
     nblock - number of samples to use to compute a single Fourier Transform
     """
 
@@ -114,6 +115,7 @@ def gridAFile( nChan = 128, filename = ""):
     maxEvent = radioastronomy.Spectrum()
     maxFile = ""
 
+    nplot = 0
     nblock = 2 * int(nChan)
     nblock1 = nblock - 1
     N = nblock                 # abreviation
@@ -122,156 +124,165 @@ def gridAFile( nChan = 128, filename = ""):
 
     yp = np.zeros(N2)
     yp2 = np.zeros(N2)
-    ysum = np.zeros(N2 - 1)
-    nsum = 0      # count total number of spectra summed
+    ysum = np.zeros(N2)
+    yallsum = np.zeros(N2)
+    nsum = 0      # count total number of spectra in an fft summed
+    nallsum = 0      # count total number of spectra summed
+
+    nFiles = len(names)
 
     rs = radioastronomy.Spectrum()
+
+    for iName in range( nFiles):
+        
 #    print filename
-    rs.read_spec_ast( filename)
-    rs.azel2radec()    # compute ra,dec from az,el
+        filename = names[iName]
+        rs.read_spec_ast( filename)
+        rs.azel2radec()    # compute ra,dec from az,el
+
+        maxEvent = copy.deepcopy(rs)
+        maxMagnitude = 0.
+        maxFile = filename
 
 #    print("GAL Lon,Lat: %8.3f, %8.3f"  % (rs.gallon, rs.gallat))
-    parts = filename.split('/')
-    nparts = len(parts)
-    aname = parts[nparts-1]
-    parts = aname.split('.')
-    aname = parts[0]
-    parts = aname.split('T')
-    date  = parts[0]
-    time  = parts[1]
-#    time  = time.replace('_',':')
+        parts = filename.split('/')
+        nparts = len(parts)
+        aname = parts[nparts-1]
+        parts = aname.split('.')
+        aname = parts[0]
+        parts = aname.split('T')
+        date  = parts[0]
+        time  = parts[1]
     
-    gallon = rs.gallon
-    gallat = rs.gallat
-    label = '%s, AZ,EL: %5s,%5s, Lon,Lat=%5.1f,%5.1f' % ( time,rs.telaz,rs.telel,gallon,gallat)
-    xs = rs.xdata 
-    if rs.nTime < 1:
-        print "Not an Event: ",filename
-        return 0
+        gallon = rs.gallon
+        gallat = rs.gallat
+        label = '%s, AZ,EL: %5s,%5s, Lon,Lat=%5.1f,%5.1f' % ( time,rs.telaz,rs.telel,gallon,gallat)
+        xs = rs.xdata 
+        if rs.nTime < 1:
+            print "Not an Event: ",filename
+            continue
 
-    # now reorganize data into a single time series
-    xv = np.zeros(rs.nSamples*2)
-    yv = np.zeros(rs.nSamples*2)
-    yc = np.zeros(rs.nSamples,dtype=np.complex)
-    ymag = np.zeros(rs.nSamples)
-    nSamples = 2L * rs.nSamples
-    j = 0
-    dt = 0.5/rs.bandwidthHz
-    t = xs[0]
-    for i in range(rs.nSamples):
-        yv[j] = rs.ydataA[i]
-        yc[i] = rs.ydataA[i] + 1j*rs.ydataB[i]
-        xv[j] = t
-        j = j + 1
-        t = t + dt
-        yv[j] = rs.ydataB[i]
-        xv[j] = t
-        j = j + 1
-        t = t + dt
+        # now reorganize data into a single time series
+        xv = np.zeros(rs.nSamples*2)
+        yv = np.zeros(rs.nSamples*2)
+        yc = np.zeros(rs.nSamples,dtype=np.complex)
+        ymag = np.zeros(rs.nSamples)
+        nSamples = 2L * rs.nSamples
+        j = 0
+        dt = 0.5/rs.bandwidthHz
+        t = xs[0]
+        for i in range(rs.nSamples):
+            yv[j] = rs.ydataA[i]
+            yc[i] = rs.ydataA[i] + 1j*rs.ydataB[i]
+            xv[j] = t
+            j = j + 1
+            t = t + dt
+            yv[j] = rs.ydataB[i]
+            xv[j] = t
+            j = j + 1
+            t = t + dt
 
-    # compute magnitude of I/Q samples with vector math
-    ymag = np.absolute(yc)
-    # now find the maximum event in data series
-    ymagmax = max(ymag)
+        # compute magnitude of I/Q samples with vector math
+        ymag = np.absolute(yc)
+        # now find the maximum event in data series
+        ymagmax = max(ymag)
     # compute RMS of entire time series
-    yrms = np.sqrt(yv.dot(yv)/yv.size)
+        yrms = np.sqrt(yv.dot(yv)/yv.size)
     # if a valid, noisy observation
-    if yrms > 0. :
-        nsigma = ymagmax/yrms
-        if nsigma > maxMagnitude:
-            maxEvent = copy.deepcopy(rs)
-            maxMagnitude = nsigma
-            maxFile = filename
-    else:
-        print "Problem observation: %7.3f rms in file %s\n", yrms, filename
+        if yrms > 0. :
+            nsigma = ymagmax/yrms
+            if nsigma > maxMagnitude:
+                maxEvent = copy.deepcopy(rs)
+                maxMagnitude = nsigma
+                maxFile = filename
+        else:
+            print "Problem observation: %7.3f rms in file %s\n", yrms, filename
     # end else not a signficant event
 
-    # will compute several FFTs, discarding any extra samples at end
-    nfft = int(nSamples/nblock) - 1
-    lll = 0
-# instead start at half a block to center event
-    lll = int(nblock/2)
-    # 
-    BW = 1.E-6*rs.bandwidthHz
-    # frequency axis is always the same
-    nu = np.linspace(0.0, BW, nblock/2) + (1.E-6*(rs.centerFreqHz-rs.bandwidthHz/2.))
-    xp = nu[1:N2]
-    xmin = min(nu)
-    xmax = max(nu)
-    # zero sum of all spectra in this file
+        # will compute several FFTs, discarding any extra samples at end
+        nfft = int(nSamples/nblock) - 1
+# instead start at half a block to center big event
+        lll = int(nblock/2)
+        # 
+        BW = 1.E-6*rs.bandwidthHz
+        # frequency axis is always the same
+        nu = np.linspace(0.0, BW, nblock/2) + (1.E-6*(rs.centerFreqHz-rs.bandwidthHz/2.))
+        xp = nu[1:N2]
+        xmin = min(nu)
+        xmax = max(nu)
+        # zero sum of all spectra in this file
 
-
-    #create the grid with map parameters
-    mygrid = GridClass.Grid(xmin=xmin, xmax=xmax, ymin=0, ymax=nfft, width=nChan, \
-                                height=nfft, dpi=1, FWHM=1., \
+        if iName == 0:  # if the very first event file, must create grid
+            #create the grid with map parameters
+            # assuming all event files are the same size, y axis is big 
+            mygrid = GridClass.Grid(xmin=xmin, xmax=xmax, ymin=0, ymax=nfft*nFiles, width=nChan, \
+                                height=nfft*nFiles, dpi=1, FWHM=1., \
                                 projection="Mercator", gridtype="")
+            aveTime = nfft*nblock*1.e-6/(2.*BW)
 
-    for jjj in range(nfft):
-        J = float(jjj)
+        # for all spectra in this event
+        for jjj in range(nfft):
         # for each block of samples
-        for kkk in range(nblock):
-            ablock[kkk] = yv[lll]
-            lll += 1
-        yf = fft(ablock*w)  # apply blackman window/weighting to samples
+            for kkk in range(nblock):
+                ablock[kkk] = yv[lll]
+                lll += 1
+            yf = fft(ablock*w)  # apply blackman window/weighting to samples
 #        yf = fft(ablock)   # fft without window
-        yp = 2.0/N*np.abs(yf[1:N2])
+            yp = 2.0/N*np.abs(yf[1:N2])
         
-        ymin = min(yp)
-        ymax = max(yp)
-
         # unwrap spectra
-        nnn = ((N2/2) - 1)
-        for kkk in range(N2-1):
-#            if jjj == nfft/2:
-#                print "kkk, nnn: ",kkk,nnn
-            yp2[kkk] = yp[nnn]
-            nnn -= 1
-            if nnn < 0:
-                nnn = N2 - 2
+            nnn = ((N2/2) - 1)
+            for kkk in range(N2-1):
+                #            if jjj == nfft/2:
+                #                print "kkk, nnn: ",kkk,nnn
+                yp2[kkk] = yp[nnn]
+                nnn -= 1
+                if nnn < 0:
+                    nnn = N2 - 2
 
-        for mmm in range( N2-1):
-            mygrid.convolve( xp[mmm], J, yp2[mmm], 1.0)
+            J = float(jjj) + float(iName*nfft)  # grid spectrum in correct place
+            for mmm in range( N2-1):
+                mygrid.convolve( xp[mmm], J, yp2[mmm], 1.0)
 
-        if jjj == 0:
-            print(' Max: %9.3f Min: %9.3f ; %3d %s' % (ymax*kpercount, ymax*kpercount, nfft, label))
-            nyp = len(yp2)
-            ysum = np.zeros(nyp)
-
+            if jjj == 0:
+                nyp = len(yp2)
+                ysum = np.zeros(nyp)
+                
 # plot the middle spectrum for each events, until out of colors
-        if jjj == (nfft/2):
-            nplot = 1
-            yp2 = kpercount * yp2
-            yp3 = yp2[1:N2]
-            label = '%s %s Lon,Lat=%5.1f,%5.1f' % ( date, time, gallon, gallat)
-            plt.plot(xp, yp3, colors[nplot-1], linestyle=linestyles[nplot-1],label=label)
-            note = rs.noteA
-            print "Number of FFTs per time series: ",nfft
-            aveTime = nsum*nblock*1.e-6/(2.*BW)
-            print "Seconds of observations:        ",nsum*nblock*1.e-6/(2.*BW)
-        else:
+            if jjj == (nfft/2):
+                nplot = nplot + 1
+                yp2 = kpercount * yp2
+                yp3 = yp2[1:N2]
+                label = '%s %s Lon,Lat=%5.1f,%5.1f' % ( date, time, gallon, gallat)
+                plt.plot(xp, yp3, colors[nplot-1], linestyle=linestyles[nplot-1],label=label)
+                note = rs.noteA
+#                print "Number of FFTs per time series: ",nfft
+                print "Seconds of observations:        ", aveTime
+            else:
 #            print "Ysum, yp2: ", len(ysum), len(yp2)
-            ysum = ysum + yp2
-            nsum += 1
+                ysum = ysum + yp2
+                nsum += 1
+        # end for all ffts
+        yallsum = yallsum + ysum
+        nallsum = nallsum + nsum
+        # now normalize sum and put in grid
+        ysum = kpercount * ysum / float(nsum)
+        ysum = ysum[1:N2] 
+        # put the average in the top row of the image
+        J = float(nfft) + float(nfft*iName)
+        for mmm in range( N2-1):
+            mygrid.convolve( xp[mmm], J, ysum[mmm], 1.0)
+        print "Event Time         : ", maxEvent.utc
+        print "Event File         : ", maxFile
+        print "Maximum Event Sigma: %8.2f" % ( maxMagnitude)
+        print "Event RA           :   %8.4f d Dec %8.4f d" % (maxEvent.ra, maxEvent.dec)
+        print "Event G Lon        :   %6.2f d  Lat %6.2f d" % (maxEvent.gallon, maxEvent.gallat)
+    # end for all files
+    yallsum = kpercount * yallsum / float(nallsum)
+    yallsum = yallsum[1:N2] 
 
-    # now average of all spectra not during the peak event
-    ysum = kpercount * ysum / float(nsum)
-    ysum = ysum[1:N2] 
-    avelabel = "Average (%8.6f s)" % aveTime
-    plt.plot(xp, ysum, colors[1], linestyle=linestyles[1],label=avelabel)
-
-# put the average in the top row of the image
-    J = float(nfft)
-    for mmm in range( N2-1):
-        mygrid.convolve( xp[mmm], J, ysum[mmm], 1.0)
-    print "Event Time         : ", maxEvent.utc
-    print "Event File         : ", maxFile
-    print "Maximum Event Sigma: %8.2f" % ( maxMagnitude)
-    print "Event RA           :   %8.4f d Dec %8.4f d" % (maxEvent.ra, maxEvent.dec)
-    print "Event G Lon        :   %6.2f d  Lat %6.2f d" % (maxEvent.gallon, maxEvent.gallat)
-    
-    datetime = "%s" % ( maxEvent.utc)
-    parts = datetime.split('.')
-    date = parts[0]
+    avelabel = "Average (%8.6f s)" % (aveTime*nFiles)
+    plt.plot(xp, yallsum, colors[1], linestyle=linestyles[1],label=avelabel)        
 
 #        plt.xlim(xallmin,xallmax)
     plt.title(note)
@@ -285,7 +296,7 @@ def gridAFile( nChan = 128, filename = ""):
     plt.legend(loc='upper right')
     plt.show()
 
-    return nChan, nfft, xmin, xmax, mygrid
+    return nChan, nfft*nFiles, xmin, xmax, mygrid
 
 def main():
     """
@@ -308,7 +319,7 @@ def main():
     gridtype = 'PULSAR'
 
     #create the grid with map parameters
-    mywidth, myheight, xmin, xmax, mygrid = gridAFile( nChan, names[0])
+    mywidth, myheight, xmin, xmax, mygrid = gridManyFiles( nChan, names)
 
     count = 0
 
