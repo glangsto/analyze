@@ -1,5 +1,6 @@
 #Python Script to plot and the fourier transform of blocks of raw NSF events 
 #HISTORY
+#19APR12 GIL fix average Time calculation
 #19APR11 GIL improve labeling
 #19APR10 GIL initial version based on FFT
 #
@@ -193,6 +194,8 @@ def gridAFile( nChan = 128, filename = ""):
     lll = int(nblock/2)
     # 
     BW = 1.E-6*rs.bandwidthHz
+    # average time for spectra without event
+    aveTime = (nfft-1)*nblock*1.e-6/(2.*BW)
     # frequency axis is always the same
     nu = np.linspace(0.0, BW, nblock/2) + (1.E-6*(rs.centerFreqHz-rs.bandwidthHz/2.))
     xp = nu[1:N2]
@@ -245,9 +248,8 @@ def gridAFile( nChan = 128, filename = ""):
             label = '%s %s Lon,Lat=%5.1f,%5.1f' % ( date, time, gallon, gallat)
             plt.plot(xp, yp3, colors[nplot-1], linestyle=linestyles[nplot-1],label=label)
             note = rs.noteA
-            print "Number of FFTs per time series: ",nfft
-            aveTime = nsum*nblock*1.e-6/(2.*BW)
-            print "Seconds of observations:        ",nsum*nblock*1.e-6/(2.*BW)
+            print "Number of FFTs per time series: %5d" % ( nfft)
+            print "Duration of Observations      : %12.6f s" % ( aveTime)
         else:
 #            print "Ysum, yp2: ", len(ysum), len(yp2)
             ysum = ysum + yp2
