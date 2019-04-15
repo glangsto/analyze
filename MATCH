@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# find the matchevent program
+if [ -e matchevent.py ]
+then
+    python matchevent.py "$@"
+else
+    if [ -e ~/bin/matchevent.py ]
+    then
+       python ~/bin/matchevent.py "$@"
+    fi     
+fi
