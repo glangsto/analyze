@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# find the Local Sideral Time program
+if [ -e lst.py ]
+then
+    python lst.py "$@"
+else
+    if [ -e ~/bin/lst.py ]
+    then
+       python ~/bin/lst.py "$@"
+    fi     
+fi
