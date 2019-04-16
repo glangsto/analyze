@@ -1,6 +1,7 @@
 #Python Script to plot and the fourier transform of blocks of raw NSF events 
 #HISTORY
-#19APR11 GIL initial version for folding many files
+#19APR15 GIL first working version of event matchin
+#19APR14 GIL initial version of event matching
 #19APR11 GIL improve labeling
 #19APR10 GIL initial version based on FFT
 #
@@ -26,10 +27,10 @@ yallmax = -9.e9
 yallmin =  9.e9
 
 # separate arguments form file names
-iCount = 1
-ifile = 2
+iOffset = 1
+ifile = 1
 iii = ifile
-
+offset = 0.5          # default match offset is  0.5 seconds
 nday = 24             # by default divide day in 24 hours
 nblock = 256          # number of samples to FFT
 sigma = 5.0           #
@@ -39,17 +40,11 @@ note = ""             # optional note for top of plot
 # read through arguments extracting parameters
 while iii < nargs:
     anarg = sys.argv[iii].upper()
-    if str(anarg[0:3]) == "-BL":
-        nblock = np.int( sys.argv[iii+1])
+    if str(anarg[0:3]) == "-OF":
+        offset = np.float( sys.argv[iii+1])
         iii = iii + 1
-        print "FFT Block Size: ", nblock
-        aFix = True
-        ifile = ifile + 2
-    if str(anarg[0:3]) == "-KP":
-        kpercount = np.float( sys.argv[iii+1])
-        iii = iii + 1
-        print "Kelvins Per Count: ", kpercount
-        aFix = True
+        print "Maximum Time Offset: %8.6f s for Match: " % ( offset)
+        offset = offset/86400.   # convert to MJDs
         ifile = ifile + 2
     if str(anarg[0:3]) == "-ND":
         ndays = np.int( sys.argv[iii+1])
@@ -71,8 +66,6 @@ while iii < nargs:
         aFix = True
     iii = iii + 1
 
-iCount = ifile - 1
-
 N = nblock                 # abreviation
 ablock = np.zeros(nblock)  # creat array to FFT
 eventblock = np.zeros(nblock)  # creat array to FFT
@@ -84,14 +77,14 @@ eventAveDec = np.zeros(nday) # count events per half hour
 w = blackman(N)
 nu = np.zeros(nblock)  # creat frequency array
 nplot = 0
-ifile = 1
 nfiles = nargs-ifile
 
 MAXEVENTS = 5000
 
 if nfiles < 2:
     print "MATCH: Match events listed in Two directories"
-    print "Usage: MATCH dir1 dir2"
+    print "Usage: MATCH [-OF seconds] dir1 dir2"
+    print "Where: Optionally the user provides the maximum offset to call a match"
     exit()
     
 
@@ -103,11 +96,9 @@ def main():
 
     nargs = len(sys.argv)
     if nargs < 2:
-        print 'fold : Fold A time series'
-        print 'usage: fold <nChannels>  <eventfile>'
+        print 'MATCH: MATCH pairs of events in directories'
+        print 'usage: MATCH [-OF seconds] dir1 dir2'
         exit()
-
-    print "File  Index: ", ifile
 
     dir1 = sys.argv[ifile]
     dir2 = sys.argv[ifile+1]
@@ -124,7 +115,7 @@ def main():
     print "%5d Files in Directory 1" % (len(files1))
 #    print files
     print "%5d Files in Directory 2" % (len(files2))
-    print files2
+#    print files2
     nEve1 = 0
     nEve2 = 0
 
@@ -139,22 +130,29 @@ def main():
         if nparts < 2:   # if not fooo.eve type file name
             continue
         if parts[nparts-1] == "eve":
-            print filename
-            event1s[nEve1] = filenames
+            event1s[nEve1] = filename
             nEve1 = nEve1 + 1
         else:
             continue
 
-    utc1s = np.zeros(nEve1)
+    mjd1s = np.zeros(nEve1)
+    peak1s = np.zeros(nEve1)
+    rms1s = np.zeros(nEve1)
+    dt1s = np.zeros(nEve1)
+    ii1s = np.arange(nEve1) * 0
+    event1s = event1s[0:nEve1]
 
     iii = 0
-    for filename in files1:
+    for filename in event1s:
         fullname = join(dir1, filename)
         rs.read_spec_ast( fullname)
         rs.azel2radec()    # compute ra,dec from az,el
-        utc1s[iii] = rs.utc
+        mjd1s[iii] = rs.emjd
+        peak1s[iii] = rs.epeak
+        rms1s[iii] = rs.erms
+        if 50 * int(iii/50) == iii:
+            print "Event %5d: %12.9f: %7.3f+/-%5.3f" % (iii, rs.emjd, rs.epeak, rs.erms)
         iii = iii + 1
-
 
     for filename in files2:
         parts = filename.split(".")
@@ -162,13 +160,80 @@ def main():
         if nparts < 2:   # if not fooo.eve type file name
             continue
         if parts[nparts-1] == "eve":
-            print filename
+            event2s[nEve2] = filename
             nEve2 = nEve2 + 1
         else:
             continue
 
+    mjd2s = np.zeros(nEve2)
+    peak2s = np.zeros(nEve2)
+    rms2s = np.zeros(nEve2)
+    dt2s = np.zeros(nEve2)
+    ii2s = np.arange(nEve2) * 0
+    event2s = event2s[0:nEve2]
 
-        
+    iii = 0
+    for filename in event2s:
+        fullname = join(dir2, filename)
+        rs.read_spec_ast( fullname)
+        rs.azel2radec()    # compute ra,dec from az,el
+        mjd2s[iii] = rs.emjd
+        peak2s[iii] = rs.epeak
+        rms2s[iii] = rs.erms
+        if 50 * int(iii/50) == iii:
+            print "Event %5d: %12.9f: %7.3f+/-%5.3f" % (iii, rs.emjd, rs.epeak, rs.erms)
+        iii = iii + 1
+
+    print "%5d Events in Directory: %s" % (nEve1, dir1)
+#    print files
+    print "%5d Events in Directory: %s" % (nEve2, dir2)
+
+    # now match event times
+    for iii in range(nEve1):
+        mjd1 = mjd1s[iii]
+        dtj = 0
+        dtMin = abs(mjd1 - mjd2s[0])
+        for jjj in range(nEve2):
+            mjd2 = mjd2s[jjj]
+            dt = abs(mjd1 - mjd2)
+            if dt < dtMin:
+                dtMin = dt
+                dtj = jjj
+        ii1s[iii] = dtj
+        dt1s[iii] = dtMin
+
+    # now report out the minimum time offsets and times less than 1 second off
+    OneMjdSec = 1./86400.
+    TwoMjdSec = 2.*OneMjdSec
+
+    for iii in range(nEve1):
+        if dt1s[iii] < offset:
+            dts = dt1s[iii]/OneMjdSec
+            jjj = ii1s[iii]
+            print "Event %s Matches %s; Offset: %9.6f s" % (event1s[iii], event2s[jjj], dts)
+            print "%5d %18.9f: %5d %18.9f" % (iii, mjd1s[iii], jjj, mjd2s[jjj])
+
+    # now match event times
+    for iii in range(nEve2):
+        mjd2 = mjd2s[iii]
+        dtj = 0
+        dtMin = abs(mjd2 - mjd1s[0])
+        for jjj in range(nEve1):
+            mjd1 = mjd1s[jjj]
+            dt = abs(mjd1 - mjd2)
+            if dt < dtMin:
+                dtMin = dt
+                dtj = jjj
+        ii2s[iii] = dtj
+        dt2s[iii] = dtMin
+
+#    for iii in range(nEve2):
+#        if dt2s[iii] < offset:
+#            dts = dt2s[iii]/OneMjdSec
+#            jjj = ii2s[iii]
+#            print "Event %s Matches %s; Offset: %9.6f s" % (event2s[iii], event1s[jjj], dts)
+#            print "%5d %18.9f: %5d %18.9f" % (iii, mjd2s[iii], jjj, mjd1s[jjj])
+
 
 if __name__ == "__main__":
     main()
