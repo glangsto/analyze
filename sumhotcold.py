@@ -1,6 +1,7 @@
 #Python Script to compute the integral of the the intensities
 #plot the raw data from the observation
 #HISTORY
+#19Apr22 GIL Update default frequency and velocity ranges
 #18Feb16 GIL the Hot and Cold spectra are precommuted for a map
 #17Sep22 GIL enable/disable plotting
 #16Aug02 GIL test for finding az,el offsets
@@ -15,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys
 import datetime
-import statistics
 import radioastronomy
 import copy
 from scipy.signal import savgol_filter
@@ -159,8 +159,8 @@ def interpolate_range( minvel, maxvel, vel, ys):
         print 'Imax Error computing baseline: ', imax
         imax = nData-11
         
-    ya = statistics.median(ys[(imin-10):(imin+10)])
-    yb = statistics.median(ys[(imax-10):(imax+10)])
+    ya = np.median(ys[(imin-10):(imin+10)])
+    yb = np.median(ys[(imax-10):(imax+10)])
     yout = copy.deepcopy(ys)
     slope = (yb-ya)/(imax-imin)
     #    print 'IR: %3d,%3d, ya,b: %7.3f,%7.3f slope: %9.4f' % (imin,imax, ya, yb, slope)
@@ -298,9 +298,6 @@ nData = len(xv)
 hv = interpolate.lines( linelist, linewidth, xv, yv) # interpolate rfi
 
 vel = np.zeros(nData)
-for jjj in range (0, nData):
-    vel[jjj] = c * (nuh1 - xv[jjj])/nuh1
-
 cold = radioastronomy.Spectrum()
 print 'Reading Cold spectrum: ',coldfilename
 cold.read_spec_ast(coldfilename)
@@ -334,8 +331,17 @@ trx = np.zeros(nData)
 for iii in range(nData):
     trx[iii] = (cv[iii]/gain[iii]) - tcold
 
-Tsys = statistics.median(trx)
+
+Tsys = np.median(trx)
 print "Median Receiver + Antenna Temp: %.1f K" % ( Tsys)
+
+# now recompute gain using only hot load and Trx
+# hanning smooth
+for iii in range(nData):
+    if iii == 0 or iii >= nData-1:
+        gain[iii] = hv[iii]/(thot + Tsys)
+    else:
+        gain[iii] = 0.25*(hv[iii-1]+(2.*hv[iii])+hv[iii+1])/(thot + Tsys)
 
 avetime = datetime.timedelta(seconds=avetimesec)
 
@@ -458,7 +464,7 @@ for filename in names:
                 tsys[jjj] = yv[jjj]/gain[jjj]
                 tsky[jjj] = tsys[jjj] - Tsys
 
-            Tscan = statistics.median(tsys)
+            Tscan = np.median(tsys)
             if Tscan > Tmax:
                 print 'Scan average Temperature is greater than maximum expected: ',Tscan,Tmax
                 print 'Scan Time: ',midtime
@@ -490,12 +496,12 @@ for filename in names:
                 print 'Imax Error computing baseline: ', imax
                 imax = nData-1
                     
-            ymed = statistics.median(tsky[imin:imax])
-            yrms = statistics.stdev(tsky[imin-10:imin])
-            yrms = yrms + statistics.stdev(tsky[imax:imax+10])
+            ymed = np.median(tsky[imin:imax])
+            yrms = np.std(tsky[imin-10:imin])
+            yrms = yrms + np.std(tsky[imax:imax+10])
             yrms = yrms*.5
-#            ya = statistics.median(tsky[(imin-10):(imin+10)])
-#            yb = statistics.median(tsky[(imax-10):(imax+10)])
+#            ya = np.median(tsky[(imin-10):(imin+10)])
+#            yb = np.median(tsky[(imax-10):(imax+10)])
 #            slope = (yb-ya)/(imax-imin)
 #            baseline = tsky
 #            print 'ya,b: %6.1f,%6.1f; slope: %8.4f' % (ya, yb, slope)

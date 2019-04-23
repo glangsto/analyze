@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# find the disperseing program
+if [ -e disperse.py ]
+then
+    python disperse.py "$@"
+else
+    if [ -e ~/bin/disperse.py ]
+    then
+       python ~/bin/disperse.py "$@"
+    fi     
+fi

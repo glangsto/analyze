@@ -26,7 +26,8 @@ def main():
     height = int(180)
     mywidth = int(width*dpi)
     myheight = int(height*dpi)
-    FWHM = 10.0  # degrees
+    FWHM = 7.5  # degrees
+    FWHM = 2.0  # degrees
     weight = 1.
 
     nargs = len(sys.argv)
@@ -39,21 +40,37 @@ def main():
     gridtype = gridtype.upper()
     print 'Grid Type: ', gridtype
 
+    # enable having ra going from 24 to 0 hours == 360 to 0 degrees
+    xsign = 1.
+    xoffset = 0.
     if gridtype == 'RA':
         xmin = 0.
         xmax = 360.
         ymin = -35.
         ymax = 85.
-
-    if gridtype == 'GAL':
+    elif gridtype == '-RA':
+        xmin = 0.
+        xmax = 360.
+        ymin = -35.
+        ymax = 85.
+        xsign = -1.
+        xoffset = 360.  # when x = 360. should be at zero.
+    elif gridtype == 'RA0':
+        xmin = 0.
+        xmax = 360.
+        ymin = -35.
+        ymax = 85.
+        xsign = -1.
+        xoffset = 180.  # when x = 360. should be at zero.
+    elif gridtype == 'GAL':
         xmin = -180.
         xmax = 180.
         ymin = -90.
         ymax = 90.
 
-    if gridtype != 'RA' and gridtype != 'GAL':
+    if gridtype != 'RA' and gridtype != 'GAL' and gridtype != '-RA' and gridtype != "RA0":
         print 'Error parsing grid type: ', gridtype
-        print '1st argument should be either RA or GAL'
+        print '1st argument should be either RA, -RA or GAL'
         exit()
 
 
@@ -111,6 +128,16 @@ def main():
 #                mygrid.convolve( lon, lat, vave, 1.)
             if gridtype == 'RA':
                 mygrid.convolve(ra, dec, tsum, weight)
+            elif gridtype == '-RA':
+                x = (ra*xsign) + xoffset
+                mygrid.convolve(x, dec, tsum, weight)
+            elif gridtype == 'RA0':
+                x = (ra*xsign) + xoffset
+                if x < 0:
+                    x = x + xmax
+                elif x > xmax:
+                    x = x - xmax
+                mygrid.convolve(x, dec, tsum, weight)
             else:
                 mygrid.convolve(lon, lat, tsum, weight)
             if count == 0:
@@ -122,7 +149,7 @@ def main():
     mygrid.normalize()
 #    mygrid.check()
     zmin = 00.
-    zmax = 2000.
+    zmax = 3000.
 # limit grid intensities for plotting
     mygrid.limit(zmin, zmax)
 
@@ -150,13 +177,30 @@ def main():
         plt.imshow(mygrid.image, interpolation='nearest', cmap=plt.get_cmap('jet'))
 
         if firsttime != lasttime:
-            plt.title("Citizen Science: Observing our Galaxy - %s to %s" % (firsttime, lasttime))
+            plt.title("Citizen Science: Observing our Galaxy: %s to %s" % (firsttime, lasttime))
         else:
-            plt.title("Citizen Science: Observing our Galaxy - %s" % (firsttime))
+            plt.title("Citizen Science: Observing our Galaxy: %s" % (firsttime))
         if gridtype == 'RA':
             plt.xlabel("Right Ascension (hours)")
             plt.ylabel("Declination (degrees)")
             labels = ticks/(mywidth/24)
+            yticks = np.arange(0, myheight, 15*dpi)
+        elif gridtype == '-RA':
+            plt.xlabel("Right Ascension (hours)")
+            plt.ylabel("Declination (degrees)")
+            labels = 24 - (ticks/(mywidth/24))
+            labels[0] = 0
+            yticks = np.arange(0, myheight, 15*dpi)
+        elif gridtype == 'RA0': # put 0 hours in middle of plot
+            plt.xlabel("Right Ascension (hours)")
+            plt.ylabel("Declination (degrees)")
+            labels = 12 - (ticks/(mywidth/24))
+            nlabels = len(labels)
+            for iii in range(nlabels):
+                if labels[iii] < 0:
+                    labels[iii] = 24 + labels[iii]
+                if labels[iii] == 24:
+                    labels[iii] = 0
             yticks = np.arange(0, myheight, 15*dpi)
         else:
             yticks = np.arange(0, myheight, 30*dpi)

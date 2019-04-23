@@ -2,6 +2,7 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#19apr19 GIL fix averages crossing RA=0 boundary
 #17Sep22 GIL enable/disable plotting
 #16Aug02 GIL test for finding az,el offsets
 #16Oct07 GIL check for changes in frequency and/or gain
@@ -643,23 +644,12 @@ for filename in names:
             timesum = rs.durationSec
         else: # else not enough time yet, average cold data
             # fix wrap of longitudes
-            if abs(rs.gallon - firstlon) > 180:
-                crossZero = True
-                if rs.gallon > firstlon:
-                    rs.gallon = rs.gallon - 360.
-                else:
-                    rs.gallon = rs.gallon + 360.
-            if abs(rs.ra - firstra) > 180:
-#                print 'Zero RA Crossing: ', rs.ra, firstra
-                crossZeroRa = True
-                if rs.ra > firstra:
-                    rs.ra = rs.ra - 360.
-                else:
-                    rs.ra = rs.ra + 360.
-            if abs(rs.ra - firstra) > 180:
-                if crossZeroRa:
-                    print "A problem with this ra", rs.ra," compared with ",firstra
-                    continue # jump out without updateing sums
+            if abs(rs.gallon - firstlon) > 120:   # if a big change in longntude declare new 
+                newObs = True
+                continue
+            if abs(rs.ra - firstra) > 120:        # if a big change in RA declare new 
+                newObs = True
+                continue
             cold.count = cold.count + rs.count
             ncold = ncold + 1
             cold.ydataA = cold.ydataA + (rs.ydataA * cold.durationSec)
