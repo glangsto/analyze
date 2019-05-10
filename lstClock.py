@@ -21,7 +21,22 @@ import sys, types, os
 from time import localtime
 from datetime import timedelta,datetime
 from math import sin, cos, pi
-import ephem
+try: 
+    import ephem
+except:
+    print "Must install pyephem to compute coordinate locations"
+    print "Try:"
+    print "pip install pyephem"
+    print "Good Luck!"
+    print ""
+    exit()
+
+try: 
+    import angles
+except:
+    print "Must include angles.py in your python search path"
+    exit()
+
 
 from threading import Thread
 try:
@@ -115,7 +130,7 @@ class makeThread (Thread):
 class clock:
     ## Constructor.
     #
-    #  @param deltahours time zone.
+    #  @param deltahours time zone.  NO LONGER USED as DATETIME .now() does this function
     #  @param sImage whether to use a background image.
     #  @param w canvas width.
     #  @param h canvas height.
@@ -136,13 +151,65 @@ class clock:
         width, height    = w, h
         self.pad         = width/16
         self.me = ephem.Observer()
-        self.me.lon = '-79.8397'
-        self.me.lat='38.4331'
+        
+        latestnote = os.popen("getlatest").read()
+        print 'Reading telescope parameters for the latest notes file.'
+        print 'The Latest file: ', latestnote
+        print ''
+        try:
+            tellonlat = os.popen("gettellonlat "+latestnote).read()
+            parts = tellonlat.split(" ")
+            tellon = parts[0]
+            tellat = parts[1]
+#            print 'Lon: ', tellon
+#            print 'Lat: ', tellat
+            lonparts = angles.phmsdms( tellon)
+#            print 'Lon: ', lonparts
+            floatparts = lonparts['vals']
+            sign = lonparts['sign']
+            floatlon = floatparts[0] + (floatparts[1]/60.) + (floatparts[2]/3600.)
+            floatlon = floatlon * sign
+#            tellon = "%s" % (floatlon)
+#            print 'Lon: ', tellon
+            # end of longitude parsing
+            latparts = angles.phmsdms( tellat)
+#            print 'Lat: ', latparts
+            floatparts = latparts['vals']
+            sign = latparts['sign']
+            floatlat = floatparts[0] + (floatparts[1]/60.) + (floatparts[2]/3600.)
+            floatlat = floatlat * sign
+#            tellat = "%s" % (floatlat)
+#            print 'Lat: ', tellat
+        except: # if this does not work out, use green bank coordinates
+            tellon = '-79.8397'
+            tellat = '38.4331' 
+        print "Check Telescope Lon, Lat are correct!: ", tellon, tellat
+        self.me.lon = tellon
+        self.me.lat = tellat
         self.me.elevation=800   # height in meters
-        self.az = '180'
-        self.el = '45'
-        ra_a,dec_a = self.me.radec_of( str(self.az),str(self.el))
 
+        try:
+            latestnote = os.popen("getlatest").read()
+            telazel = os.popen("gettelazel "+latestnote).read()
+#            print latestnote, telazel
+            parts = telazel.split(" ")
+            telaz = parts[0]
+            telel = parts[1]
+#            print "Split AZ,EL: ",telaz, telel
+            parts = telaz.split(".")
+            telaz = parts[0]
+            parts = telel.split(".")
+            telel = parts[0]
+#            print "Re-Split AZ,EL: ",telaz, telel
+        except:
+            telaz = '180'
+            telel = '90'
+        print "Telescope Azimuth, Elevation: ", telaz, telel
+
+        self.az = telaz
+        self.el = telel
+        ra_a,dec_a = self.me.radec_of( str(self.az),str(self.el))
+        
         self.now = datetime.utcnow()
 
         strnow = self.now.isoformat()
@@ -151,13 +218,28 @@ class clock:
 
         self.me.date = datestr
         radec = ephem.Equatorial( ra_a, dec_a, epoch=datestr)
-        print(radec.ra, radec.dec)
+        gal = ephem.Galactic( radec)
+#        print(gal.lon, gal.lat)
+        astr = "%s" % (gal.lon)
+        parts = astr.split(".")
+        self.gallon = parts[0]
+        astr = "%s" % (gal.lat)
+        parts = astr.split(".")
+        self.gallat = parts[0]
+#        print(radec.ra, radec.dec)
+        ra = "%s" % radec.ra
+        parts = ra.split(".")
+        self.ra = parts[0]
+        dec = "%s" % radec.dec
+        parts = dec.split(".")
+        self.dec = parts[0]
+        print "Galactic Longitude, Latitude: ", self.gallon, self.gallat
 
         if self.showImage:
            self.fluImg = Image.open(self.imgPath)
 
         self.root.bind("<Escape>", lambda _ : root.destroy())
-        self.delta = timedelta(hours = deltahours)  
+#        self.delta = timedelta(hours = deltahours)  
         self.canvas = Canvas(root, width = width, height = height, background = self.bgcolor)
         viewport = (self.pad,self.pad,width-self.pad,height-self.pad)
         self.T = mapper(self.world,viewport)
@@ -234,7 +316,8 @@ class clock:
     def painthms(self):
         self.canvas.delete(self._ALL)  # delete the handles
         self.now = datetime.utcnow()
-        T = datetime.timetuple(self.now-self.delta)
+        localnow = datetime.now()
+        T = datetime.timetuple(localnow)
         x,x,x,h,m,s,x,x,x = T
         self.root.title('%02i:%02i:%02i' %(h,m,s))
         angle = pi/2 - pi/6 * (h + m/60.0)
@@ -274,6 +357,27 @@ class clock:
         dates = strnow.split('T')
         datestr = dates[0] + ' ' + dates[1]
 
+        try:
+            latestnote = os.popen("getlatest").read()
+            telazel = os.popen("gettelazel "+latestnote).read()
+#            print 'Latest, telazel: ',latestnote, telazel
+            parts = telazel.split(" ")
+            telaz = parts[0]
+            telel = parts[1]
+#            print 'Split az,el: ',telaz, telel
+            parts = telaz.split(".")
+            telaz = parts[0]
+            parts = telel.split(".")
+            telel = parts[0]
+#            print 'ReSplit az,el: ',telaz, telel
+        except:
+            telaz = '180'
+            telel = '0'
+#        print "Tel Az, El: ", telaz, telel
+
+        self.az = telaz
+        self.el = telel
+
         self.me.date = datestr
         lst = str(self.me.sidereal_time())
         lst = lst.split('.')
@@ -286,6 +390,30 @@ class clock:
         self.canvas.create_text( width/2, 5*dh, text="LST: "+lsthms, fill=self.timecolor)
         self.canvas.create_text( width/2, 6*dh, text=" AZ: "+self.az, fill=self.timecolor)
         self.canvas.create_text( width/2, 7*dh, text=" EL: "+self.el, fill=self.timecolor)
+
+        ra_a,dec_a = self.me.radec_of( str(self.az),str(self.el))
+        radec = ephem.Equatorial( ra_a, dec_a, epoch=datestr)
+        gal = ephem.Galactic( radec)
+#        print(gal.lon, gal.lat)
+        astr = "%s" % (gal.lon)
+        parts = astr.split(".")
+        self.gallon = parts[0]
+        astr = "%s" % (gal.lat)
+        parts = astr.split(".")
+        self.gallat = parts[0]
+#        print(radec.ra, radec.dec)
+        ra = "%s" % radec.ra
+        parts = ra.split(".")
+        self.ra = parts[0]
+        dec = "%s" % radec.dec
+        parts = dec.split(".")
+        self.dec = parts[0]
+#        print "RA, Dec: ", self.ra, self.dec
+
+        self.canvas.create_text( width/2,13*dh, text=" RA: "+self.ra, fill=self.timecolor)
+        self.canvas.create_text( width/2,14*dh, text="DEC: "+self.dec, fill=self.timecolor)
+        self.canvas.create_text( width/2,15*dh, text="LON: "+self.gallon, fill=self.timecolor)
+        self.canvas.create_text( width/2,16*dh, text="LAT: "+self.gallat, fill=self.timecolor)
         self.redraw()
         self.root.after(2000,self.poll)
 
