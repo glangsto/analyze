@@ -1,12 +1,14 @@
 #!/bin/bash
 
+export PYTHONPATH=~/bin:$PYTHONPATH
+
 # find the Local Sideral Time program
-if [ -e lstclock.py ]
+if [ -f lstClock.py ]
 then
-    python lstclock.py "$@"
+    python lstClock.py
 else
-    if [ -e ~/bin/lstclock.py ]
+    if [ -f ~/bin/lstClock.py ]
     then
-       python ~/bin/lstclock.py "$@"
+       python ~/bin/lstClock.py
     fi     
 fi

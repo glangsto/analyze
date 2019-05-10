@@ -154,56 +154,47 @@ class clock:
         
         latestnote = os.popen("getlatest").read()
         print 'Reading telescope parameters for the latest notes file.'
-        print 'The Latest file: ', latestnote
-        print ''
-        try:
-            tellonlat = os.popen("gettellonlat "+latestnote).read()
-            parts = tellonlat.split(" ")
-            tellon = parts[0]
-            tellat = parts[1]
-#            print 'Lon: ', tellon
-#            print 'Lat: ', tellat
-            lonparts = angles.phmsdms( tellon)
-#            print 'Lon: ', lonparts
-            floatparts = lonparts['vals']
-            sign = lonparts['sign']
-            floatlon = floatparts[0] + (floatparts[1]/60.) + (floatparts[2]/3600.)
-            floatlon = floatlon * sign
-#            tellon = "%s" % (floatlon)
-#            print 'Lon: ', tellon
-            # end of longitude parsing
-            latparts = angles.phmsdms( tellat)
-#            print 'Lat: ', latparts
-            floatparts = latparts['vals']
-            sign = latparts['sign']
-            floatlat = floatparts[0] + (floatparts[1]/60.) + (floatparts[2]/3600.)
-            floatlat = floatlat * sign
-#            tellat = "%s" % (floatlat)
-#            print 'Lat: ', tellat
-        except: # if this does not work out, use green bank coordinates
+        latestnote = latestnote.strip()
+        if latestnote == "":
+            print "No Note File found in Current Directory"
+            print "Using default values"
             tellon = '-79.8397'
             tellat = '38.4331' 
+            telaz = '180'
+            telel = '90'
+            latestnote = "~/bin/Simple.not"
+        else:
+            print 'The Latest file: ', latestnote
+            print ''
+            try:
+                tellonlat = os.popen("gettellonlat "+latestnote).read()
+                parts = tellonlat.split(" ")
+                tellon = parts[0]
+                tellat = parts[1]
+            except: # if this does not work out, use green bank coordinates
+                tellon = '-79.8397'
+                tellat = '38.4331' 
+
+            try:
+                telazel = os.popen("gettelazel "+latestnote).read()
+                parts = telazel.split(" ")
+                telaz = parts[0]
+                telel = parts[1]
+                # remove decimals
+                parts = telaz.split(".")
+                telaz = parts[0]
+                parts = telel.split(".")
+                telel = parts[0]
+            except:
+                telaz = '180'
+                telel = '90'
+
+                
         print "Check Telescope Lon, Lat are correct!: ", tellon, tellat
         self.me.lon = tellon
         self.me.lat = tellat
         self.me.elevation=800   # height in meters
 
-        try:
-            latestnote = os.popen("getlatest").read()
-            telazel = os.popen("gettelazel "+latestnote).read()
-#            print latestnote, telazel
-            parts = telazel.split(" ")
-            telaz = parts[0]
-            telel = parts[1]
-#            print "Split AZ,EL: ",telaz, telel
-            parts = telaz.split(".")
-            telaz = parts[0]
-            parts = telel.split(".")
-            telel = parts[0]
-#            print "Re-Split AZ,EL: ",telaz, telel
-        except:
-            telaz = '180'
-            telel = '90'
         print "Telescope Azimuth, Elevation: ", telaz, telel
 
         self.az = telaz
@@ -359,21 +350,38 @@ class clock:
 
         try:
             latestnote = os.popen("getlatest").read()
-            telazel = os.popen("gettelazel "+latestnote).read()
-#            print 'Latest, telazel: ',latestnote, telazel
-            parts = telazel.split(" ")
-            telaz = parts[0]
-            telel = parts[1]
-#            print 'Split az,el: ',telaz, telel
-            parts = telaz.split(".")
-            telaz = parts[0]
-            parts = telel.split(".")
-            telel = parts[0]
-#            print 'ReSplit az,el: ',telaz, telel
         except:
+            latestnote == ""
+        latestnote = latestnote.strip()
+        if latestnote == "":
+            tellon = '-79.8397'
+            tellat = '38.4331' 
             telaz = '180'
-            telel = '0'
-#        print "Tel Az, El: ", telaz, telel
+            telel = '90'
+            latestnote = "~/bin/Simple.not"
+        else:
+            try:
+                tellonlat = os.popen("gettellonlat "+latestnote).read()
+                parts = tellonlat.split(" ")
+                tellon = parts[0]
+                tellat = parts[1]
+            except: # if this does not work out, use green bank coordinates
+                tellon = '-79.8397'
+                tellat = '38.4331' 
+
+            try:
+                telazel = os.popen("gettelazel "+latestnote).read()
+                parts = telazel.split(" ")
+                telaz = parts[0]
+                telel = parts[1]
+                # remove decimals
+                parts = telaz.split(".")
+                telaz = parts[0]
+                parts = telel.split(".")
+                telel = parts[0]
+            except:
+                telaz = '180'
+                telel = '90'
 
         self.az = telaz
         self.el = telel
