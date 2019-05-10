@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# print only the angle of the TELLON= line
+export telaz=`head -40 $1 | grep "# AZ " | awk '{ print $4}'`
+export telel=`head -40 $1 | grep "# EL " | awk '{ print $4}'`
+
+echo $telaz $telel
+

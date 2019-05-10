@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# Take top part of file, and find the EL= line head -40 $1 | grep "#
+#EL"
+
+# print only the angle of the EL= line
+head -40 $1 | grep "# EL" | awk '{ print $4}'
+

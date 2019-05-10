@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# print only the angle of the TELLON= line
+export tellon=`head -40 $1 | grep "# TELLON" | awk '{ print $4}'`
+export tellat=`head -40 $1 | grep "# TELLAT" | awk '{ print $4}'`
+
+echo $tellon $tellat
+

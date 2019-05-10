@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# print only the angle of the TELLON= line
+head -40 $1 | grep "# TELLON" | awk '{ print $4}'
+

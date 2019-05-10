@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# find the most recent note file 
+#head -40 $1 | grep "# AZ" 
+
+export latest=`ls -t *.not | head -1`
+
+export latestaz=`head -40 $latest | grep "# AZ" | awk '{ print $4}'`
+export latestel=`head -40 $latest | grep "# EL" | awk '{ print $4}'`
+
+echo $latestaz $latestel
+
+
+

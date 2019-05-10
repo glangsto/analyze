@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# Take top part of file, and find the AZ= line
+#head -40 $1 | grep "# AZ" 
+
+# print only the angle of the AZ= line
+head -40 $1 | grep "# AZ" | awk '{ print $4}'
+

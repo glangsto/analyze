@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# print only the angle of the TELLAT= line
+head -40 $1 | grep "# TELLAT" | awk '{ print $4}'
+
