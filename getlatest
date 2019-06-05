@@ -3,7 +3,13 @@
 # find the most recent note file 
 #head -40 $1 | grep "# AZ" 
 
-export latest=`ls -t *.not | head -1`
+#export latest=`ls -t *.not | head -1`
+# get list of note files, ignoring no files found
+export files=`ls -t *.not 2> /dev/null`
+
+# now print the first of this list of files
+export latest=`echo $files | awk '{ print $1}'`
+# latest can sometimes be only whitespace
 echo $latest
 
 #head -40 $latest | grep "# AZ" | awk '{ print $4}'
