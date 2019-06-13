@@ -1,0 +1,58 @@
+#!/bin/bash
+# Script to transfer events from the data computers to this host
+# HISTORY
+# 19JUN12 GIL initial version
+# find the most recent note file 
+
+export archivehome=~/archive
+
+if [ -z "$1" ]
+then
+    echo "getevents: Get latest events from a remote host"
+    echo "usage: getevents <datahost> <datadir> <datauser>"
+    echo "where datahost  name or ip address of the data taking computer"
+    echo "where datadir   local name of the data directory where data is copied"
+    echo "where datauser  login name on remote computer"
+    echo "for example:"
+    echo "getevents 192.168.1.201 pi1 pi"
+    echo ""
+    echo "To get data from computer 192.168.1.201, put in directory pi1"
+    echo "login id is pi for a raspberry pi"
+    exit -1
+else
+    export datahost=$1
+fi
+
+if [ -z "$2" ]
+then
+    export datadir=pi1
+else
+    export datadir=$2
+fi    
+
+if [ -z "$3" ]
+then
+    export datauser=pi
+else
+    export datauser=$3
+fi    
+
+echo $datahost $datadir $datauser
+
+
+if [ ! -d "$archivehome" ] 
+then
+    mkdir $archivehome
+fi
+cd $archivehome
+
+if [ ! -d "./$datadir" ] 
+then
+    mkdir ./$datadir
+fi
+cd $datadir
+
+# rsync -ruval --ignore-existing --dry-run --remove-source-files $datauser@$datahost:Research/gr-radio_astro/events/ ./
+
+rsync -ruval --ignore-existing --remove-source-files $datauser@$datahost:Research/gr-radio_astro/events/ ./
+
