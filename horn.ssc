@@ -1,0 +1,76 @@
+//
+// Name: Horn Location
+// License: Public Domain
+// Author: Glen Langston
+// Version: 1.0
+// Description: Set view of area where telescope is pointed
+// Two Environment variables are used TELAZ,TELEL
+//
+
+// core.setDate("now");
+
+// core.wait(2);
+
+//var loc = core.getObseverLocation():
+// core.setObserverLocation(loc);
+
+// core.setObserverLocation("Washington, USA", 2);
+// label all planets
+
+var alt = 90;
+var azi = 0;
+var fov = 90;
+
+TELAZ=core.getEnv("TELAZ");
+if (TELAZ.length == 0)
+   TELAZ = "180";
+TELEL=core.getEnv("TELEL");
+if (TELEL.length == 0)
+   TELEL = "45";
+
+var azi = parseInt(TELAZ, 10);
+core.debug( "Parsed TELAZ:  " + azi)
+var alt = parseInt(TELEL, 10);
+core.debug( "Parsed TELEL:  " + alt)
+
+// core.clear("starchart");
+core.wait(1);
+
+StelMovementMgr.setEquatorialMount( false);
+StelMovementMgr.setFlagTracking( true);
+core.moveToAltAzi(alt, azi, 5);
+core.wait(1);
+StelMovementMgr.zoomTo( fov, 5);
+core.wait(1);
+// var alt = 75;
+// var azi = 180;
+core.wait(1);
+
+GridLinesMgr.setFlagEquatorGrid(false);
+GridLinesMgr.setFlagGalacticEquatorLine( true);
+GridLinesMgr.setFlagHorizonLine( true);
+StelMovementMgr.setFlagTracking(false);
+
+ConstellationMgr.setFlagArt(false);
+ConstellationMgr.setFlagBoundaries(true);
+ConstellationMgr.setFlagLines(true);
+ConstellationMgr.setFlagLabels(true);
+ConstellationMgr.setFlagIsolateSelected(true);
+
+core.wait(1);
+
+LabelMgr.labelScreen("Moving to Horn Position",100,450,true,20,"#ff0000");
+core.wait(1);
+var fov = 90;
+StelMovementMgr.zoomTo( fov, 5);
+core.wait(1);
+
+core.moveToAltAzi(alt, azi, 10);
+core.wait(1);
+
+LabelMgr.labelScreen("Zooming to Horn Field Of View",100,480,true,20,"#ff0000");
+
+var fov = 15;
+StelMovementMgr.zoomTo( fov, 5);
+
+core.setGuiVisible(true);
