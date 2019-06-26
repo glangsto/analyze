@@ -132,12 +132,14 @@ while iarg < nargs:
         namearg = namearg+1
         minvel = float(sys.argv[iarg])
         print 'Minimum velocity for baseline fit: %7.2f km/sec ' % (minvel)
+        print '20 channels near this velocity will be used for the fit'
     elif sys.argv[iarg].upper() == '-VB':   # now look for flags with arguments
         iarg = iarg+1
         timearg = timearg+1
         namearg = namearg+1
         maxvel = float(sys.argv[iarg])
         print 'Maximum velocity for baseline fit: %7.2f km/sec ' % (maxvel)
+        print '20 channels near this velocity will be used for the fit'
     else:
         break
     iarg = iarg + 1
@@ -168,7 +170,6 @@ yallmax = -9.e9
 yallmin = 9.e9
 
 
-clight = 299792.458     # (v km/sec)
 tmin = 20.0  # Tsys never less than 20 K
 tmax = 999.0 # define reasoanable value limits
 
@@ -256,32 +257,35 @@ chanbaseline = hot.vel2chan( velbaseline, nureference)
 xa = int(chanbaseline[0])
 xb = int(chanbaseline[1])
 
-if doDebug: 
-    print ''
-    print 'velocity range: ',velbaseline
-    print 'channel  range: ', chanbaseline
-    print 'Min Vel at channel: ',xa, minvel
-    print 'Max Vel at channel: ',xb, maxvel
-                                   
 if xa > xb:   # keep the channel ranges from small to large
     temp = xa
     xa = xb
     xb = temp
 
-if xa < 11:           # must avoid edge channels when fitting baselines 
-    xa = 11
+if xa < 21:           # must avoid edge channels when fitting baselines 
+    xa = 21
 elif xa > nData - 21:
     xa = nData - 21
+
 if xb > nData -  21:
     xb = nData - 21
-elif xb < 11:
-    xb = 11
+elif xb < 21:
+    xb = 21
 
 if xa == xb:
     xa = xb - 1
 xa = int(xa)
 xb = int(xb)
 
+if doDebug: 
+    print ''
+    print 'N Channels    : ',nData
+    print 'velocity range: ', velbaseline
+    print 'Reference Freq. ', nureference
+    print 'channel  range: ', chanbaseline
+    print 'Min Vel at channel: ',xa, minvel
+    print 'Max Vel at channel: ',xb, maxvel
+                                   
 
 ncold, cold, minel, maxel  = hotcold.coldaverage( coldnames)  # compute cold load average
 if ncold < 1.:
