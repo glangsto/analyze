@@ -32,6 +32,8 @@ newLon = NOVALUE
 newCen = NOVALUE
 newBan = NOVALUE
 newRefSample = NOVALUE
+newRefChan = NOVALUE
+newNChan = NOVALUE
 newNTime = -200
 observer = ""
 note = ""
@@ -112,10 +114,22 @@ while iii < nargs:
         print "Bandwidth ", newBan, " (MHz)"
         ifile = ifile + 2
         aFix = True
+    if anarg[0:3] == "-RC":
+        newRefChan = np.float(sys.argv[iii+1])
+        iii = iii + 1
+        print "Ref Chan  ", newRefChan
+        ifile = ifile + 2
+        aFix = True
+    if anarg[0:3] == "-NC":
+        newNChan = np.float(sys.argv[iii+1])
+        iii = iii + 1
+        print "N Channel ", newNChan
+        ifile = ifile + 2
+        aFix = True
     if anarg[0:3] == "-RS":
         newRefSample = np.float(sys.argv[iii+1])
         iii = iii + 1
-        print "Reference Sample ", refSample, " "
+        print "Reference Sample ", newRefSample, " "
         ifile = ifile + 2
         aFix = True
     if anarg[0:3] == "-RE":
@@ -137,6 +151,8 @@ if aFix == False:
     print " -lon Telescope longitude in degrees"
     print " -cen Center Frequency (MHz)"
     print " -ban Bandwidth (MHz)"
+    print " -rch Reference channel  (1 based)"
+    print " -nch Number of channels (1 based)"
     print " -obs Observers names (ascii)"
     print " -tel Telescope name (ascii)"
     print " -not Note describing observation (ascii)"
@@ -179,6 +195,10 @@ for iii in range(nfiles):
         rs.centerFreqHz = newCen * 1.E6
     if newRefSample != NOVALUE:
         rs.refSample = newRefSample
+    if newRefChan != NOVALUE:
+        rs.refChan = newRefChan
+    if newNChan != NOVALUE:
+        rs.nChan = newNChan
 
     rs.azel2radec()    # compute ra,dec from az,el and telescope location
 

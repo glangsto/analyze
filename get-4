@@ -1,0 +1,7 @@
+#/bin/bash
+# SCP the spectra from a data computer
+# HISTORY
+# 19JUN29 GIL initial version
+
+getdata 192.168.1.204 odroid odroid
+

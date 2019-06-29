@@ -1,5 +1,6 @@
 #Python Script to plot Calibrated NSF Horn Observations
 #HISTORY
+#19JUN29 GIL debugginginfo added
 #18DEC11 GIL add argument processing loop, saving products
 #18DEC10 GIL initial version based on m.py
 #
@@ -278,6 +279,11 @@ xa = int(xa)
 xb = int(xb)
 
 if doDebug: 
+    print ''
+    print 'Hot File Coord: '
+    print 'nChan, refChan: ',hot.nChan, hot.refChan
+    print 'centerFreqHz  : ',hot.centerFreqHz
+    print 'bandwidthHz   : ',hot.bandwidthHz
     print ''
     print 'N Channels    : ',nData
     print 'velocity range: ', velbaseline
