@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# find the plotting program
+if [ -e g.py ]
+then
+    python g.py "$@"
+else
+    if [ -e ~/bin/g.py ]
+    then
+       python ~/bin/g.py "$@"
+    fi     
+fi
