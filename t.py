@@ -2,6 +2,7 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#19SEP11 GIL fix Tsys calculation
 #18FEB06 GIL only output if nfiles > 1
 #17AUG17 GIL Note elevation range
 #16Oct07 GIL check for changes in frequency and/or gain
@@ -29,7 +30,7 @@ flagCenter = False
 flagCenter = True
 # put list of RFI features here, for interpolation later
 flagRfi = False
-flagRfi = True
+#flagRfi = True
 linelist = [1400.00, 1420.00]  # RFI lines in MHz
 linewidth = [5, 5] # line width is in channels
 
@@ -39,11 +40,14 @@ nargs = len(sys.argv)
 linestyles = ['-','-','-', '-.','-.','-.','--','--','--','-','-','-', '-.','-.','-.','--','--','--','-','-','-', '-.','-.','-.','--','--','--','-','-','-', '-.','-.','-.','--','--','--']
 colors =  ['-b','-r','-g', '-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g']
 nmax = len(colors)
-scalefactor = 1e8
+#scalefactor = 1e8
+scalefactor = 1.
 xallmax = -9.e9
 xallmin = 9.e9
 yallmax = -9.e9
 yallmin = 9.e9
+#debug = True       # turn on and off debugging 
+debug = False       # turn on and off debugging 
 
 c = 299792.  # (v km/sec)
 nuh1 = 1420.4056 # neutral hydrogen frequency (MHz)
@@ -139,30 +143,34 @@ xv = hot.xdata * 1.E-6
 nData = len( xv)
 n6 = int(nData/6)
 n56 = 5*n6
-yv = hot.ydataA
-#yv = hot.foldfrequency()
 
-hotmedian = np.median(yv[n6:n56])
-if hotmedian > .001:
-    scalefactor = 1.0
 
 hot.ydataA = scalefactor * hot.ydataA / float(nhot)
+yv = hot.ydataA
+hotmedian = np.median(yv[n6:n56])
+#if hotmedian > .001:
+#    scalefactor = 1.0
 
 # if flagging RFI 
 if flagRfi:
     hv = radioastronomy.lines( linelist, linewidth, xv, yv) # interpolate rfi
 else:
-    hv = yv
+    hv = copy.deepcopy(yv)
 
 fig, ax1 = plt.subplots(figsize=(10, 6))
-#plt.hold(True)
 az = hot.telaz
 el = hot.telel
-ymin = 1000.  # initi to large values
+ymin = 1000.  # limit large values
 ymax = 0.
 yallmin = ymin
 yallmax = ymax
 ymed = np.median(yv)
+ymax = np.max( yv)
+ystd = np.std(yv)
+if ystd <= 0.:
+    ystd = 0.001
+if debug:
+    print( "Hot load Max, Median, Std: %8.3f, %8.3f, %8.3f (counts)" % (ymax, ymed, ystd))
 count = hot.count
 ncold = 0
 
@@ -201,6 +209,10 @@ def compute_tsky( xv, yv, hv, thot, tcold):
     # scale the observed instensity in counts to Kelvins.
     tsky = S*yv
 
+    if debug: 
+        print('Cold sky median value: %8.3f (counts)' % np.median(yv[n6:n56]))
+        print('Tsys     median value: %8.3f (K)' % np.median(tsky[n6:n56]))
+
     if flagCenter:             # if flagging spike in center of plot
     # remove spike in center of the plot
         icenter = int(nData/2)
@@ -219,7 +231,7 @@ newObs = False
 
 nRead = 0        
 nFiles = len(names)
-print nFiles
+print('Total of %d nFiles read' % (nFiles))
 
 # now read through all data and average cold sky obs
 for filename in names:
@@ -317,11 +329,14 @@ for filename in names:
         yv = cold.ydataA * scalefactor
         tsky = compute_tsky( xv, yv, hv, thot, tcold)
 
-        ymin = min(tsky[(nData/8):(7*nData/8)])
-        ymax = max(tsky[(nData/8):(7*nData/8)])
+        ymin = min(tsky[n6:n56])
+        ymax = max(tsky[n6:n56])
         yallmin = min(ymin,yallmin)
         yallmax = max(ymax,yallmax)
-        ymed = np.median(tsky)
+        ymed = np.median(tsky[n6:n56])
+        ystd = np.std(tsky[n6:n56])
+        if ystd <= 0.:
+            ystd = 0.001
         aveutc,duration = radioastronomy.aveutcs( firstutc, lastutc)
         strnow = aveutc.isoformat()
         datestr = strnow.split('.')
@@ -338,7 +353,7 @@ for filename in names:
         else:
             ellabel = ' El=%4.1f' % (el)
         label = label + ellabel
-        print ' Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ymax, ymed, ymax/ymed, ncold, label)
+        print ' Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ymax, ymed, (ymax-ymed)/ystd, ncold, label)
 
         # plot thicker lines when near the galactic plane
         if gallat < 7.5 and gallat > -7.5:
@@ -353,7 +368,7 @@ for filename in names:
 
 # if this was a new obs; restart the sums
     if ncold == 0:
-        cold = rs  # initial spectrum is one just read
+        cold = copy.deepcopy(rs)  # initial spectrum is one just read
         ncold = 1
         # sums are weighted by durations
         firstlon = rs.gallon
@@ -398,17 +413,21 @@ if ncold > 0:
     xallmax = max(xmax, xallmax)
     count = cold.count
     note = cold.noteA
-                    #print('%s' % note)
+    if debug:
+        print('Cold Note: %s' % note)
     ncolor = min(nmax-1, nplot) 
 
     yv = cold.ydataA * scalefactor
     tsky = compute_tsky( xv, yv, hv, thot, tcold)
     
-    ymin = min(tsky[(nData/8):(7*nData/8)])
-    ymax = max(tsky[(nData/8):(7*nData/8)])
+    ymin = min(tsky[n6:n56])
+    ymax = max(tsky[n6:n56])
     yallmin = min(ymin,yallmin)
     yallmax = max(ymax,yallmax)
-    ymed = np.median(tsky)
+    ymed = np.median(tsky[n6:n56])
+    ystd = np.std(tsky[n6:n56])
+    if ystd <= 0.:
+        ystd = 0.001
     if firstdate == lastdate: 
         label = '%s Lon,Lat=%5.1f,%5.1f' % (time, gallon, gallat)
     else:
@@ -419,7 +438,7 @@ if ncold > 0:
     else:
         ellabel = ' El=%4.1f' % (el)
     label = label + ellabel
-    print ' Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ymax, ymed, ymax/ymed, ncold, label)
+    print ' Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ymax, ymed, (ymax-ymed)/ystd, ncold, label)
 
     # plot thicker lines when near the galactic plane
     if gallat < 7.5 and gallat > -7.5:

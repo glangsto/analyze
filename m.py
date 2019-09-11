@@ -1,6 +1,7 @@
 #Python Script to plot calibrated/baseline-fit  NSF record data.
 #plot the raw data from the observation
 #HISTORY
+#19SEP11 GIL do not use statistics, use numpy equivalent
 #18DEC11 GIL minor code cleanup 
 #18MAR05 GIL implement folding option
 #18FEB06 GIL keep track of first az,el
@@ -16,7 +17,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys
 import datetime
-import statistics
 import radioastronomy
 import copy
 import interpolate
@@ -102,10 +102,6 @@ tmax = 999.0 # define reasoanable value limits
 
 # prepare to remove a linear baseline
 
-xa = 200
-#xb = 1024-xa
-xb = 1024-200
-
 nplot = 0
 nhot = 0         # number of obs with el < 0
 ncold = 0
@@ -189,7 +185,15 @@ else:
 
 xv = hot.xdata * 1.E-6
 yv = hot.ydataA
-nData = len(xv)
+nData = len( xv)        # get data length and indicies for middle of spectra 
+n6 = int(nData/6)
+n56 = 5*n6
+
+xa = 200
+#xb = 1024-xa
+xb = nData-200
+
+
 #previously just copy
 #hv = yv
 if flagRfi:
@@ -265,7 +269,7 @@ if nhigh < 1.:
     exit()
 else:
     high.ydataA = scalefactor * high.ydataA/nhigh
-    print "Found %3d High Galactic Latidue spectra" % (nhigh)
+    print "Found %3d High Galactic Latitude spectra" % (nhigh)
     yv = high.ydataA
 
     cv = interpolate.lines( linelist, linewidth, xv, yv) # interpolate rfi
@@ -273,8 +277,8 @@ else:
 # finally compute gain on a channel by chanel basis
 gain = np.zeros(nData)
 for iii in range(nData):
-    gain[iii] = (hv[iii] - cv[iii])/(thot - tcold)
-#    gain[iii] = hv[iii]/thot
+#    gain[iii] = (hv[iii] - cv[iii])/(thot - tcold)
+    gain[iii] = hv[iii]/thot
 
 def compute_tsky_hotcold( xv, yv, hv, cv, thot, tcold):
     nData = len(xv)
@@ -318,8 +322,8 @@ def compute_tsky_hotcold( xv, yv, hv, cv, thot, tcold):
         print 'Imax Error computing baseline: ', imax
         imax = nData-1
 
-    ya = statistics.median(tsky[(xa-10):(xa+10)])
-    yb = statistics.median(tsky[(xb-10):(xb+10)])
+    ya = np.median(tsky[(xa-10):(xa+10)])
+    yb = np.median(tsky[(xb-10):(xb+10)])
     slope = (yb-ya)/(xb-xa)
 #                baseline = tsky
 #                print 'ya,b: %6.1f,%6.1f; slope: %8.4f' % (ya, yb, slope)
@@ -336,7 +340,10 @@ ymin = 1000.  # initi to large values
 ymax = 0.
 yallmin = ymin
 yallmax = ymax
-ymed = statistics.median(yv)
+ymed = np.median(yv[n6:n56])
+ystd = np.std(yv[n6:n56])
+if ystd <= 0.:
+    ystd = 0.001
 count = hot.count
 ncold = 0
 
@@ -347,8 +354,8 @@ bData = int(3*int(nData/10))
 eData = int(6.5*int(nData/10))
 
 # compute median raw values
-hotmedian = statistics.median(hv[bData:eData])
-coldmedian = statistics.median(cv[bData:eData])
+hotmedian = np.median(hv[bData:eData])
+coldmedian = np.median(cv[bData:eData])
 hvnorm = (1./hotmedian) * hv
 cvnorm = (1./coldmedian) * cv
 
@@ -357,13 +364,13 @@ deltanorm = cvnorm - hvnorm
 deltanorm = deltanorm + 1.0
 zeronorm = 0.0*deltanorm + 1.0
 
-# copute the reciever temperature
+# compute the reciever temperature
 trx = np.zeros(nData)
 zeros = np.zeros(nData)
 for iii in range(nData):
     trx[iii] = (cv[iii]/gain[iii]) - tcold
 
-Tsys = statistics.median(trx[bData:eData])
+Tsys = np.median(trx[bData:eData])
 print "Median Receiver + Antenna Temp: %7.2f (K)" % ( Tsys)
 
 #plt.plot(xv, trx, colors[1], linestyle=linestyles[0],label="Tsys")
@@ -492,7 +499,10 @@ for filename in names:
             label = 'L,L=%5.1f,%5.1f' % (gallon, gallat)
             
             tsky, vel = compute_tsky_hotcold( xv, yv, hv, cv, thot, tcold)
-            ymed = statistics.median(tsky)
+            ymed = np.median(tsky[n6:n56])
+            ystd = np.std(tsky[n6:n56])
+            if ystd <= 0.:
+                ystd = 0.001
             
             ymin = min(tsky[(1*nData/4):(3*nData/4)])
             ymax = max(tsky[(1*nData/4):(3*nData/4)])
@@ -509,7 +519,7 @@ for filename in names:
             else:
                 label = '%s L,L=%5.1f,%4.1f A,E=%4.0f,%4.0f' % (labeltime, gallon, gallat, az, el)
             if ncold > 0:
-                print ' Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ymax, ymed, ymax/ymed, ncold, label)
+                print ' Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ymax, ymed, (ymax-ymed)/ystd, ncold, label)
                 if gallat < 7.5 and gallat > -7.5:
                     plt.plot(vel, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label, lw=4)
                 elif gallat < 15. and gallat > -15.:
@@ -565,7 +575,7 @@ if doDebug:
     print 'Number of remaining observations not plotted: ', ncold
 
 # if data remaing from summation
-if ncold > 1:
+if ncold > 0:
     cold.ydataA = cold.ydataA/float(timesum)
 
     gallon = cold.gallon/float(timesum)
@@ -592,10 +602,13 @@ if ncold > 1:
     ncolor = min(nmax-1, nplot) 
 
     tsky, vel = compute_tsky_hotcold( xv, yv, hv, cv, thot, tcold)
-    ymed = statistics.median(tsky)
-
-    ymin = min(tsky[(2*nData/4):(3*nData/4)])
-    ymax = max(tsky[(2*nData/4):(3*nData/4)])
+    ymed = np.median(tsky[n6:n56])
+    ystd = np.std(tsky[n6:n56])
+    if ystd <= 0.:
+        ystd = 0.001
+            
+    ymin = min(tsky[n6:n56])
+    ymax = max(tsky[n6:n56])
     yallmin = min(ymin,yallmin)
     yallmax = max(ymax,yallmax)
     avedatetime = cold.utc.isoformat()
@@ -607,7 +620,7 @@ if ncold > 1:
         label = '%s L,L=%5.1f,%5.1f' % (labeltime, gallon, gallat)
     else:
         label = '%s L,L=%5.1f,%5.1f A,E=%4.0f,%4.0f' % (labeltime, gallon, gallat, az, el)
-#    print ' Max: %9.1f  Median: %9.1f Tsys: %6.2f ; %s %s' % (ymax, ymed, ymax/ymed, ncold, label)
+    print ' Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ymax, ymed, (ymax-ymed)/ystd, ncold, label)
     if gallat < 7.5 and gallat > -7.5:
         plt.plot(vel, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label, lw=4)
     elif gallat < 15. and gallat > -15.:
