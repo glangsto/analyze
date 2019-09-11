@@ -183,6 +183,7 @@ for iii in range(1, min(nargs,25)):
     plt.plot(xv, yv, colors[iii-1], linestyle=linestyles[iii-1],label=label, lw=2)
 plt.title(note, fontsize=16)
 plt.xlabel('Frequency (MHz)',fontsize=16)
-plt.ylabel('Intensity (Counts)', fontsize=16)
+ylabel = 'Intensity (%s)' % rs.bunit
+plt.ylabel(ylabel, fontsize=16)
 plt.legend(loc='upper right')
 plt.show()
