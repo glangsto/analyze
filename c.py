@@ -387,6 +387,9 @@ for filename in plotnames:
 # exclude hot load data for averaging
     if extension == 'hot':
         continue
+# also exclude summaries
+    if extension == 'sum':
+        continue
 
     rs = radioastronomy.Spectrum()
 #  print filename
@@ -535,8 +538,8 @@ for filename in plotnames:
             else:
                 print ""
             if doDebug:
-                print 'Vel, Tsky: ',vel[300],tsky[300],xv[300]
-                print 'Vel, Tsky: ',vel[700],tsky[700],xv[700]
+                print 'Vel, Tsky: %8.3f, %8.3f at %8.3f ' % (vel[300],tsky[300],xv[300])
+                print 'Vel, Tsky: %8.3f, %8.3f at %8.3f ' % (vel[700],tsky[700],xv[700])
             # end if data to average and plot
         # end if a new observation
 

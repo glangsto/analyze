@@ -81,6 +81,9 @@ lastbw = 0.
 lastgain = 0.
 lastel = 0.
 lastaz = 0.
+# deal with wrapped RA and Galactic longitude
+lastra = 0.
+lastlon = 0.
 firstaz = -500. # flage no azimuth yet  read
 firstdate = ""
 lastdate = ""
@@ -286,13 +289,16 @@ nhot = 1
 
 xv = hot.xdata * 1.E-6  # convert frequencies to MHz
 yv = hot.ydataA
-n = len(yv)
-n2 = n/2
+nData = len(xv)
+n2 = nData/2
+# interpolate over center channels
 yv[n2-1] = ((3.*yv[n2-2])+yv[n2+2])/4.
 yv[n2] = (yv[n2-2]+yv[n2+2])/2.
 yv[n2+1] = ((yv[n2-2])+(3.*yv[n2+2]))/4.
 
-nData = len(xv)
+n6 = int(nData/6)
+n56 = 5*n6
+
 #previously just copy
 #hv = yv
 hv = interpolate.lines( linelist, linewidth, xv, yv) # interpolate rfi
@@ -315,6 +321,14 @@ gain = np.zeros(nData)
 for iii in range(nData):
     gain[iii] = (hv[iii] - cv[iii])/(thot - tcold)
     vel[iii] = c * (nuh1 - xv[iii])/nuh1
+
+#now want gain using only hot counts, but must add in Tsys
+tSys = cv/gain
+tSysMiddle = np.median(tSys[n6:n56])
+
+# for remainder of calculations only use hot counts for calibration
+for iii in range(nData):
+    gain[iii] = hv[iii]/(thot + tSysMiddle - tcold)
 
 # now interpolate over galactic velocities to remove galactic HI emission
 gain = interpolate_range( minvel, maxvel, vel, gain)
@@ -406,10 +420,14 @@ for filename in names:
         lastdate = date
 
         newAzEl = (lastaz != rs.telaz) or (lastel != rs.telel)
+        # deal with wrapped RA and Galactic longitude
+        dra = np.abs(lastra - rs.ra)
+        dlon = np.abs(lastlon - rs.gallon)
+        newRaLon = (dra > 10.) or (dlon > 10.)
         newObs = (lastfreq != rs.centerFreqHz) or (lastbw != rs.bandwidthHz) or (lastgain != rs.gains[0]) or newAzEl
         
         # if time to average (or end of all files)
-        if (dt > avetime) or (filename == sys.argv[nargs-1]) or newObs:
+        if (dt > avetime) or (filename == sys.argv[nargs-1]) or newObs or newRaLon:
             cold.ydataA = cold.ydataA/float(timesum)
             # have complicated steps to simple get the average time.
             deltatime = endtime - starttime
@@ -560,6 +578,9 @@ for filename in names:
                     print "LastAzEl: ", lastaz,lastel, "New: ", rs.telaz,rs.telel, " degrees"
                 lastaz = rs.telaz
                 lastel = rs.telel
+            if newRaLon:   # deal with wrapped RA and Galactic longitude
+                lastra = rs.ra
+                lastlon = rs.gallon
 
 # if this was a new obs; restart the sums
     if ncold == 0:
