@@ -1,5 +1,6 @@
 #Python Script to plot Calibrated NSF Horn Observations
 #HISTORY
+#19SEP11 GIL do not write the Kelvins file until fixed (.kel)
 #19JUN29 GIL debugginginfo added
 #18DEC11 GIL add argument processing loop, saving products
 #18DEC10 GIL initial version based on m.py
@@ -218,6 +219,8 @@ else:
 
 nChan = hot.nChan
 nData = nChan
+n6 = int(nData/6)
+n56= 5*n6
 xv = hot.xdata[0:nChan] * 1.E-6
 yv = copy.deepcopy( hot.ydataA[0:nChan])
 if doDebug: 
@@ -247,7 +250,7 @@ if doDebug:
 
 if doSave:
     hot.writecount = 1
-    hot.ydata = hv
+    hot.ydataA = hv
     hot.write_ascii_ave( outDir)
 else:
     print ""
@@ -315,14 +318,13 @@ else:
 if flagCenter:
     cv = hotcold.flagCenter( cv)
 
-cv = copy.deepcopy(cv)
 
 if doDebug:
     print "cv: %8.2f (counts)" % (cv[300])
 
 if doSave:
     cold.writecount = 2
-    cold.ydata = copy.deepcopy(cv)
+    cold.ydataA = copy.deepcopy(cv)
     cold.write_ascii_ave( outDir)
 else:
     print ""
@@ -485,8 +487,8 @@ for filename in plotnames:
                 cold.bunit = 'Kelvins'
             else:
                 tsky = yv
-            cold.ydataA = tsky
-
+            cold.ydataA = copy.deepcopy(tsky)
+            
             if doSub:
                 ya = np.median(tsky[(xa-10):(xa+10)])
                 yb = np.median(tsky[(xb-10):(xb+10)])
@@ -495,11 +497,18 @@ for filename in plotnames:
                     tsky[iii] = tsky[iii] - (ya + (slope*(iii-xa)))
                 cold.ydataA = tsky
 
-            ymed = np.median(tsky[(nData/4):(3*nData/4)])
+            ymed = np.median(cold.ydataA[n6:n56])
+            ystd = np.std(cold.ydataA[n6:n56])
+            if ystd <= 0.:
+                ystd = 0.001
+            ymin = min(cold.ydataA[xa:xb])
+            ymax = max(cold.ydataA[xa:xb])
+
+            if doDebug:
+                print('Calibrated Max, Median and Std Dev: %8.3f %8.3f %8.3f' % (ymax, ymed, ystd))
+
             if doDebug:
                 print 'xa,xb: ',xa,xb
-            ymin = min(tsky[xa:xb])
-            ymax = max(tsky[xa:xb])
             yallmin = min(ymin,yallmin)
             yallmax = max(ymax,yallmax)
             date, time = cold.datetime()
@@ -580,7 +589,7 @@ if ncold > 1:
         slope = (yb-ya)/(xb-xa)
         for iii in range( nData):
             tsky[iii] = tsky[iii] - (ya + (slope*(iii-xa)))
-    cold.yDataA = tsky
+    cold.ydataA = copy.deepcopy( tsky)
 
     ymed = np.median(tsky)
 
@@ -606,6 +615,7 @@ if ncold > 1:
     else:
         plt.plot(vel, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label)
     nplot = nplot + 1
+
     if doSave:
         cold.writecount = nplot+2
         cold.write_ascii_ave( outDir)

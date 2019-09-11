@@ -2,6 +2,7 @@
 Class defining a Radio Frequency Spectrum
 Includes reading and writing ascii files
 HISTORY
+19SEP11 GIL restore write_ascii_ave()
 19JUN29 GIL diagnose errors in vel2chan
 19JUN26 GIL fix error for smaller spectra introduced when adding events
 19MAY10 GIL slight code cleanup
@@ -668,6 +669,27 @@ class Spectrum(object):
                 outname = yymmdd + '.ast'
             else:
                 outname = yymmdd + '.hot'
+        outname = outname.replace(":", "")
+        self.write_ascii_file(dirname, outname)
+
+    def write_ascii_ave(self, dirname):
+        """
+        Write ascii average file containing astronomy data
+        File name is based on time of observation
+        """
+        now = self.utc
+        strnow = now.isoformat()
+        datestr = strnow.split('.')
+        daypart = datestr[0]
+        yymmdd = daypart[2:19]    # actually date and time parts
+        yymmdd = yymmdd + "-ave"  # distiguish averages from observations
+        # distinguish hot load and regular observations
+        extension = '.ast'
+        if self.bunit == 'Kelvins':
+            extension = '.kel'
+        if self.telel < 0:
+            extension = '.hot'
+        outname = yymmdd + extension
         outname = outname.replace(":", "")
         self.write_ascii_file(dirname, outname)
 
