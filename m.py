@@ -178,9 +178,9 @@ for filename in names:
             
 if nhot > 0:
     hot.ydataA = scalefactor * hot.ydataA / float(nhot)
-    print "Found %3d hot load observations" % nhot
+    print "Found %3d Hot load observations" % nhot
 else:
-    print "No hot load data, can not calibrate"
+    print "No Hot load data, can not calibrate"
     exit()
 
 xv = hot.xdata * 1.E-6
@@ -274,11 +274,19 @@ else:
 
     cv = interpolate.lines( linelist, linewidth, xv, yv) # interpolate rfi
 
-# finally compute gain on a channel by chanel basis
+# finally compute gain on a channel by channel basis
 gain = np.zeros(nData)
 for iii in range(nData):
-#    gain[iii] = (hv[iii] - cv[iii])/(thot - tcold)
-    gain[iii] = hv[iii]/thot
+    gain[iii] = (hv[iii] - cv[iii])/(thot - tcold)
+#    gain[iii] = hv[iii]/thot
+
+#now want gain using only hot counts, but must add in Tsys
+tSys = cv/gain
+tSysMiddle = np.median(tSys[n6:n56])
+
+# for remainder of calculations only use hot counts for calibration
+for iii in range(nData):
+    gain[iii] = hv[iii]/(thot + tSysMiddle - tcold)
 
 def compute_tsky_hotcold( xv, yv, hv, cv, thot, tcold):
     nData = len(xv)
