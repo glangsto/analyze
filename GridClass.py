@@ -194,7 +194,7 @@ class Grid(object):
 
                 # finally get angular separation in degrees
                 r = angles.r2d(angles.sep(x0, y0, rx, ry))
-                if r > self.FWHM:  # round convolving function
+                if r > 2.*self.FWHM:  # round convolving function
                     continue
 
                 # add the colvolved measurement to the grid.

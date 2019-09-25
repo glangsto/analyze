@@ -393,15 +393,9 @@ if ystd <= 0.:
 count = hot.count
 ncold = 0
 
-# set indicies for normalizing intensities
-bData = 790
-eData = 900
-bData = int(3*int(nData/10))
-eData = int(6.5*int(nData/10))
-
 # compute median raw values
-hotmedian = np.median(hv[bData:eData])
-coldmedian = np.median(cv[bData:eData])
+hotmedian = np.median(hv[n6:n56])
+coldmedian = np.median(cv[n6:n56])
 hvnorm = (1./hotmedian) * hv
 cvnorm = (1./coldmedian) * cv
 
@@ -416,7 +410,7 @@ zeros = np.zeros(nData)
 for iii in range(nData):
     trx[iii] = (cv[iii]/gain[iii]) - tcold
 
-Tsys = np.median(trx[bData:eData])
+Tsys = np.median(trx[n6:n56])
 tStdA = np.std(trx[n6:n26])
 tStdB = np.std(trx[n46:n56])
 print "Median Receiver Temp: %7.2f +/- %5.2f (%5.2f %5.2f) (K)" % ( Tsys, (tStdA+tStdB)/2., tStdA, tStdB)

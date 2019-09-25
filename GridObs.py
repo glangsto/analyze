@@ -4,6 +4,7 @@ Model to use the GridClass to make an image of radio astronomical observations
 # Functions to create a grid and place astronomical data on that
 # grid with a convolving function
 # HISTORY
+# 19SEP23 GIL slightly bigger map in declination
 # 18FEB19 GIL possibly grid max
 # 17FEB03 GIL add comments and cleanup
 # 17JAN28 GIL finish initial version
@@ -23,11 +24,11 @@ def main():
     dpi = 1
     dpi = 2
     width = int(360)
-    height = int(180)
+    height = int(130)
     mywidth = int(width*dpi)
     myheight = int(height*dpi)
     FWHM = 7.5  # degrees
-    FWHM = 2.0  # degrees
+    FWHM = 1.0  # degrees
     weight = 1.
 
     nargs = len(sys.argv)
@@ -46,20 +47,20 @@ def main():
     if gridtype == 'RA':
         xmin = 0.
         xmax = 360.
-        ymin = -35.
-        ymax = 85.
+        ymin = -40.
+        ymax = 90.
     elif gridtype == '-RA':
         xmin = 0.
         xmax = 360.
-        ymin = -35.
-        ymax = 85.
+        ymin = -40.
+        ymax = 90.
         xsign = -1.
         xoffset = 360.  # when x = 360. should be at zero.
     elif gridtype == 'RA0':
         xmin = 0.
         xmax = 360.
-        ymin = -35.
-        ymax = 85.
+        ymin = -41.
+        ymax = 89.
         xsign = -1.
         xoffset = 180.  # when x = 360. should be at zero.
     elif gridtype == 'GAL':
@@ -148,8 +149,8 @@ def main():
 
     mygrid.normalize()
 #    mygrid.check()
-    zmin = 00.
-    zmax = 3000.
+    zmin = -1500.
+    zmax = 6000.
 # limit grid intensities for plotting
     mygrid.limit(zmin, zmax)
 
@@ -190,6 +191,7 @@ def main():
             plt.ylabel("Declination (degrees)")
             labels = 24 - (ticks/(mywidth/24))
             labels[0] = 0
+            labels[0] = 24
             yticks = np.arange(0, myheight, 15*dpi)
         elif gridtype == 'RA0': # put 0 hours in middle of plot
             plt.xlabel("Right Ascension (hours)")

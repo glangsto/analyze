@@ -2,6 +2,7 @@
 #The list of header items to fix is given in help.
 #These include El (elevation) and Az (azimuth)
 #HISTORY
+#19SEP24 GIL turn off plotting by default
 #19FEB20 GIL initial version
 #
 import matplotlib.pyplot as plt
@@ -244,9 +245,6 @@ for iii in range(nfiles):
     rs.write_ascii_file( dirname, outname)
 
 # only plot the first few events
-    if nplot > 10:
-        continue
-    nplot = nplot+1
     gallon = rs.gallon
     gallat = rs.gallat
     label = '%s, AZ,EL: %5s,%5s, Lon,Lat=%5.1f,%5.1f' % ( time,rs.telaz,rs.telel,gallon,gallat)
@@ -257,6 +255,10 @@ for iii in range(nfiles):
     if rs.nTime < 1:
         print "Not an Event: ",filename
         continue
+
+    if nplot > 10:
+        continue
+    nplot = nplot+1
 
     # the remainder of this code only plots events.
     xv = np.zeros(rs.nSamples*2)

@@ -1,5 +1,8 @@
 #Python Script to plot Calibrated NSF Horn Observations
 #HISTORY
+#19SEP23 GIL use function for averaging 
+#19SEP21 GIL fix exit on processing all files
+#19SEP21 GIL fix exit on processing all files
 #19SEP11 GIL do not write the Kelvins file until fixed (.kel)
 #19JUN29 GIL debugginginfo added
 #18DEC11 GIL add argument processing loop, saving products
@@ -22,7 +25,8 @@ doSave = False    # flag saving intermediate files
 flagRfi = True    # flag flagging RFI
 doFold = False    # fold spectra to address an old issue; not normally used.
 doSub = False     # define subtract baseline
-doCalibrate = True# flagCalibrating observations
+doKelvins = False # save the kelvins calibration
+doCalibrate = True # flagCalibrating observations
 outDir = "./"     # define output directory for saving files
 mytitle = ""      # define plot title
 doHanning = False # hanning smooth hot load to reduce calibration noise
@@ -37,10 +41,13 @@ thot = 285.0  # define hot and cold in Kelvins
 tcold = 10.0
 nuh1 = 1420.40557177667 # neutral hydrogen frequency (MHz)
 nureference = 1.E6*nuh1 # neutral hydrogen frequency (Hz)
+# specify lowest  elevation for cold load averge
+lowel = 60.
 
 nargs = len(sys.argv)
 if nargs < 3:
     print "C: Calibrate Science Aficonado (NSF) horn observations"
+    print "C: Optionally produce average hot and cold load spectra"
     print "Usage: C [options]  <average_seconds> <files>"
     print ""
     print "Where many parameters are optional:"
@@ -59,6 +66,7 @@ if nargs < 3:
     print "-S Save average spectra in files.  The Hot and Cold Load averages are saved, too."
     print "   Average spectra have -ave added to their names"
     print "   Calibrated spectra have a .kel (for Kelvins) extension"
+    print "-K Save the kelvins calibrated spectra as well"
     print "-X Hanning smooth the hot load observation to reduce calibration noise"
     print "-T <plot title String> Label for plot"
     print "-VA <low velocity> limit to exclude for baseline fitting"
@@ -87,6 +95,12 @@ while iarg < nargs:
         doFold = True
     elif sys.argv[iarg].upper() == '-I':
         flagRfi = True
+    elif sys.argv[iarg].upper() == '-MINEL':  # if min elevation 
+        iarg = iarg + 1
+        timearg = timearg+1
+        namearg = namearg+1
+        lowel = float( sys.argv[iarg])
+        print "Using elevations > %7.2f (d) for Cold load calculation" % (lowel)
     elif sys.argv[iarg].upper() == '-N':   # if no calibration 
         print 'Not calibrating Average Spectra in -ave files'
         doCalibrate = False
@@ -97,6 +111,9 @@ while iarg < nargs:
         doDebug = True
     elif sys.argv[iarg].upper() == '-S':
         print 'Saving Average Spectra in -ave files'
+        doSave = True
+    elif sys.argv[iarg].upper() == '-K':
+        print 'Saving Kelvins Calibration in .kel files'
         doSave = True
     elif sys.argv[iarg].upper() == '-B':
         print 'Baseline subtraction'
@@ -156,12 +173,15 @@ except:
     print 'First position argumen must be the average time in seconds'
     print 'First argument: ', sys.argv[timearg]
     exit()
+
 avetime = datetime.timedelta(seconds=avetimesec)  # need datatime format
 
 if doDebug:
     print "Average time: ", avetimesec, " (seconds)"
 
 newObs = False
+allFiles = False
+
 linestyles = ['-','-','-', '-.','-.','-.','--','--','--','-','-','-', '-.','-.','-.','--','--','--','-','-','-', '-.','-.','-.','--','--','--','-','-','-', '-.','-.','-.','--','--','--']
 colors =  ['-b','-r','-g', '-b','-r','-g','-b','-r','-g','-c','-m','-y','-c','-m','-y','-c','-m','-y','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g']
 nmax = len(colors)
@@ -197,6 +217,83 @@ names = sys.argv[namearg:]
 names = sorted(names)
 nFiles = len(names)
 
+def average_spec( ave_spec, in_spec, nave, firstutc, lastutc):
+    """
+    Averages spectra and deal with issues of weighting functions by observing duration
+    """
+
+    # if restarting the sum
+    if nave == 0:
+        ave_spec = copy.deepcopy(in_spec)  # initial spectrum is one just read
+        firstutc = in_spec.utc
+        lastutc = in_spec.utc
+        nave = 1
+        # print 'Xmin: ', min(ave_spec.xdata)/1e6, 'Xmax: ', max(ave_spec.xdata),' MHz'
+        # sums are weighted by durations
+        ave_spec.ydataA = in_spec.ydataA * in_spec.durationSec
+        # keep track of observing time for weighted sum
+        ave_spec.durationSec = in_spec.durationSec
+    else: # else not enough time yet, average ave_spec data
+        lastutc = in_spec.utc
+        ave_spec.count = ave_spec.count + in_spec.count
+        nave = nave + 1
+        ave_spec.ydataA = ave_spec.ydataA + (in_spec.ydataA * in_spec.durationSec)
+        # keep track of observing time for weighted sum
+        ave_spec.durationSec = ave_spec.durationSec + in_spec.durationSec
+    return ave_spec, in_spec, nave, firstutc, lastutc
+
+def compute_tsky_hotcold( xv, yv, hv, cv, thot, tcold):
+    nData = len(xv)
+    vel = np.zeros(nData)
+    tsys = np.zeros(nData)    # initialize arrays
+    tsky  = np.zeros(nData)    # initialize arrays
+
+    for jjj in range (0, nData):
+        vel[jjj] = c * (nuh1 - xv[jjj])/nuh1
+        tsys[jjj] = yv[jjj]/gain[jjj]
+        tsky[jjj] = tsys[jjj] - Tsys
+
+    if flagCenter:             # if flagging spike in center of plot
+    # remove spike in center of the plot
+        icenter = int(nData/2)
+        tsky[icenter] = (tsky[icenter-2] + tsky[icenter+2])*.5
+        tsky[icenter-1] = (3.*tsky[icenter-2] + tsky[icenter+2])*.25
+        tsky[icenter+1] = (tsky[icenter-2] + 3.*tsky[icenter+2])*.25
+
+    iref = int(nData/2)
+    vref = vel[iref]
+    dv   = (vel[iref+2]-vel[iref-2])/4.
+    imin = int(((minvel - vref)/dv) + iref)
+    imax = int(((maxvel - vref)/dv) + iref) + 1
+    if imax < imin: # swap indices if frequency opposit velocity
+        temp = imin
+        imin = imax
+        imax = temp
+
+    if imin < 0:
+        print 'Imin Error computing baseline: ', imin
+        imin = 0
+    if imin >= nData:
+        print 'Imin Error computing baseline: ', imin
+        imin = nData-1
+
+    if imax < 0:
+        print 'Imax Error computing baseline: ', imax
+        imax = 0
+    if imax >= nData:
+        print 'Imax Error computing baseline: ', imax
+        imax = nData-1
+
+    ya = np.median(tsky[(xa-10):(xa+10)])
+    yb = np.median(tsky[(xb-10):(xb+10)])
+    slope = (yb-ya)/(xb-xa)
+#                baseline = tsky
+#                print 'ya,b: %6.1f,%6.1f; slope: %8.4f' % (ya, yb, slope)
+    for iii in range( nData):
+        tsky[iii] = tsky[iii] - (ya + (slope*(iii-xa)))
+
+    return tsky, vel
+
 if doDebug:
     print 'First Name: ',names[0], namearg
 
@@ -220,7 +317,10 @@ else:
 nChan = hot.nChan
 nData = nChan
 n6 = int(nData/6)
-n56= 5*n6
+n26 = int(2*n6)
+n46 = int(4*n6)
+n56 = int(5*n6)
+
 xv = hot.xdata[0:nChan] * 1.E-6
 yv = copy.deepcopy( hot.ydataA[0:nChan])
 if doDebug: 
@@ -385,8 +485,9 @@ for filename in plotnames:
     extension = parts[1]
     nRead = nRead + 1
 # exclude hot load data for averaging
-    if extension == 'hot':
-        continue
+    if nRead == nFiles:   # if this is the last file, must force output
+        allFiles = True
+
 # also exclude summaries
     if extension == 'sum':
         continue
@@ -433,38 +534,44 @@ for filename in plotnames:
         # time difference is between mid-points of integrations
         dt = rs.utc - cold.utc 
         # add half of last observation
-        dt = dt + datetime.timedelta(seconds=rs.durationSec/2.)
-        # plus time before start of the first
-        dt = dt + datetime.timedelta(seconds=cold.durationSec/2.)
-
+        dt = dt + datetime.timedelta(seconds=rs.durationSec)
         lastdate = date
 
         newAzEl = (lastaz != rs.telaz) or (lastel != rs.telel)
         newObs = (lastfreq != rs.centerFreqHz) or (lastbw != rs.bandwidthHz) or (lastgain != rs.gains[0]) or newAzEl
         if newObs:
-            print "Change in observing parameters: "
             if lastfreq != rs.centerFreqHz:
-                print "LastFreq: ", lastfreq/1e6, "New: ", rs.centerFreqHz/1e6, " MHz"
+                print "Change LastFreq: ", lastfreq/1e6, "New: ", rs.centerFreqHz/1e6, " MHz"
                 lastfreq = rs.centerFreqHz
             if lastbw != rs.bandwidthHz:
-                print "LastBandwidth: ", lastbw/1e6, "New: ", rs.bandwidthHz/1e6, " MHz"
+                print "Change LastBandwidth: ", lastbw/1e6, "New: ", rs.bandwidthHz/1e6, " MHz"
                 lastbw = rs.bandwidthHz
             if lastgain != rs.gains[0]:
-                print "LastGain: ", lastgain, "New: ", rs.gains[0], " dB"
+                print "Change LastGain: ", lastgain, "New: ", rs.gains[0], " dB"
                 lastgain = rs.gains[0]
             if newAzEl:
-                print "LastAzEl: ", lastaz,lastel, "New: ", rs.telaz,rs.telel, " degrees"
+                print "Change LastAzEl: ", lastaz,lastel, "New: ", rs.telaz,rs.telel, " degrees"
                 lastaz = rs.telaz
                 lastel = rs.telel
 
         if nRead == nFiles:   # if this is the last file, must force output
-            newObs = True
+            allFiles = True
+            if ncold == 0:    # if just starting over average
+                cold = copy.deepcopy(rs)  # initial spectrum is one just read
+            if not newObs:
+                # include this last file in the average if not new observation
+                avenames[ncold] = filename
+                ncold = ncold + 1
 
         # if time to average (or end of all files)
-        if (dt > avetime) or newObs:
+        if (dt > avetime) or newObs or allFiles:
             nave, cold = hotcold.average( avenames[0:ncold])       # compute average of files
             if nave != ncold:
                 print "Error averaging spectra", nave, ncold
+            
+            if cold.telel <= 0.: # not plotting hot laod obs.
+                ncold = 0        # restart sum
+                continue
             xv = copy.deepcopy(cold.xdata)
             xv = xv * 1.E-6                                  # convert to MHz
             yv = copy.deepcopy( cold.ydataA)                 # work with arrays
@@ -500,12 +607,14 @@ for filename in plotnames:
                     tsky[iii] = tsky[iii] - (ya + (slope*(iii-xa)))
                 cold.ydataA = tsky
 
-            ymed = np.median(cold.ydataA[n6:n56])
-            ystd = np.std(cold.ydataA[n6:n56])
-            if ystd <= 0.:
-                ystd = 0.001
-            ymin = min(cold.ydataA[xa:xb])
-            ymax = max(cold.ydataA[xa:xb])
+            tsky = cold.ydataA
+            ymin = min(tsky[xa:xb])
+            ymax = max(tsky[xa:xb])
+
+            tSys = np.median(tsky[n6:n56])
+            tStdA = np.std(tsky[n6:n26])
+            tStdB = np.std(tsky[n46:n56])
+            tStd = (tStdA+tStdB)/.2
 
             if doDebug:
                 print('Calibrated Max, Median and Std Dev: %8.3f %8.3f %8.3f' % (ymax, ymed, ystd))
@@ -520,7 +629,7 @@ for filename in plotnames:
                 label = '%s L,L=%5.1f,%4.1f' % (labeltime, cold.gallon, cold.gallat)
             else:
                 label = '%s A,E=%.0f,%4.0f L,L=%5.1f,%4.1f' % (labeltime, cold.telaz, cold.telel, cold.gallon, cold.gallat)
-            outstring = ' Max: %6.1f Med: %6.1f %c; %3d %s: ' % (ymax, ymed, cold.bunit[0], ncold, label)
+            outstring = ' Max: %9.1f  Median: %8.2f +/- %5.2f %s %3d %s' % (ymax, tSys, tStd, cold.bunit[0], ncold, label)
             sys.stdout.write(outstring)
             sys.stdout.flush()
 
@@ -531,103 +640,36 @@ for filename in plotnames:
             else:
                 plt.plot(vel, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label)
             nplot = nplot + 1
-            ncold = 0
-            if doSave:
+            if doKelvins:
                 cold.writecount = nplot+2
                 cold.write_ascii_ave( outDir)
             else:
                 print ""
+                
+            # indicate that we're now restarting averaging
+            ncold = 0
+            # reset the reference for the last time
+            cold = copy.deepcopy(rs)
             if doDebug:
                 print 'Vel, Tsky: %8.3f, %8.3f at %8.3f ' % (vel[300],tsky[300],xv[300])
                 print 'Vel, Tsky: %8.3f, %8.3f at %8.3f ' % (vel[700],tsky[700],xv[700])
             # end if data to average and plot
         # end if a new observation
 
-    if ncold <= 0:  # if starting a new observation
-        cold = rs
+    if allFiles:
+        break
+    
+# if this was a new obs; restart the sums
+    if ncold == 0:
+        cold = copy.deepcopy(rs)  # initial spectrum is one just read
 
     avenames[ncold] = filename
     ncold = ncold + 1
     # end if not a enough time
 
-    # end if a cold file
-    if nRead > nFiles:
-        break
-
     #end for all files to sum
 # end of all files to read
 
-if doDebug:
-    print 'Number of remaining observations not plotted: ', ncold
-
-# if data remaing from summation
-if ncold > 1:
-    ncold, cold = hotcold.average( avenames[0:ncold-1])
-
-    xv = copy.deepcopy(cold.xdata * 1.E-6)
-    yv = cold.ydataA * scalefactor
-    if flagRfi:
-        yv = interpolate.lines( linelist, linewidth, xv, yv) # interpolate rfi
-    
-    if flagCenter:
-        yv = hotcold.flagCenter( yv)
-    xmin = min(xv)
-    xmax = max(xv)
-    xallmin = min(xmin, xallmin)
-    xallmax = max(xmax, xallmax)
-    count = cold.count
-    note = cold.noteA
-    ncolor = min(nmax-1, nplot) 
-
-    if doCalibrate: 
-        # finally compute tsys
-        tsky = hotcold.compute_tsky( xv, yv, gain, nureference)
-        cold.bunit = 'Kelvins'
-    else:
-        tsky = yv
-
-    if doSub:
-        ya = np.median(tsky[(xa-10):(xa+10)])
-        yb = np.median(tsky[(xb-10):(xb+10)])
-        slope = (yb-ya)/(xb-xa)
-        for iii in range( nData):
-            tsky[iii] = tsky[iii] - (ya + (slope*(iii-xa)))
-    cold.ydataA = copy.deepcopy( tsky)
-
-    ymed = np.median(tsky)
-
-    ymin = min(tsky[xa:xb])
-    ymax = max(tsky[xa:xb])
-    yallmin = min(ymin,yallmin)
-    yallmax = max(ymax,yallmax)
-    date, time = cold.datetime()
-    labeltime = date + " " + time
-    if minel == maxel:
-        label = '%s L,L=%5.1f,%4.1f' % (labeltime, cold.gallon, cold.gallat)
-    else:
-        label = '%s A,E=%.0f,%4.0f L,L=%5.1f,%4.1f' % (labeltime, cold.telaz, cold.telel, cold.gallon, cold.gallat)
-    outstring = ' Max: %6.1f Med: %6.1f %c; %3d %s: ' % (ymax, ymed, cold.bunit[0], ncold, label)
-    sys.stdout.write(outstring)
-    sys.stdout.flush()
-    if not doCalibrate:   # if not calibratiing just plot 
-        tsky = yv
-    if cold.gallat < 7.5 and cold.gallat > -7.5:
-        plt.plot(vel, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label, lw=4)
-    elif cold.gallat < 15. and cold.gallat > -15.:
-        plt.plot(vel, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label, lw=2)
-    else:
-        plt.plot(vel, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label)
-    nplot = nplot + 1
-
-    if doSave:
-        cold.writecount = nplot+2
-        cold.write_ascii_ave( outDir)
-    else:
-        print ""
-    if doDebug:
-        print 'Vel, Tsky: ',vel[300],tsky[300],xv[300]
-        print 'Vel, Tsky: ',vel[700],tsky[700],xv[700]
-        
 # if observations cover multiple days
 if firstdate != lastdate:
     date = firstdate + " - " + lastdate
