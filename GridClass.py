@@ -6,15 +6,14 @@ Glen Langston
 # Functions to create a grid and place astronomical data on that
 # grid with a convolving function
 # HISTORY
+# 19OCT03 GIL make grid pattern circular
 # 17FEB03 GIL add comments and cleanup
 # 17JAN28 GIL finish initial version
 # 17JAN09 GIL initial version based on mandelbrot() python example
 
 import numpy as np
 import angles
-#from numba import jit
 from matplotlib import pyplot as plt
-#from matplotlib import colors
 
 #matplotlib inline
 
@@ -60,9 +59,11 @@ class Grid(object):
         self.image = np.empty((self.img_height, self.img_width))
         self.weights = np.empty((self.img_height, self.img_width))
         self.FWHM = FWHM # degrees
-        self.sigma = self.FWHM/(2*np.sqrt(2*np.log(2)))
+#        self.sigma = self.FWHM/(2*np.sqrt(2*np.log(2.)))
+        self.sigma = self.FWHM/(2.*np.sqrt(2.*np.log(2.)))
         self.sigma2 = self.sigma*self.sigma
-        self.WF = -0.5/self.sigma2  # used in exponent of gaussian
+#        self.WF = -0.5/self.sigma2  # used in exponent of gaussian
+        self.WF = -.1/self.sigma2  # used in exponent of gaussian
         self.gridtype = str(gridtype)  # Either RA or GAL
 
 #        print 'Init: x min,max  (d) : ', self.xmin, self.xmax
@@ -128,8 +129,8 @@ class Grid(object):
     def xy(self, ix, iy, z, r, inweight):
         """
         xy computes the weight for a value x y z at a distance r from the measurement
-        x - x-coordinate
-        y - y-coordinate
+        x - x-coordinate (degrees)
+        y - y-coordinate (degrees)
         z - intensity of a position x',y', a distance r from x,y
         """
 
@@ -138,7 +139,8 @@ class Grid(object):
         if self.printcount == 0:
             print '  i    j    T (K km/s)   R (d)    Weight '
         if self.printcount < 1 or (not np.isfinite(totalweight)) \
-                or (50000*int(self.printcount/50000) == self.printcount):
+                or (50000*int(self.printcount/50000) == self.printcount) \
+                or ((50000*int(self.printcount/50000)+1) == self.printcount):
             print '%4d,%4d: %8.1f %9.2f   %8.3e' % (ix, iy, z, r, totalweight)
 
         self.printcount = self.printcount + 1
@@ -158,7 +160,7 @@ class Grid(object):
         """
         convolve a measurement onto a range of grid coordinates
         """
-        nwidth = int(2.1 * self.FWHM * self.dpi)
+        nwidth = int(4.1 * self.FWHM * self.dpi)
 
         ix = self.ii(x)
         jy = self.jj(y)
@@ -176,7 +178,7 @@ class Grid(object):
             elif iix >= self.img_width:
                 iix = iix - self.img_width
             xx = self.xx(iix)
-            rx = angles.d2r(xx)  # conver to radians
+            rx = angles.d2r(xx)  # convert to radians
 
             for jjj in range(-nwidth, nwidth):
                 jjy = jy + jjj
@@ -194,7 +196,7 @@ class Grid(object):
 
                 # finally get angular separation in degrees
                 r = angles.r2d(angles.sep(x0, y0, rx, ry))
-                if r > 2.*self.FWHM:  # round convolving function
+                if r > 4.*self.FWHM:  # round convolving function
                     continue
 
                 # add the colvolved measurement to the grid.
@@ -267,6 +269,15 @@ class Grid(object):
             for jjj in range(self.img_height):
                 self.image[jjj, iii] = 0
                 self.weights[jjj, iii] = 0
+        return
+
+    def set_ij(self, iii, jjj, value, weight):
+        """
+        set_ij() sets a particular value of the grid
+        """
+
+        self.image[jjj, iii] = value
+        self.weights[jjj, iii] = weight
         return
 
 def main():

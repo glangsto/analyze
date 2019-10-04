@@ -28,7 +28,8 @@ def main():
     mywidth = int(width*dpi)
     myheight = int(height*dpi)
     FWHM = 7.5  # degrees
-    FWHM = 1.0  # degrees
+    FWHM = 10.0  # degrees
+    FWHM = 3.0  # degrees
     weight = 1.
 
     nargs = len(sys.argv)
@@ -53,6 +54,13 @@ def main():
         xmin = 0.
         xmax = 360.
         ymin = -40.
+        ymax = 90.
+        xsign = -1.
+        xoffset = 360.  # when x = 360. should be at zero.
+    elif gridtype == '-EL':
+        xmin = 0.
+        xmax = 360.
+        ymin = 0.
         ymax = 90.
         xsign = -1.
         xoffset = 360.  # when x = 360. should be at zero.
@@ -149,9 +157,11 @@ def main():
 
     mygrid.normalize()
 #    mygrid.check()
-    zmin = -1500.
-    zmax = 6000.
+    zmin = -200.
+    zmax = 2000.
 # limit grid intensities for plotting
+    mygrid.set_ij( 0, 0, zmax, 1.)
+    mygrid.set_ij( 1, 1, zmin, 1.)
     mygrid.limit(zmin, zmax)
 
     subplots = False
@@ -189,6 +199,13 @@ def main():
         elif gridtype == '-RA':
             plt.xlabel("Right Ascension (hours)")
             plt.ylabel("Declination (degrees)")
+            labels = 24 - (ticks/(mywidth/24))
+            labels[0] = 0
+            labels[0] = 24
+            yticks = np.arange(0, myheight, 15*dpi)
+        elif gridtype == '-EL':
+            plt.xlabel("Right Ascension (hours)")
+            plt.ylabel("Elevation (degrees)")
             labels = 24 - (ticks/(mywidth/24))
             labels[0] = 0
             labels[0] = 24

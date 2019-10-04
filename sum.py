@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys
 import datetime
-import statistics
 import radioastronomy
 import copy
 import interpolate
@@ -160,8 +159,8 @@ def interpolate_range( minvel, maxvel, vel, ys):
         print 'Imax Error computing baseline: ', imax
         imax = nData-11
         
-    ya = statistics.median(ys[(imin-10):(imin+10)])
-    yb = statistics.median(ys[(imax-10):(imax+10)])
+    ya = np.median(ys[(imin-10):(imin+10)])
+    yb = np.median(ys[(imax-10):(imax+10)])
     slope = (yb-ya)/(imax-imin)
     # finally interpolate over values
     for iii in range( imin, imax):
@@ -300,7 +299,7 @@ nData = len( xv)
 n6 = int(nData/6)
 n56 = 5*n6
 yv = hot.ydataA
-hotmedian = statistics.median(yv[n6:n56])
+hotmedian = np.median(yv[n6:n56])
 if hotmedian > .001:
     scalefactor = 1.0
 
@@ -400,7 +399,7 @@ ymin = 1000.  # initi to large values
 ymax = 0.
 yallmin = ymin
 yallmax = ymax
-ymed = statistics.median(yv)
+ymed = np.median(yv)
 count = hot.count
 ncold = 0
 
@@ -408,7 +407,7 @@ trx = np.zeros(nData)
 for iii in range(nData):
     trx[iii] = (cv[iii]/gain[iii]) - tcold
 
-Tsys = statistics.median(trx)
+Tsys = np.median(trx)
 print "Median Receiver + Antenna Temp: ", Tsys
 
 avetime = datetime.timedelta(seconds=avetimesec)
@@ -529,7 +528,7 @@ for filename in names:
                     tsys[jjj] = yv[jjj]/gain[jjj]
                     tsky[jjj] = tsys[jjj] - Tsys
 
-                Tscan = statistics.median(tsys)
+                Tscan = np.median(tsys)
                 if Tscan > Tmax:
                     print 'Scan average is greater than maximum expected: ',Tscan,Tmax
                     print 'Scan Time: ',midtime
@@ -561,9 +560,9 @@ for filename in names:
                     print 'Imax Error computing baseline: ', imax
                     imax = nData-1
                     
-                ymed = statistics.median(tsky[imin:imax])
-                ya = statistics.median(tsky[(imin-10):(imin+10)])
-                yb = statistics.median(tsky[(imax-10):(imax+10)])
+                ymed = np.median(tsky[imin:imax])
+                ya = np.median(tsky[(imin-10):(imin+10)])
+                yb = np.median(tsky[(imax-10):(imax+10)])
                 slope = (yb-ya)/(imax-imin)
 #                baseline = tsky
 #                print 'ya,b: %6.1f,%6.1f; slope: %8.4f' % (ya, yb, slope)
