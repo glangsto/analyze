@@ -1,7 +1,8 @@
-#Python Script to plot raw NSF record data.
+##Python Script to find az and el offsets based on galactic plan zero latitude crossings
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#16Oct10 GIL simplify
 #16Aug03 GIL improve iterated search
 #16Aug02 GIL test for finding az,el offsets
 #16Oct07 GIL check for changes in frequency and/or gain
@@ -14,10 +15,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys
 import datetime
-import statistics
 import radioastronomy
 import copy
-from scipy.signal import savgol_filter
 import interpolate
 import Moment
 import os.path
@@ -71,19 +70,6 @@ azoffset = -34.04
 
 nprint = 0
 
-def fit_baseline( xs, ys, imin, imax):
-
-    xfit = np.concatenate( (xs[imin-20:imin+20],xs[imax-20:imax+20]))
-    yfit = np.concatenate( (ys[imin-20:imin+20],ys[imax-20:imax+20]))
-# calculate polynomial
-    z = np.polyfit(xfit, yfit, 3)
-    f = np.poly1d(z)
-
-# calculate new x's and y's
-    yout = f(xs)
-
-    return yout
-
 def interpolate_range( minvel, maxvel, vel, ys):
     """
     Interpolate arrays over a range of velocities
@@ -92,32 +78,10 @@ def interpolate_range( minvel, maxvel, vel, ys):
     input ys values to interpolate
     """
 
-    nData = len(vel)
-    iref = int(nData/2)
-    vref = vel[iref]
-    dv   = (vel[iref+2]-vel[iref-2])/4.
-    imin = int(((minvel - vref)/dv) + iref)
-    imax = int(((maxvel - vref)/dv) + iref) + 1
-    if imin > imax:
-        temp = imin
-        imin = imax
-        imax = temp
-    if imin < 10:
-        print 'Imin Error computing baseline: ', imin
-        imin = 10
-        if imin >= nData-10:
-            print 'Imin Error computing baseline: ', imin
-            imin = nData-10
-            
-    if imax < 11:
-        print 'Imax Error computing baseline: ', imax
-        imax = 11
-    if imax >= nData-11:
-        print 'Imax Error computing baseline: ', imax
-        imax = nData-11
+    imin, imax = velocity_to_indicies( vel, minvel, maxvel)
         
-    ya = statistics.median(ys[(imin-10):(imin+10)])
-    yb = statistics.median(ys[(imax-10):(imax+10)])
+    ya = np.median(ys[(imin-10):(imin+10)])
+    yb = np.median(ys[(imax-10):(imax+10)])
     slope = (yb-ya)/(imax-imin)
     # finally interpolate over values
     for iii in range( imin, imax):
@@ -138,41 +102,12 @@ def compute_sum( minvel, maxvel, ra, dec, gallon, gallat, vel, tsky, n):
     if nvel < 5:
         print 'Not enough values in arrays to compute reliable sums'
 
-    # compute reference velicity and increments
-    nvel2 = int(nvel/2)
-    dv = (vel[nvel2+2]-vel[nvel2-2])/4.
-
-    vref = vel[nvel2]
-    imin = int(((minvel-vref)/dv) + nvel2)
-    if imin < 0 or imin > nvel-1:
-        print 'Array does not contain minimum velocity: ',minvel
-        print 'vel[0]: ', vel[0], 'vel[n-1]: ', vel[nvel-1]
-        if imin < 0:
-            imin = 0
-        else:
-            imin = nvel-1
-
-    imax = int(((maxvel-vref)/dv) + nvel2) + 1
-    if imax < 0 or imax >= nvel:
-        print 'Array does not contain maximum velocity: ',maxvel
-        print 'vel[0]: ', vel[0], 'vel[n-1]: ', vel[nvel-1]
-        if imax < 0:
-            imax = 0
-        else:
-            imax = nvel-1
-    if imax < imin:  # assuming imin > imax for array indexing
-        temp = imin
-        imin = imax
-        imax = temp
+    imin, imax = velocity_to_indicies( vel, minvel, maxvel)  
 
     if firstrun:
-        print 'Velocity range: %9.2f to %9.2f km/sec;  Resolution: %9.3f km/sec' % (minvel, maxvel, dv)
-#        print 'Index range: %5d to %5d ' % (imin, imax)
+        print 'Velocity range: %9.2f to %9.2f km/sec (%d,%d)' % (minvel, maxvel,imin,imax)
         firstrun = False
 
-#    print 'Index range for velocities: ', imin, imax
-#    print 'Velocities  for indicies  : ', vel[imin], vel[imax]
-#    print 'Temperatures for indicies : ', tsky[imin], tsky[imax]
 # first get the RMS in a region not expected to have signal
     vs = vel[imin-20:imin]
     ts = tsky[imin-20:imin]
@@ -202,6 +137,9 @@ def compute_sum( minvel, maxvel, ra, dec, gallon, gallat, vel, tsky, n):
     for iii in range(imax-imin):
         tsum = tsum+ts[iii]
 # take absolute value of velocity
+    iref = int(nvel/2)
+    vref = vel[iref]
+    dv   = (vel[iref+2]-vel[iref-2])/4.
     if dv < 0.:
         dv = -dv
     tsum = tsum * dv  # scale integral by velocity resolution
@@ -338,6 +276,63 @@ def findhotgain( names, avetimesec):
         exit()
     return gain, vel, outnames
 
+def velocity_to_indicies( vel, minvel, maxvel):
+    """
+    Function to compute indices from velocity array and target velocities
+    """
+
+    nData = len(vel)
+    iref = int(nData/2)
+    
+    vref = vel[iref]
+    dv   = (vel[iref+2]-vel[iref-2])/4.
+    imin = int(((minvel - vref)/dv) + iref)
+    imax = int(((maxvel - vref)/dv) + iref) + 1
+
+    if imax < imin: # swap indices if frequency opposit velocity
+        temp = imin
+        imin = imax
+        imax = temp
+
+    if imin < 0:
+        print 'Imin Error computing baseline: ', imin
+        imin = 0
+    if imin >= nData:
+        print 'Imin Error computing baseline: ', imin
+        imin = nData-1
+
+    if imax < 0:
+        print 'Imax Error computing baseline: ', imax
+        imax = 0
+    if imax >= nData:
+        print 'Imax Error computing baseline: ', imax
+        imax = nData-1
+
+# some channels will be selected using x[imin:imax] so,
+# now make sure range increases
+    if imin > imax:
+        temp = imin
+        imin = imax
+        imax = temp
+    return imin, imax
+
+def fit_baseline( xs, ys, imin, imax, nchan):
+    """
+    fit baseline does a polynomical fit over channels in a select range
+    The baseline is returned.
+    """
+    
+    xfit = np.concatenate( (xs[imin-nchan:imin+nchan],xs[imax-nchan:imax+nchan]))
+    yfit = np.concatenate( (ys[imin-nchan:imin+nchan],ys[imax-nchan:imax+nchan]))
+# calculate polynomial
+    z = np.polyfit(xfit, yfit, 3)
+    f = np.poly1d(z)
+
+# calculate new x's and y's
+    yout = f(xs)
+
+    return yout
+
 def findzero( names, gain, vel, azoffset, eloffset, avetimesec):
     lastgain = 0.
     global nprint
@@ -403,6 +398,8 @@ def findzero( names, gain, vel, azoffset, eloffset, avetimesec):
                 cold = copy.deepcopy( rs)
                 ncold = 0
                 timesum = 0.
+                firstutc = cold.utc
+                lastutc = cold.utc
 
             newAzEl = (lastaz != rs.telaz) or (lastel != rs.telel)
             if newAzEl and nprint < 5:
@@ -417,29 +414,22 @@ def findzero( names, gain, vel, azoffset, eloffset, avetimesec):
             # time difference is between mid-points of integrations
                 dt = rs.utc - cold.utc 
             # add the time since midpoint of latests
-                dt = dt + datetime.timedelta(seconds=rs.durationSec/2.)
-            # plus time before start of the first
-                dt = dt + datetime.timedelta(seconds=cold.durationSec/2.)
+                dt = dt + datetime.timedelta(seconds=rs.durationSec)
+                lastutc = rs.utc
 
            # if time to average (or end of all files)
                 if (dt > avetime) or (filename == sys.argv[nargs-1]):
                     cold.ydataA = cold.ydataA/float(timesum)
                 # have complicated steps to simple get the average time.
                     deltatime = endtime - starttime
-                
-                    gallon = cold.gallon/float(timesum)
-                    if gallon > 360.:
-                        gallon = gallon - 360.
-                    elif gallon < 0.:
-                        gallon = gallon + 360.
-                    ra = cold.ra/float(timesum)
-                    dec = cold.dec/float(timesum)
-                    if ra > 360.:
-                        ra = ra - 360.
-                    elif ra < 0.:
-                        ra = ra + 360.
+                    aveutc,duration = radioastronomy.aveutcs( firstutc, lastutc)
+                    cold.utc = aveutc
+                    cold.azel2radec() # recompute coordinates for average time
+                    ra = cold.ra
+                    dec = cold.dec
+                    gallat = cold.gallat
+                    gallon = cold.gallon
 
-                    gallat = cold.gallat/float(timesum)
                     if ncrossings < 0:
                         lastgallat = gallat
                         ncrossings = 0
@@ -459,39 +449,18 @@ def findzero( names, gain, vel, azoffset, eloffset, avetimesec):
                     for jjj in range (0, nData):
                         tsky[jjj] = yv[jjj]/gain[jjj]
                         
-                    iref = int(nData/2)
-                    vref = vel[iref]
-                    dv   = (vel[iref+2]-vel[iref-2])/4.
-                    imin = int(((minvel - vref)/dv) + iref)
-                    imax = int(((maxvel - vref)/dv) + iref) + 1
-                    if imax < imin: # swap indices if frequency opposit velocity
-                        temp = imin
-                        imin = imax
-                        imax = temp
-
-                    if imin < 0:
-                        print 'Imin Error computing baseline: ', imin
-                        imin = 0
-                    if imin >= nData:
-                        print 'Imin Error computing baseline: ', imin
-                        imin = nData-1
-
-                    if imax < 0:
-                        print 'Imax Error computing baseline: ', imax
-                        imax = 0
-                    if imax >= nData:
-                        print 'Imax Error computing baseline: ', imax
-                        imax = nData-1
+                    imin, imax = velocity_to_indicies( vel, minvel, maxvel)
                     
-                    ymed = statistics.median(tsky[imin:imax])
-                    ya = statistics.median(tsky[(imin-10):(imin+10)])
-                    yb = statistics.median(tsky[(imax-10):(imax+10)])
+                    ymed = np.median(tsky[imin:imax])
+                    ya = np.median(tsky[(imin-10):(imin+10)])
+                    yb = np.median(tsky[(imax-10):(imax+10)])
                     slope = (yb-ya)/(imax-imin)
-                    baseline = fit_baseline( vel, tsky, imin-20, imax+20)
+                    nFit = 20
+                    baseline = fit_baseline( vel, tsky, imin, imax, nFit)
                     tsky = tsky - baseline
 
-                    ymin = min(tsky[(2*nData/4):(3*nData/4)])
-                    ymax = max(tsky[(2*nData/4):(3*nData/4)])
+                    ymin = min(tsky[imin:imax])
+                    ymax = max(tsky[imin:imax])
                     thesum = compute_sum( minvel, maxvel, ra, dec, gallon, gallat, vel, tsky, ncold)
                     
                 # finallly if this is a latitude crossing sum.
@@ -534,37 +503,17 @@ def findzero( names, gain, vel, azoffset, eloffset, avetimesec):
                 firstlon = rs.gallon # try to keep track of crossing zero in angular coordinates
                 firstra = rs.ra #
                 cold.ydataA = rs.ydataA * cold.durationSec
-                cold.gallat = rs.gallat * cold.durationSec
-                cold.gallon = rs.gallon * cold.durationSec
-                cold.ra = rs.ra * cold.durationSec
-                cold.dec = rs.dec * cold.durationSec
             # keep track of observing time for weighted sum
                 timesum = rs.durationSec
             else: # else not enough time yet, average cold data
                 # fix wrap of longitudes
-                if abs(rs.gallon - firstlon) > 180:
-                    crossZero = True
-                    if rs.gallon > firstlon:
-                        rs.gallon = rs.gallon - 360.
-                    else:
-                        rs.gallon = rs.gallon + 360.
-                    if abs(rs.ra - firstra) > 180:
-                        crossZeroRa = True
-                    if rs.ra > firstra:
-                        rs.ra = rs.ra - 360.
-                    else:
-                        rs.ra = rs.ra + 360.
-                    if abs(rs.ra - firstra) > 180:
-                        if crossZeroRa:
-                            print "A problem with this ra", rs.ra," compared with ",firstra
-                            continue # jump out without updateing sums
                 cold.count = cold.count + rs.count
                 ncold = ncold + 1
-                cold.ydataA = cold.ydataA + (rs.ydataA * cold.durationSec)
+                cold.ydataA = cold.ydataA + (rs.ydataA * rs.durationSec)
                 cold.ra = cold.ra + (rs.ra * cold.durationSec)
                 cold.dec = cold.dec + (rs.dec * cold.durationSec)
-                cold.gallon = cold.gallon + (rs.gallon * cold.durationSec)
-                cold.gallat = cold.gallat + (rs.gallat * cold.durationSec)
+                cold.gallon = cold.gallon + (rs.gallon * rs.durationSec)
+                cold.gallat = cold.gallat + (rs.gallat * rs.durationSec)
             # keep track of observing time for weighted sum
                 endtime = rs.utc
                 timesum = timesum + rs.durationSec

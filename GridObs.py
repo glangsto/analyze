@@ -29,7 +29,7 @@ def main():
     myheight = int(height*dpi)
     FWHM = 7.5  # degrees
     FWHM = 10.0  # degrees
-    FWHM = 3.0  # degrees
+    FWHM = 1.0  # degrees
     weight = 1.
 
     nargs = len(sys.argv)
@@ -157,8 +157,8 @@ def main():
 
     mygrid.normalize()
 #    mygrid.check()
-    zmin = -200.
-    zmax = 2000.
+    zmin = -1000.
+    zmax = 3000.
 # limit grid intensities for plotting
     mygrid.set_ij( 0, 0, zmax, 1.)
     mygrid.set_ij( 1, 1, zmin, 1.)

@@ -2,6 +2,7 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#19OCT10 GIL also show ra and dec
 #19MAR11 GIL fix plot axies
 #19JAN16 GIL initial version
 #
@@ -29,6 +30,7 @@ linewidth = [7, 7]
 
 #for symbol, value in locals().items():
 #    print symbol, value
+firstel = -100.
 
 note = "Events"
 nplot = 0
@@ -52,11 +54,13 @@ for iii in range(1, min(nargs,25)):
     parts = aname.split('T')
     date  = parts[0]
     time  = parts[1]
-    time  = time.replace('_',':')
+#    time  = time.replace('_',':')
     
     gallon = rs.gallon
     gallat = rs.gallat
-    label = '%s, AZ,EL: %5s,%5s, Lon,Lat=%5.1f,%5.1f' % ( time,rs.telaz,rs.telel,gallon,gallat)
+    ra = rs.ra
+    dec = rs.dec
+    label = '%s, RA,Dec: %7.3f,%7.3f, Lon,Lat=%5.1f,%5.1f' % ( time,rs.ra,rs.dec,gallon,gallat)
     xs = rs.xdata 
     ya = rs.ydataA
     yb = rs.ydataB
@@ -91,10 +95,11 @@ for iii in range(1, min(nargs,25)):
     ymed = (ymin+ymax)*.5
     count = rs.count
 
-    print(' Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ymax, ymed, ymax/ymed, count, label))
+    print(' Ra: %8.5f Dec: %8.5f Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ra, dec, ymax, ymed, ymax/ymed, count, label))
     if nplot <= 0:
+        title = date + " Az,El: %6.1f,%6.1f" % (rs.telaz, rs.telel)
         fig,ax1 = plt.subplots(figsize=(10,6))
-        fig.canvas.set_window_title(date)
+        fig.canvas.set_window_title(title)
         nplot = nplot + 1
     note = rs.noteA
 #    print('%s' % note)

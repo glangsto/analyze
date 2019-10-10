@@ -2,12 +2,12 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#19SEP11 GIL no longer use statistics
 #18MAR05 GIL only summarize .hot and .ast files
 #16SEP30 GIL show frequency and bandwidth
 #16AUG29 GIL make more efficient
 #
 import sys
-import statistics
 import radioastronomy
 
 dy = -1.

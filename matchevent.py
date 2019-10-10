@@ -1,5 +1,6 @@
 #Python Script to plot and the fourier transform of blocks of raw NSF events 
 #HISTORY
+#19OCT10 GIL optionall plot matchs
 #19APR15 GIL first working version of event matchin
 #19APR14 GIL initial version of event matching
 #19APR11 GIL improve labeling
@@ -7,6 +8,7 @@
 #
 import matplotlib.pyplot as plt
 import sys
+import os
 import radioastronomy
 import interpolate
 from scipy.fftpack import fft
@@ -36,6 +38,7 @@ nblock = 256          # number of samples to FFT
 sigma = 5.0           #
 kpercount = 1.0       # calibration into Kelvin units
 note = ""             # optional note for top of plot
+doPlot = False
 
 # read through arguments extracting parameters
 while iii < nargs:
@@ -64,6 +67,10 @@ while iii < nargs:
         print "Note: ", note
         ifile = ifile + 2
         aFix = True
+    if anarg[0:2] == "-P":
+        doPlot = True
+        print "Plotting Matching events"
+        ifile = ifile + 1
     iii = iii + 1
 
 N = nblock                 # abreviation
@@ -212,6 +219,12 @@ def main():
             jjj = ii1s[iii]
             print "Event %s Matches %s; Offset: %9.6f s" % (event1s[iii], event2s[jjj], dts)
             print "%5d %18.9f: %5d %18.9f" % (iii, mjd1s[iii], jjj, mjd2s[jjj])
+            if doPlot:
+                eventAName = dir1 + "/" + event1s[iii]
+                eventBName = dir2 + "/" + event2s[jjj]
+                plotEvent = "~/bin/E %s %s" % (eventAName, eventBName)
+                os.system(plotEvent)
+
 
     # now match event times
     for iii in range(nEve2):
