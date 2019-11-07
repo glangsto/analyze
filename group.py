@@ -1,5 +1,6 @@
 #Python Script to sort events into long and short duration events
 #HISTORY
+#19NOV07 GIL determine the durations of individual groups
 #19OCT21 GIL inital version based on matchevents.py
 #19OCT10 GIL optionall plot matchs
 #19APR15 GIL first working version of event matchin
@@ -64,7 +65,7 @@ while iii < nargs:
         iii = iii + 1
         print "Keeping Events > %7.2f Sigma " % (sigma)
         ifile = ifile + 2
-    if str(anarg[0:3]) == "-M":
+    if str(anarg[0:2]) == "-M":
         print "Moving Events"
         doMove = True
         ifile = ifile + 1
@@ -119,7 +120,10 @@ def main():
     nargs = len(sys.argv)
     if nargs < 2:
         print 'GROUP: GROUP events into long and short duration'
-        print 'usage: GROUP [-OF seconds] [-N number] dir1'
+        print 'usage: GROUP [-OF seconds] [-N number] [-M] [-P] [-D] dir1'
+        print 'where: -M  move groups into a sub-directory'
+        print '       -P  plot ungrouped events'
+        print '       -D  print debugging info'
         exit()
 
     dir1 = sys.argv[ifile]
@@ -227,7 +231,10 @@ def main():
             if nInGroup >= ngroup:
                 if doMove:
                     moveFiles( dir1, groupDir, nInGroup, groupFiles)
-                print "Group of %5d events (%s-%s)" % (nInGroup, firstFile, lastFile)
+#                print "Group of %5d events (%s-%s)" % (nInGroup, firstFile, lastFile)
+                dMjd = mjd1s[iLast] - mjd1s[iFirst]
+                duration = 86400. * dMjd
+                print "Group of %5d events (%s-%s), dur: %9.3f (s)" % (nInGroup, firstFile, lastFile, duration)
                 nGroups = nGroups + 1
             else:
                 kkk = iFirst
