@@ -51,7 +51,7 @@ while iii < nargs:
         aFix = True
         ifile = ifile + 2
     if str(anarg[0:3]) == "-ND":
-        ndays = np.int( sys.argv[iii+1])
+        nday = np.int( sys.argv[iii+1])
         iii = iii + 1
         print "Divide Day into N Parts: ", nday
         aFix = True

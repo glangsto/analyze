@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# find the group program
+if [ -e group.py ]
+then
+    python group.py "$@"
+else
+    if [ -e ~/bin/group.py ]
+    then
+       python ~/bin/group.py "$@"
+    fi     
+fi

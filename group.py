@@ -1,9 +1,15 @@
-#Python Script to group events by time
+#Python Script to sort events into long and short duration events
 #HISTORY
-#19JUN13 GIL initial version
+#19OCT21 GIL inital version based on matchevents.py
+#19OCT10 GIL optionall plot matchs
+#19APR15 GIL first working version of event matchin
+#19APR14 GIL initial version of event matching
+#19APR11 GIL improve labeling
+#19APR10 GIL initial version based on FFT
 #
 import matplotlib.pyplot as plt
 import sys
+import os
 import radioastronomy
 import interpolate
 from scipy.fftpack import fft
@@ -24,178 +30,240 @@ yallmax = -9.e9
 yallmin =  9.e9
 
 # separate arguments form file names
+iOffset = 1
 ifile = 1
 iii = ifile
-
-nday = 24             # by default divide day in 24 hours
+offset = 240.         # default group match is 4 minutes
+ngroup = 4            # by default 4 or more events is a group
 nblock = 256          # number of samples to FFT
 sigma = 5.0           #
 kpercount = 1.0       # calibration into Kelvin units
 note = ""             # optional note for top of plot
+doDebug = False
+doPlot = False
+doMove = False
+
 # read through arguments extracting parameters
 while iii < nargs:
     anarg = sys.argv[iii].upper()
+    if str(anarg[0:3]) == "-OF":
+        offset = np.float( sys.argv[iii+1])
+        iii = iii + 1
+        print "Time Offset Interval: %8.6f s for Group: " % ( offset)
+        ifile = ifile + 2
+    if str(anarg[0:3]) == "-G":
+        ngroup = np.int( sys.argv[iii+1])
+        iii = iii + 1
+        if ngroup < 1:
+            print "Minimum group size is 2"
+            ngroup = 2
+        print "N of events to consider a long group: ", ngroup
+        ifile = ifile + 2
     if str(anarg[0:3]) == "-SI":
         sigma = np.float( sys.argv[iii+1])
         iii = iii + 1
         print "Keeping Events > %7.2f Sigma " % (sigma)
-        aFix = True
         ifile = ifile + 2
+    if str(anarg[0:3]) == "-M":
+        print "Moving Events"
+        doMove = True
+        ifile = ifile + 1
+    if str(anarg[0:3]) == "-D":
+        print "Debugging"
+        doDebug = True
+        ifile = ifile + 1
     if anarg[0:3] == "-NO":
         note = sys.argv[iii+1]
         iii = iii + 1
         print "Note: ", note
         ifile = ifile + 2
-        aFix = True
+    if anarg[0:2] == "-P":
+        doPlot = True
+        print "Plotting Ungroupded Events"
+        ifile = ifile + 1
     iii = iii + 1
 
 N = nblock                 # abreviation
-eventCounts = np.zeros(nday)  # count events per fraction of a day
-eventAveGLat = np.zeros(nday) # count events per fraction of a day
-eventAveGLon = np.zeros(nday) # count events per half hour
-eventAveRa = np.zeros(nday) # count events per fraction of a day
-eventAveDec = np.zeros(nday) # count events per half hour
-nu = np.zeros(nblock)  # creat frequency array
-nchan = (nblock/2)-1
-ysum = np.zeros(nchan)
-yfilesum = np.zeros(nchan)
-yp2 = np.zeros(nchan)
-nsum = 0      # count total number of spectra summed
-nFilesum = 0  # count number of spectra in a file
 nplot = 0
-nFiles = nargs-ifile
 
-print "Number of Files:                ",nFiles
-if nFiles < 1:
-    print "GROUP: Read all input events and group by specified time interval"
-    print "Usage: GROUP [-dt <time interval>] [-sigma <n sigma>] [-note <note for plot title>] <file 1> [<file 2>] ... [<file N>]"
-    print "Where optionally the following paramters may be applied"
-    print " -dt <time interval> - Time, in seconds, to call a group. Default 60"
-    print " -sigma <n sigma>    - Number of sigma of a sample to declare an event"
-    print " -note <text>        - Note for the top of the plot"
-    exit()
+MAXEVENTS = 5000
+
+def moveFiles( inDir, groupDir, nInGroup, groupFiles):
+    """
+    Move files to the group subdirectory
+    """
+    global doDebug
+    outDir = "./" + groupDir
+    print "Moving %d events to directory %s " % ( nInGroup, groupDir)
+    mkdir = "mkdir %s " % (outDir)
+    if not os.path.isfile( outDir):
+        os.system(mkdir)
+
+    for iii in range(nInGroup):
+        inFile = "./" + inDir + "/" + groupFiles[iii]
+        mvEvent = "mv %s %s 2> /dev/null" % (inFile, outDir)
+        if doDebug:
+            # print mvEvent
+            doDebug = True
+        else:
+            os.system(mvEvent)
+
+    return
+
+def main():
+    """
+    Main executable for gridding astronomical data
+    """
+    global offset
+
+    nargs = len(sys.argv)
+    if nargs < 2:
+        print 'GROUP: GROUP events into long and short duration'
+        print 'usage: GROUP [-OF seconds] [-N number] dir1'
+        exit()
+
+    dir1 = sys.argv[ifile]
+    print "Dir 1: ", dir1
+
+    from os import listdir
+    from os.path import isfile, join
+    files1 = [f for f in listdir(dir1) if isfile(join(dir1, f))]
     
-print "First File     :                ",sys.argv[ifile]
+    groupDir = dir1 + "/groups"
 
-maxMagnitude = 0.
-maxEvent = radioastronomy.Spectrum()
-maxFile = ""
-#Create a gigantic array of events
+    print "Time offset to identify a group: %7.2f s " % (offset)
 
-events = [ radioastronomy.Spectrum() for i in range(nFiles) ]
-eventtimes = np.zeros(nFiles)
-eventCount = 0
+    offset = offset/86400.   # convert to MJDs
 
-# now for all files, read and store
-for iii in range(nFiles):
-
-    filename = sys.argv[iii+ifile]
+    print "%5d Files in Directory 1" % (len(files1))
+#    print files
+    nGroups = 0
 
     rs = radioastronomy.Spectrum()
 
-    #    print filename
-    rs.read_spec_ast( filename)
-    if note != "":
-        rs.noteA = note
-    rs.azel2radec()    # compute ra,dec from az,el
+    event1s = files1
+    nEve1 = 0
 
-#    print("GAL Lon,Lat: %8.3f, %8.3f"  % (rs.gallon, rs.gallat))
-    parts = filename.split('/')
-    nparts = len(parts)
-    aname = parts[nparts-1]
-    parts = aname.split('.')
-    aname = parts[0]
-    parts = aname.split('T')
-    date  = parts[0]
-    time  = parts[1]
-    time  = time.replace('_',':')
+    for filename in files1:
+        parts = filename.split(".")
+        nparts = len(parts)
+        if nparts < 2:   # if not fooo.eve type file name
+            continue
+        if parts[nparts-1] == "eve":
+            event1s[nEve1] = filename
+            nEve1 = nEve1 + 1
+        else:
+            continue
+
     
-    gallon = rs.gallon
-    gallat = rs.gallat
-    label = '%s, AZ,EL: %5s,%5s, Lon,Lat=%5.1f,%5.1f' % ( time,rs.telaz,rs.telel,gallon,gallat)
-    xs = rs.xdata 
-    if rs.nTime < 1:
-        print "Not an Event: ",filename
-        continue
-    
-    yv = np.zeros(2*rs.nSamples)
-    yc = np.zeros(rs.nSamples,dtype=np.complex)
-    j = 0
-    for i in range(rs.nSamples):
-        yv[j] = rs.ydataA[i]
-        yc[i] = rs.ydataA[i] + 1j*rs.ydataB[i]
-        j = j + 1
-        yv[j] = rs.ydataB[i]
-        j = j + 1
+    # now extract only the list of events, sorted in time order
+    event1s = sorted( event1s[0:nEve1])
+    mjd1s = np.zeros(nEve1)
+    peak1s = np.zeros(nEve1)
+    rms1s = np.zeros(nEve1)
 
-    # compute magnitude of I/Q samples with vector math
-    ymag = np.absolute(yc)
-    # now find the maximum event in data series
-    ymagmax = max(ymag)
-    # compute RMS of entire time series
-    yrms = np.sqrt(yv.dot(yv)/yv.size)
+    # now get event signficances
+    iii = 0
+    for filename in event1s:
+        fullname = join(dir1, filename)
+        rs.read_spec_ast( fullname)
+        rs.azel2radec()    # compute ra,dec from az,el
+        # if this is a significant event
+        if rs.epeak / rs.erms > sigma:
+            mjd1s[iii] = rs.emjd
+            peak1s[iii] = rs.epeak
+            rms1s[iii] = rs.erms
+            event1s[iii] = filename 
+            iii = iii + 1
+        if 50 * int(iii/50) == iii:
+            print "Event %5d: %12.9f: %7.3f+/-%5.3f" % (iii, rs.emjd, rs.epeak, rs.erms)
 
-    # if a valid, noisy observation
-    if yrms > 0. :
-        nsigma = ymagmax/yrms
-        if nsigma > maxMagnitude:
-            maxEvent = copy.deepcopy(rs)
-            maxMagnitude = nsigma
-            maxFile = filename
+    print "Read %5d events, of which %5d are > %7.2f sigma" % (nEve1, iii, sigma)
+
+    # new count of significant events
+    nEve1 = iii
+
+    inGroup = False
+    nInGroup = 0
+    nAlone = 0
+    groupFiles = copy.deepcopy( event1s)
+    aloneEvents = copy.deepcopy( event1s)
+
+
+    # now group event times
+
+    lastt = mjd1s[0]
+
+    if doDebug:
+        print " Offset limit for grouping: %7.2fs" % ( offset*86400.)
+
+    iFirst = 0
+    iLast = 0
+
+    for iii in range(nEve1):
+        t = mjd1s[iii]
+        dt = abs(t - lastt)
+
+        if doDebug:
+            print "Event %d offset from previous: %7.2f (%d): " % ( iii, dt * 86400.,  nInGroup)
+        if dt == 0.:
+            inGroup = False
+            groupFiles[0] = event1s[iii]
+            nInGroup = 1
+            firstFile = event1s[iii]
+            iFirst = iii
+            lastFile = event1s[iii]
+            iLast = iii
+        elif dt < offset:
+            inGroup = True
+            groupFiles[nInGroup] = event1s[iii]
+            nInGroup = nInGroup + 1
+            lastFile = event1s[iii]
+            iLast = iii
+        else:
+            if doDebug:
+                print "N in Group: %d" % (nInGroup)
+            # if was in a group, but no longer
+            if nInGroup >= ngroup:
+                if doMove:
+                    moveFiles( dir1, groupDir, nInGroup, groupFiles)
+                print "Group of %5d events (%s-%s)" % (nInGroup, firstFile, lastFile)
+                nGroups = nGroups + 1
+            else:
+                kkk = iFirst
+                if doDebug:
+                    print " First: %d, Last: %d"  % (iFirst, iLast)
+                for jjj in range(nInGroup):
+                    if doDebug:
+                        print " Index: %d, nAlone: %d; File Index %d" % (jjj, nAlone, kkk)
+                    aloneEvents[nAlone] = event1s[kkk]
+                    nAlone = nAlone + 1
+                    kkk = kkk + 1
+            # start a new group with this file
+            groupFiles[0] = event1s[iii]
+            nInGroup = 1
+            firstFile = event1s[iii]
+            iFirst = iii
+            lastFile = event1s[iii]
+            iLast = iii
+            inGroup = False
+        lastt = t
+            
+    # if was in a group, but no longer
+    if nInGroup >= ngroup:
+        if doMove:
+            moveFiles( dir1, groupDir, nInGroup, groupFiles)
+        nGroups = nGroups + 1
     else:
-        print "Problem observation: %7.3f rms in file %s\n", yrms, filename
-        continue
-    # if not a signficant event
+        kkk = iFirst
+        for jjj in range(nInGroup):
+            aloneEvents[nAlone] = event1s[kkk]
+            nAlone = nAlone + 1
+            kkk = kkk + 1
 
-    if nsigma > sigma:
-    # now compute time averages of number of events and locations
-        midnight = rs.utc.replace(hour=0, minute=0, second=0, microsecond=0)
-        seconds = (rs.utc - midnight).seconds
-        ipart = np.int(seconds/(86400./nday))
-    #    print "Utc (%8.1f): %s %2d" % (seconds, rs.utc, half)
-        eventCounts[ipart] += 1
-        eventAveGLat[ipart] += rs.gallat
-        eventAveGLon[ipart] += rs.gallon
-        eventAveRa[ipart] += rs.ra
-        eventAveDec[ipart] += rs.dec
+    print "Found %5d groups and %5d isolated events " % (nGroups, nAlone)
+    return
 
-    events[eventCount] = copy.deepcopy( rs)
-    eventCount = eventCount + 1
+if __name__ == "__main__":
+    main()
 
-note = rs.noteA
-
-# now compute spectrum of maximum event
-# 
-print "Event Time         : ", maxEvent.utc
-print "Event File         : ", maxFile
-print "Maximum Event Sigma: %8.2f" % ( maxMagnitude)
-print "Event RA           :   %8.4f d Dec %8.4f d" % (maxEvent.ra, maxEvent.dec)
-print "Event G Lon        :   %6.2f d  Lat %6.2f d" % (maxEvent.gallon, maxEvent.gallat)
-
-datetime = "%s" % ( maxEvent.utc)
-parts = datetime.split('.')
-date = parts[0]
-
-# now summarize events per ipart hour of observation
-
-ntotal = 0
-nhours = 0
-for ipart in range(nday):
-    ntotal += np.float(eventCounts[ipart])
-    if eventCounts[ipart] > 0:
-        nhours += 1
-        
-print ""
-print "# Total Event  Count:  ", ntotal
-print "# Hours Event  G Lon   G Lat    Ra      Dec"
-print "# (Utc) Count   (d)     (d)     (h)     (d)"
-for ipart in range(nday):
-    if eventCounts[ipart] > 0:
-        eventAveGLon[ipart] = eventAveGLon[ipart]/np.float(eventCounts[ipart])
-        eventAveGLat[ipart] = eventAveGLat[ipart]/np.float(eventCounts[ipart])
-        eventAveRa[ipart] = eventAveRa[ipart]/np.float(eventCounts[ipart])
-        eventAveDec[ipart] = eventAveDec[ipart]/np.float(eventCounts[ipart])
-        print "%6.3f %5d %7.2f %7.2f %7.2f %7.2f" % ( ipart*24./nday, eventCounts[ipart], eventAveGLon[ipart], eventAveGLat[ipart], eventAveRa[ipart]/15., eventAveDec[ipart])
-    else:
-        if nhours > 5:  # if several hours have data, print zeros to simpiify plotting
-            print "%6.3f %5d     0       0       0       0 " % ( ipart*24./nday, eventCounts[ipart])

@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# find the foldmany program
+if [ -e folds.py ]
+then
+    python folds.py "$@"
+else
+    if [ -e ~/bin/folds.py ]
+    then
+       python ~/bin/folds.py "$@"
+    fi     
+fi
