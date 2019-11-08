@@ -1,5 +1,6 @@
 #Python Script to plot and the fourier transform of blocks of raw NSF events 
 #HISTORY
+#19NOV08 GIL reduce printout
 #19OCT10 GIL optionall plot matchs
 #19APR15 GIL first working version of event matchin
 #19APR14 GIL initial version of event matching
@@ -39,6 +40,7 @@ sigma = 5.0           #
 kpercount = 1.0       # calibration into Kelvin units
 note = ""             # optional note for top of plot
 doPlot = False
+doDebug = False
 
 # read through arguments extracting parameters
 while iii < nargs:
@@ -71,6 +73,10 @@ while iii < nargs:
         doPlot = True
         print "Plotting Matching events"
         ifile = ifile + 1
+    if anarg[0:2] == "-D":
+        doDebug = True
+        print "Debugging"
+        ifile = ifile + 1
     iii = iii + 1
 
 N = nblock                 # abreviation
@@ -90,8 +96,11 @@ MAXEVENTS = 5000
 
 if nfiles < 2:
     print "MATCH: Match events listed in Two directories"
-    print "Usage: MATCH [-OF seconds] dir1 dir2"
+    print "Usage: MATCH [-OF seconds] [-D] dir1 dir2"
     print "Where: Optionally the user provides the maximum offset to call a match"
+    print "Where -D  Optionally print debugging info"
+    print ""
+    print "Glen Langston, November 8, 2019"
     exit()
     
 
@@ -109,8 +118,9 @@ def main():
 
     dir1 = sys.argv[ifile]
     dir2 = sys.argv[ifile+1]
-    print "Dir 1: ", dir1
-    print "Dir 2: ", dir2
+    if doDebug:
+        print "Dir 1: ", dir1
+        print "Dir 2: ", dir2
     gridtype = 'PULSAR'
 
     from os import listdir
@@ -119,10 +129,9 @@ def main():
     files2 = [f for f in listdir(dir2) if isfile(join(dir2, f))]
 
     count = 0
-    print "%5d Files in Directory 1" % (len(files1))
-#    print files
-    print "%5d Files in Directory 2" % (len(files2))
-#    print files2
+    if doDebug: 
+        print "%5d Files in Directory 1" % (len(files1))
+        print "%5d Files in Directory 2" % (len(files2))
     nEve1 = 0
     nEve2 = 0
 
@@ -157,7 +166,7 @@ def main():
         mjd1s[iii] = rs.emjd
         peak1s[iii] = rs.epeak
         rms1s[iii] = rs.erms
-        if 50 * int(iii/50) == iii:
+        if (50 * int(iii/50) == iii) and doDebug:
             print "Event %5d: %12.9f: %7.3f+/-%5.3f" % (iii, rs.emjd, rs.epeak, rs.erms)
         iii = iii + 1
 
@@ -187,13 +196,13 @@ def main():
         mjd2s[iii] = rs.emjd
         peak2s[iii] = rs.epeak
         rms2s[iii] = rs.erms
-        if 50 * int(iii/50) == iii:
+        if (50 * int(iii/50) == iii) and doDebug:
             print "Event %5d: %12.9f: %7.3f+/-%5.3f" % (iii, rs.emjd, rs.epeak, rs.erms)
         iii = iii + 1
 
-    print "%5d Events in Directory: %s" % (nEve1, dir1)
-#    print files
-    print "%5d Events in Directory: %s" % (nEve2, dir2)
+    if doDebug:
+        print "%5d Events in Directory: %s" % (nEve1, dir1)
+        print "%5d Events in Directory: %s" % (nEve2, dir2)
 
     # now match event times
     for iii in range(nEve1):
@@ -213,19 +222,22 @@ def main():
     OneMjdSec = 1./86400.
     TwoMjdSec = 2.*OneMjdSec
 
+    nMatch = 0
     for iii in range(nEve1):
         if dt1s[iii] < offset:
+            nMatch = nMatch + 1
             dts = dt1s[iii]/OneMjdSec
             jjj = ii1s[iii]
             print "Event %s Matches %s; Offset: %9.6f s" % (event1s[iii], event2s[jjj], dts)
-            print "%5d %18.9f: %5d %18.9f" % (iii, mjd1s[iii], jjj, mjd2s[jjj])
+            if doDebug:
+                print "%5d %18.9f: %5d %18.9f" % (iii, mjd1s[iii], jjj, mjd2s[jjj])
             if doPlot:
                 eventAName = dir1 + "/" + event1s[iii]
                 eventBName = dir2 + "/" + event2s[jjj]
                 plotEvent = "~/bin/E %s %s" % (eventAName, eventBName)
                 os.system(plotEvent)
 
-
+    print "Found %d Event Matches" % (nMatch)
     # now match event times
     for iii in range(nEve2):
         mjd2 = mjd2s[iii]
@@ -239,14 +251,6 @@ def main():
                 dtj = jjj
         ii2s[iii] = dtj
         dt2s[iii] = dtMin
-
-#    for iii in range(nEve2):
-#        if dt2s[iii] < offset:
-#            dts = dt2s[iii]/OneMjdSec
-#            jjj = ii2s[iii]
-#            print "Event %s Matches %s; Offset: %9.6f s" % (event2s[iii], event1s[jjj], dts)
-#            print "%5d %18.9f: %5d %18.9f" % (iii, mjd2s[iii], jjj, mjd1s[jjj])
-
 
 if __name__ == "__main__":
     main()

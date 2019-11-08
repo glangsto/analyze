@@ -2,6 +2,7 @@
 Class defining a Radio Frequency Spectrum
 Includes reading and writing ascii files
 HISTORY
+19NOV08 GIL add 3 more digits to Event MJD 
 19SEP14 GIL only use gains[] to store SDR gains
 19SEP11 GIL restore write_ascii_ave()
 19JUN29 GIL diagnose errors in vel2chan
@@ -324,6 +325,7 @@ class Spectrum(object):
         self.utc = utc   # average observation time (datetime class)
         self.lst = 0.    # local sideral time degrees, ie 12h = 180deg
         self.durationSec = 0.    # integrated observing time (seconds)
+        self.seconds = 0.        # Seconds of day part of UTC time, for precision
         self.telType = str(telType) # "Horn, Parabola  Yagi, Sphere"
         # define size of horn or antenna (for parabola usuall A = B)
         self.telSizeAm = float(1.)  # A size parameter in meters
@@ -527,7 +529,7 @@ class Spectrum(object):
         outfile.write(outline)
         outline = '# ERMS      = '  + str(self.erms) + '\n'
         outfile.write(outline)
-        outline = '# EMJD      = %15.9f \n' % ( self.emjd)
+        outline = '# EMJD      = %18.12f \n' % ( self.emjd)
         outfile.write(outline)
         outline = '# REFCHAN   = '  + str(self.refChan) + '\n'
         outfile.write(outline)
@@ -545,6 +547,8 @@ class Spectrum(object):
         dates = strnow.split('T')
         datestr = dates[0] + ' ' + dates[1]
         outline = '# UTC       = '  + datestr + '\n'
+        outfile.write(outline)
+        outline = '# SECONDS   = %18.10'  + self.seconds + '\n'
         outfile.write(outline)
         lststr = angles.fmt_angle(self.lst/15., s1=":", s2=":", pre=3)  # convert to hours
         outline = '# LST       = '  + lststr[1:] + '\n'
@@ -735,6 +739,8 @@ class Spectrum(object):
                     timefmt = "%Y-%m-%d %H:%M:%S.%f"
                     utc = datetime.datetime.strptime(parts[3] + " " + parts[4], timefmt)
                     self.utc = utc
+                if parts[1] == "SECONDS":
+                    self.seconds = float(parts[3])
                 if parts[1] == 'CENTERFREQ':
                     self.centerFreqHz = float(parts[3])
                 if parts[1] == 'CENTERFREQ=':
