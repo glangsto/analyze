@@ -2,6 +2,7 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#19NOV08 GIL add title option, switch to micro-seconds
 #19OCT10 GIL also show ra and dec
 #19MAR11 GIL fix plot axies
 #19JAN16 GIL initial version
@@ -24,17 +25,47 @@ xallmax = -9.e9
 xallmin =  9.e9
 yallmax = -9.e9
 yallmin =  9.e9
+mytitle = ""      # define plot title
+doDebug = False
 
 linelist = [1420.0, 1418.0]  # RFI lines in MHz
 linewidth = [7, 7]
 
-#for symbol, value in locals().items():
-#    print symbol, value
+if nargs < 2:
+    print "E: Plot Events"
+    print "Usage: "
+    print " E [-T 'My Plot Title'] fileNames "
+    print "where:"
+    print "  -T <plot title String> Enables user labeling of the plot"
+    print ""
+    print "Where many parameters are optional:"
+    print "-B Subtract a linear baseline fit to Spectra at Min and Max Velocities"
+    print ""
+    print "Glen Langston - 2019 November 8"
+    exit()
+
+namearg = 1
+iarg = 1          # start searching for input flags
+
+# for all arguments, read list and exit when no flag argument found
+while iarg < nargs:
+    if sys.argv[iarg].upper() == '-T':   # now look for flags with arguments
+        iarg = iarg+1
+        mytitle = sys.argv[iarg]
+        print 'Plot title: ', mytitle
+    elif sys.argv[iarg].upper() == '-D':   # if debugging
+        doDebug = True
+        print "-D Additional Debug printing."
+    else:
+        break
+    iarg = iarg+1
+namearg = iarg
+
 firstel = -100.
 
 note = "Events"
 nplot = 0
-for iii in range(1, min(nargs,25)):
+for iii in range(namearg, min(nargs,25)):
 
     filename = sys.argv[iii]
 
@@ -45,7 +76,6 @@ for iii in range(1, min(nargs,25)):
 
 #    print("GAL Lon,Lat: %8.3f, %8.3f"  % (rs.gallon, rs.gallat))
 
-
     parts = filename.split('/')
     nparts = len(parts)
     aname = parts[nparts-1]
@@ -54,14 +84,29 @@ for iii in range(1, min(nargs,25)):
     parts = aname.split('T')
     date  = parts[0]
     time  = parts[1]
-#    time  = time.replace('_',':')
-    
+
+    timestr = "%s" % (rs.utc)
+    eMjd = rs.emjd
+    iseconds = int(eMjd)
+    seconds = 86400. * (eMjd - iseconds)
+
+    if doDebug:
+        print "%s == %s == %12.6f" %( time, timestr, seconds)
+    parts = timestr.split('T')
+    if len(parts) > 1:
+        atime = parts[1]
+    else:
+        atime = timestr
+
+    if doDebug:
+        print "%s == %s" %( time, atime)
+
     gallon = rs.gallon
     gallat = rs.gallat
     ra = rs.ra
     dec = rs.dec
-    label = '%s, RA,Dec: %7.3f,%7.3f, Lon,Lat=%5.1f,%5.1f' % ( time,rs.ra,rs.dec,gallon,gallat)
-    xs = rs.xdata 
+    label = '%s R,D: %6.2f,%6.2f, Lon,Lat=%5.1f,%5.1f' % ( time,rs.ra,rs.dec,gallon,gallat)
+    xs = rs.xdata * 1.E6
     ya = rs.ydataA
     yb = rs.ydataB
     if rs.nTime < 1:
@@ -71,7 +116,8 @@ for iii in range(1, min(nargs,25)):
     xv = np.zeros(rs.nSamples*2)
     yv = np.zeros(rs.nSamples*2)
     j = 0
-    dt = 0.5/rs.bandwidthHz
+    # convert time offsets to micro-seconds
+    dt = 1.E6 * 0.5/rs.bandwidthHz
     t = -2. * dt * rs.refSample
     if iii == -1:  # no op
         print "First Time %12.9f (s); Delta T = %12.9f (s)" % (t, dt)
@@ -90,30 +136,38 @@ for iii in range(1, min(nargs,25)):
     xallmin = min(xmin,xallmin)
     xallmax = max(xmax,xallmax)
 
+    n2 = int( rs.nSamples/2.5)
     ymin = min(yv)
     ymax = max(yv)
-    ymed = (ymin+ymax)*.5
+    yrms = np.std( yv[0:n2])
+
     count = rs.count
 
-    print(' Ra: %8.5f Dec: %8.5f Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ra, dec, ymax, ymed, ymax/ymed, count, label))
+    if mytitle == "":
+        mytitle = rs.site
+
+    ypeak = max( -ymin, ymax)
+    if yrms > 0:
+        snr = ypeak/yrms
+    else:
+        snr = 0.
+
+    print(' Ra: %6.2f Dec: %6.2f Max: %8.3f +/- %7.3f SNR: %6.1f ; %s %s' % (ra, dec, ypeak, yrms, snr, count, label))
     if nplot <= 0:
-        title = date + " Az,El: %6.1f,%6.1f" % (rs.telaz, rs.telel)
+        title = mytitle + " Az,El: %6.1f,%6.1f" % (rs.telaz, rs.telel)
         fig,ax1 = plt.subplots(figsize=(10,6))
         fig.canvas.set_window_title(title)
         nplot = nplot + 1
     note = rs.noteA
-#    print('%s' % note)
     yallmin = min(ymin,yallmin)
     yallmax = max(ymax,yallmax)
     plt.xlim(xallmin,xallmax)
-#    plt.ylim(0.9*ymin,1.5*yallmax)
-#    plt.ylim(0.9*ymin,1.25*yallmax)
     plt.ylim(yallmin,1.25*yallmax)
 
 
     plt.plot(xv, yv, colors[iii-1], linestyle=linestyles[iii-1],label=label)
-plt.title(note)
-plt.xlabel('Time Offset From Event (s)')
+plt.title(title)
+plt.xlabel('Time Offset From Event (micro-seconds)')
 plt.ylabel('Intensity (Counts)')
 plt.legend(loc='upper right')
 plt.show()
