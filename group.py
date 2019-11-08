@@ -95,8 +95,9 @@ def moveFiles( inDir, groupDir, nInGroup, groupFiles):
     """
     global doDebug
     outDir = "./" + groupDir
-    print "Moving %d events to directory %s " % ( nInGroup, groupDir)
-    mkdir = "mkdir %s " % (outDir)
+    if doDebug:
+        print "Moving %d events to directory %s " % ( nInGroup, groupDir)
+    mkdir = "mkdir %s 2> /dev/null" % (outDir)
     if not os.path.isfile( outDir):
         os.system(mkdir)
 
@@ -231,7 +232,6 @@ def main():
             if nInGroup >= ngroup:
                 if doMove:
                     moveFiles( dir1, groupDir, nInGroup, groupFiles)
-#                print "Group of %5d events (%s-%s)" % (nInGroup, firstFile, lastFile)
                 dMjd = mjd1s[iLast] - mjd1s[iFirst]
                 duration = 86400. * dMjd
                 print "Group of %5d events (%s-%s), dur: %9.3f (s)" % (nInGroup, firstFile, lastFile, duration)
