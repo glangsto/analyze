@@ -1,0 +1,537 @@
+#Python find matchs in 4 data directories
+#HISTORY
+#19NOV17 GIL get matching of 4 directories working
+#19NOV15 GIL read date 
+#19NOV08 GIL reduce printout
+#19OCT10 GIL optionall plot matchs
+#19APR15 GIL first working version of event matchin
+#19APR14 GIL initial version of event matching
+#19APR11 GIL improve labeling
+#19APR10 GIL initial version based on FFT
+#
+import matplotlib.pyplot as plt
+import sys
+import os
+import radioastronomy
+import interpolate
+from scipy.fftpack import fft
+import numpy as np
+import copy
+from scipy.signal import blackman
+
+nargs = len( sys.argv)
+if nargs < 3:
+    print "MATCH4: Match events listed in four directories"
+    print "Usage: MATCH4 [-OF seconds] [-D] [-C Date] [dir1 dir2 dir3 dir4]"
+    print "Where: Optionally the user provides the maximum time offset (secs) to call a match"
+    print "Where -D  Optionally print debugging info"
+    print "Where -C  Optionally provide a calendar date (ie 19Nov17) instead of directories"
+    print ""
+    print "Glen Langston, November 18, 2019"
+    exit()
+
+
+linestyles = ['-','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.']
+colors = ['-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g']
+ncolor = min( len(colors), 7)
+
+scalefactor = 1e8
+xallmax = -9.e9
+xallmin =  9.e9
+yallmax = -9.e9
+yallmin =  9.e9
+
+# separate arguments form file names
+iOffset = 1
+ifile = 1
+iii = ifile
+offset = 0.5          # default match offset is  0.5 seconds
+nday = 24             # by default divide day in 24 hours
+nblock = 256          # number of samples to FFT
+sigma = 5.0           #
+kpercount = 1.0       # calibration into Kelvin units
+note = ""             # optional note for top of plot
+calendar = ""
+doPlot = False
+doDebug = False
+
+# read through arguments extracting parameters
+while iii < nargs:
+    anarg = sys.argv[iii].upper()
+    if str(anarg[0:3]) == "-OF":
+        offset = np.float( sys.argv[iii+1])
+        iii = iii + 1
+        print "Maximum Time Offset: %8.6f s for Match: " % ( offset)
+        offset = offset/86400.   # convert to MJDs
+        ifile = ifile + 2
+    if str(anarg[0:3]) == "-ND":
+        ndays = np.int( sys.argv[iii+1])
+        iii = iii + 1
+        print "Divide Day into N Parts: ", nday
+        aFix = True
+        ifile = ifile + 2
+    if str(anarg[0:3]) == "-SI":
+        sigma = np.float( sys.argv[iii+1])
+        iii = iii + 1
+        print "Keeping Events > %7.2f Sigma " % (sigma)
+        aFix = True
+        ifile = ifile + 2
+    if anarg[0:3] == "-NO":
+        note = sys.argv[iii+1]
+        iii = iii + 1
+        print "Note: ", note
+        ifile = ifile + 2
+        aFix = True
+    if anarg[0:2] == "-C":
+        calendar = sys.argv[iii+1]
+        iii = iii + 1
+        print "Matching Date: ", calendar
+        ifile = ifile + 2
+        aFix = True
+    if anarg[0:2] == "-P":
+        doPlot = True
+        print "Plotting Matching events"
+        ifile = ifile + 1
+    if anarg[0:2] == "-D":
+        doDebug = True
+        print "Debugging"
+        ifile = ifile + 1
+    iii = iii + 1
+
+N = nblock                 # abreviation
+ablock = np.zeros(nblock)  # creat array to FFT
+eventblock = np.zeros(nblock)  # creat array to FFT
+eventCounts = np.zeros(nday)  # count events per fraction of a day
+eventAveGLat = np.zeros(nday) # count events per fraction of a day
+eventAveGLon = np.zeros(nday) # count events per half hour
+eventAveRa = np.zeros(nday) # count events per fraction of a day
+eventAveDec = np.zeros(nday) # count events per half hour
+w = blackman(N)
+nu = np.zeros(nblock)  # creat frequency array
+nplot = 0
+nfiles = nargs-ifile
+
+if calendar == "":
+    dir1 = sys.argv[ifile]
+    dir2 = sys.argv[ifile+1]
+    dir3 = sys.argv[ifile+2]
+    dir4 = sys.argv[ifile+3]
+else:
+    dir1 = "pi1-events-" + calendar
+    dir2 = "pi2-events-" + calendar
+    dir3 = "pi3-events-" + calendar
+    dir4 = "odroid5-events-" + calendar
+
+if doDebug:
+    print "Dir 1: ", dir1
+    print "Dir 2: ", dir2
+    print "Dir 3: ", dir3
+    print "Dir 4: ", dir4
+
+MAXEVENTS = 5000
+
+if nfiles < 2:
+    print "MATCH: Match events listed in Two directories"
+    print "Usage: MATCH [-OF seconds] [-D] dir1 dir2"
+    print "Where: Optionally the user provides the maximum offset to call a match"
+    print "Where -D  Optionally print debugging info"
+    print ""
+    print "Glen Langston, November 8, 2019"
+    exit()
+    
+
+def main():
+    """
+    Main executable for gridding astronomical data
+    """
+    dpi = 1
+
+    nargs = len(sys.argv)
+    if nargs < 2:
+        print 'MATCH: MATCH pairs of events in directories'
+        print 'usage: MATCH [-OF seconds] dir1 dir2'
+        exit()
+
+    gridtype = 'PULSAR'
+
+    from os import listdir
+    from os.path import isfile, join
+    files1 = [f for f in listdir(dir1) if isfile(join(dir1, f))]
+    files2 = [f for f in listdir(dir2) if isfile(join(dir2, f))]
+    if len(dir3) > 0:
+        files3 = [f for f in listdir(dir3) if isfile(join(dir3, f))]
+    else:
+        files3 = ""
+    if len(dir4) > 0: 
+        files4 = [f for f in listdir(dir4) if isfile(join(dir4, f))]
+    else:
+        files4 = ""
+
+    count = 0
+    if doDebug: 
+        print "%5d Files in Directory 1" % (len(files1))
+        print "%5d Files in Directory 2" % (len(files2))
+        print "%5d Files in Directory 3" % (len(files3))
+        print "%5d Files in Directory 4" % (len(files4))
+    nEve1 = 0
+    nEve2 = 0
+    nEve3 = 0
+    nEve4 = 0
+
+    rs = radioastronomy.Spectrum()
+
+# now start reading all the files
+    event1s = files1
+    event2s = files2
+    event3s = files3
+    event4s = files4
+
+# first directory
+    for filename in files1:
+        parts = filename.split(".")
+        nparts = len(parts)
+        if nparts < 2:   # if not fooo.eve type file name
+            continue
+        if parts[nparts-1] == "eve":
+            event1s[nEve1] = filename
+            nEve1 = nEve1 + 1
+        else:
+            continue
+
+    mjd1s = np.zeros(nEve1)
+    peak1s = np.zeros(nEve1)
+    rms1s = np.zeros(nEve1)
+    dt1s = np.zeros(nEve1)
+    ii1s = np.arange(nEve1) * 0
+    event1s = event1s[0:nEve1]
+
+    iii = 0
+    for filename in event1s:
+        fullname = join(dir1, filename)
+        rs.read_spec_ast( fullname)
+        rs.azel2radec()    # compute ra,dec from az,el
+        mjd1s[iii] = rs.emjd
+        peak1s[iii] = rs.epeak
+        rms1s[iii] = rs.erms
+        if (50 * int(iii/50) == iii) and doDebug:
+            print "Event %5d: %12.9f: %7.3f+/-%5.3f" % (iii, rs.emjd, rs.epeak, rs.erms)
+        iii = iii + 1
+
+# second directory
+    for filename in files2:
+        parts = filename.split(".")
+        nparts = len(parts)
+        if nparts < 2:   # if not fooo.eve type file name
+            continue
+        if parts[nparts-1] == "eve":
+            event2s[nEve2] = filename
+            nEve2 = nEve2 + 1
+        else:
+            continue
+
+    mjd2s = np.zeros(nEve2)
+    peak2s = np.zeros(nEve2)
+    rms2s = np.zeros(nEve2)
+    dt2s = np.zeros(nEve2)
+    ii2s = np.arange(nEve2) * 0
+    event2s = event2s[0:nEve2]
+
+    iii = 0
+    for filename in event2s:
+        fullname = join(dir2, filename)
+        rs.read_spec_ast( fullname)
+        rs.azel2radec()    # compute ra,dec from az,el
+        mjd2s[iii] = rs.emjd
+        peak2s[iii] = rs.epeak
+        rms2s[iii] = rs.erms
+        if (50 * int(iii/50) == iii) and doDebug:
+            print "Event %5d: %12.9f: %7.3f+/-%5.3f" % (iii, rs.emjd, rs.epeak, rs.erms)
+        iii = iii + 1
+
+# third directory
+    for filename in files3:
+        parts = filename.split(".")
+        nparts = len(parts)
+        if nparts < 2:   # if not fooo.eve type file name
+            continue
+        if parts[nparts-1] == "eve":
+            event1s[nEve3] = filename
+            nEve3 = nEve3 + 1
+        else:
+            continue
+
+    mjd3s = np.zeros(nEve3)
+    peak3s = np.zeros(nEve3)
+    rms3s = np.zeros(nEve3)
+    dt3s = np.zeros(nEve3)
+    ii3s = np.arange(nEve3) * 0
+    event3s = event1s[0:nEve3]
+
+    iii = 0
+    for filename in event3s:
+        fullname = join(dir3, filename)
+        rs.read_spec_ast( fullname)
+        rs.azel2radec()    # compute ra,dec from az,el
+        mjd3s[iii] = rs.emjd
+        peak3s[iii] = rs.epeak
+        rms3s[iii] = rs.erms
+        if (50 * int(iii/50) == iii) and doDebug:
+            print "Event %5d: %12.9f: %7.3f+/-%5.3f" % (iii, rs.emjd, rs.epeak, rs.erms)
+        iii = iii + 1
+
+# forth directory
+    for filename in files4:
+        parts = filename.split(".")
+        nparts = len(parts)
+        if nparts < 2:   # if not fooo.eve type file name
+            continue
+        if parts[nparts-1] == "eve":
+            event4s[nEve4] = filename
+            nEve4 = nEve4 + 1
+        else:
+            continue
+
+    mjd4s = np.zeros(nEve4)
+    peak4s = np.zeros(nEve4)
+    rms4s = np.zeros(nEve4)
+    dt4s = np.zeros(nEve4)
+    ii4s = np.arange(nEve4) * 0
+    event4s = event1s[0:nEve4]
+
+    iii = 0
+    for filename in event1s:
+        fullname = join(dir4, filename)
+        rs.read_spec_ast( fullname)
+        rs.azel2radec()    # compute ra,dec from az,el
+        mjd4s[iii] = rs.emjd
+        peak4s[iii] = rs.epeak
+        rms4s[iii] = rs.erms
+        if (50 * int(iii/50) == iii) and doDebug:
+            print "Event %5d: %12.9f: %7.3f+/-%5.3f" % (iii, rs.emjd, rs.epeak, rs.erms)
+        iii = iii + 1
+
+    if doDebug:
+        print "%5d Events in Directory: %s" % (nEve1, dir1)
+        print "%5d Events in Directory: %s" % (nEve2, dir2)
+        print "%5d Events in Directory: %s" % (nEve3, dir3)
+        print "%5d Events in Directory: %s" % (nEve4, dir4)
+
+    # now match event times in directories 1 and 2
+    for iii in range(nEve1):
+        mjd1 = mjd1s[iii]
+        dtj = 0
+        dtMin = abs(mjd1 - mjd2s[0])
+        for jjj in range(nEve2):
+            mjd2 = mjd2s[jjj]
+            dt = abs(mjd1 - mjd2)
+            if dt < dtMin:
+                dtMin = dt
+                dtj = jjj
+        ii1s[iii] = dtj
+        dt1s[iii] = dtMin
+
+    # now match event times in directories 1 and 3
+    for iii in range(nEve1):
+        mjd1 = mjd1s[iii]
+        dtj = 0
+        dtMin = abs(mjd1 - mjd3s[0])
+        for jjj in range(nEve3):
+            mjd3 = mjd3s[jjj]
+            dt = abs(mjd1 - mjd3)
+            if dt < dtMin:
+                dtMin = dt
+                dtj = jjj
+        ii3s[iii] = dtj
+        dt3s[iii] = dtMin
+
+    # now match event times in directories 1 and 4
+    for iii in range(nEve1):
+        mjd1 = mjd1s[iii]
+        dtj = 0
+        dtMin = abs(mjd1 - mjd4s[0])
+        for jjj in range(nEve4):
+            mjd4 = mjd4s[jjj]
+            dt = abs(mjd1 - mjd4)
+            if dt < dtMin:
+                dtMin = dt
+                dtj = jjj
+        ii4s[iii] = dtj
+        dt4s[iii] = dtMin
+
+    # now match event times in directories 2 and 3
+    for iii in range(nEve2):
+        mjd2 = mjd2s[iii]
+        dtj = 0
+        dtMin = abs(mjd2 - mjd3s[0])
+        for jjj in range(nEve3):
+            mjd3 = mjd3s[jjj]
+            dt = abs(mjd2 - mjd3)
+            if dt < dtMin:
+                dtMin = dt
+                dtj = jjj
+        ii2s[iii] = dtj
+        dt2s[iii] = dtMin
+
+    # now match event times in directories 2 and 4
+    for iii in range(nEve2):
+        mjd2 = mjd2s[iii]
+        dtj = 0
+        dtMin = abs(mjd2 - mjd4s[0])
+        for jjj in range(nEve4):
+            mjd4 = mjd4s[jjj]
+            dt = abs(mjd2 - mjd4)
+            if dt < dtMin:
+                dtMin = dt
+                dtj = jjj
+        ii5s[iii] = dtj
+        dt5s[iii] = dtMin
+
+    # finally match event times in directories 3 and 4
+    for iii in range(nEve3):
+        mjd3 = mjd3s[iii]
+        dtj = 0
+        dtMin = abs(mjd3 - mjd4s[0])
+        for jjj in range(nEve4):
+            mjd4 = mjd4s[jjj]
+            dt = abs(mjd2 - mjd4)
+            if dt < dtMin:
+                dtMin = dt
+                dtj = jjj
+        ii6s[iii] = dtj
+        dt6s[iii] = dtMin
+
+    # now report out the minimum time offsets and times less than 1 second off
+    OneMjdSec = 1./86400.
+    TwoMjdSec = 2.*OneMjdSec
+
+    nMatch = 0
+    for iii in range(nEve1):
+        if dt1s[iii] < offset:
+            nMatch = nMatch + 1
+            dts = dt1s[iii]/OneMjdSec
+            jjj = ii1s[iii]
+            print "Event %s Matches %s; Offset: %9.6f s" % (event1s[iii], event2s[jjj], dts)
+            if doDebug:
+                print "%5d %18.9f: %5d %18.9f" % (iii, mjd1s[iii], jjj, mjd2s[jjj])
+            if doPlot:
+                eventAName = dir1 + "/" + event1s[iii]
+                eventBName = dir2 + "/" + event2s[jjj]
+                plotEvent = "~/bin/E %s %s" % (eventAName, eventBName)
+                os.system(plotEvent)
+
+    print "Found %d Event Matches between directories 1 and 2" % (nMatch)
+    nMatch = 0
+    for iii in range(nEve1):
+        if dt1s[iii] < offset:
+            nMatch = nMatch + 1
+            dts = dt1s[iii]/OneMjdSec
+            jjj = ii1s[iii]
+            print "Event %s Matches %s; Offset: %9.6f s" % (event1s[iii], event2s[jjj], dts)
+            if doDebug:
+                print "%5d %18.9f: %5d %18.9f" % (iii, mjd1s[iii], jjj, mjd2s[jjj])
+            if doPlot:
+                eventAName = dir1 + "/" + event1s[iii]
+                eventBName = dir2 + "/" + event2s[jjj]
+                plotEvent = "~/bin/E %s %s" % (eventAName, eventBName)
+                os.system(plotEvent)
+
+    nMatch12 = nMatch
+    print "Found %d Event Matches between directories 1 and 2" % (nMatch12)
+
+    nMatch = 0
+    for iii in range(nEve1):
+        if dt1s[iii] < offset:
+            nMatch = nMatch + 1
+            dts = dt3s[iii]/OneMjdSec
+            jjj = ii3s[iii]
+            print "Event %s Matches %s; Offset: %9.6f s" % (event1s[iii], event3s[jjj], dts)
+            if doDebug:
+                print "%5d %18.9f: %5d %18.9f" % (iii, mjd1s[iii], jjj, mjd3s[jjj])
+            if doPlot:
+                eventAName = dir1 + "/" + event1s[iii]
+                eventBName = dir3 + "/" + event3s[jjj]
+                plotEvent = "~/bin/E %s %s" % (eventAName, eventBName)
+                os.system(plotEvent)
+
+    nMatch13 = nMatch
+    print "Found %d Event Matches between directories 1 and 3" % (nMatch13)
+
+# find matches between 1 and 4
+    nMatch = 0
+    for iii in range(nEve1):
+        if dt1s[iii] < offset:
+            nMatch = nMatch + 1
+            dts = dt4s[iii]/OneMjdSec
+            jjj = ii4s[iii]
+            print "Event %s Matches %s; Offset: %9.6f s" % (event1s[iii], event4s[jjj], dts)
+            if doDebug:
+                print "%5d %18.9f: %5d %18.9f" % (iii, mjd1s[iii], jjj, mjd4s[jjj])
+            if doPlot:
+                eventAName = dir1 + "/" + event1s[iii]
+                eventBName = dir4 + "/" + event4s[jjj]
+                plotEvent = "~/bin/E %s %s" % (eventAName, eventBName)
+                os.system(plotEvent)
+
+    nMatch14 = nMatch
+    print "Found %d Event Matches between directories 1 and 4" % (nMatch14)
+
+# find matches between 2 and 3
+    nMatch = 0
+    for iii in range(nEve2):
+        if dt2s[iii] < offset:
+            nMatch = nMatch + 1
+            dts = dt3s[iii]/OneMjdSec
+            jjj = ii3s[iii]
+            print "Event %s Matches %s; Offset: %9.6f s" % (event2s[iii], event3s[jjj], dts)
+            if doDebug:
+                print "%5d %18.9f: %5d %18.9f" % (iii, mjd2s[iii], jjj, mjd3s[jjj])
+            if doPlot:
+                eventAName = dir1 + "/" + event2s[iii]
+                eventBName = dir3 + "/" + event3s[jjj]
+                plotEvent = "~/bin/E %s %s" % (eventAName, eventBName)
+                os.system(plotEvent)
+
+    nMatch23 = nMatch
+    print "Found %d Event Matches between directories 2 and 3" % (nMatch23)
+
+# find matches between 2 and 4
+    nMatch = 0
+    for iii in range(nEve2):
+        if dt2s[iii] < offset:
+            nMatch = nMatch + 1
+            dts = dt4s[iii]/OneMjdSec
+            jjj = ii4s[iii]
+            print "Event %s Matches %s; Offset: %9.6f s" % (event2s[iii], event4s[jjj], dts)
+            if doDebug:
+                print "%5d %18.9f: %5d %18.9f" % (iii, mjd2s[iii], jjj, mjd4s[jjj])
+            if doPlot:
+                eventAName = dir2 + "/" + event2s[iii]
+                eventBName = dir4 + "/" + event4s[jjj]
+                plotEvent = "~/bin/E %s %s" % (eventAName, eventBName)
+                os.system(plotEvent)
+
+    nMatch24 = nMatch
+    print "Found %d Event Matches between directories 2 and 4" % (nMatch24)
+
+# find matches between 3 and 4
+    nMatch = 0
+    for iii in range(nEve3):
+        if dt1s[iii] < offset:
+            nMatch = nMatch + 1
+            dts = dt4s[iii]/OneMjdSec
+            jjj = ii4s[iii]
+            print "Event %s Matches %s; Offset: %9.6f s" % (event3s[iii], event4s[jjj], dts)
+            if doDebug:
+                print "%5d %18.9f: %5d %18.9f" % (iii, mjd4s[iii], jjj, mjd4s[jjj])
+            if doPlot:
+                eventAName = dir3 + "/" + event3s[iii]
+                eventBName = dir4 + "/" + event4s[jjj]
+                plotEvent = "~/bin/E %s %s" % (eventAName, eventBName)
+                os.system(plotEvent)
+
+    nMatch34 = nMatch
+    print "Found %d Event Matches between directories 3 and 4" % (nMatch34)
+
+if __name__ == "__main__":
+    main()
+
