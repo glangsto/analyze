@@ -2,6 +2,7 @@
 Class defining a Radio Frequency Spectrum
 Includes reading and writing ascii files
 HISTORY
+19NOV22 GIL reduce digits of spectral intensity
 19NOV08 GIL add 3 more digits to Event MJD 
 19SEP14 GIL only use gains[] to store SDR gains
 19SEP11 GIL restore write_ascii_ave()
@@ -548,7 +549,7 @@ class Spectrum(object):
         datestr = dates[0] + ' ' + dates[1]
         outline = '# UTC       = '  + datestr + '\n'
         outfile.write(outline)
-        outline = '# SECONDS   = %18.10'  + self.seconds + '\n'
+        outline = '# SECONDS   = %18.10f \n' % (self.seconds)
         outfile.write(outline)
         lststr = angles.fmt_angle(self.lst/15., s1=":", s2=":", pre=3)  # convert to hours
         outline = '# LST       = '  + lststr[1:] + '\n'
@@ -603,13 +604,17 @@ class Spectrum(object):
             x = self.centerFreqHz - (self.bandwidthHz/2.) + (dx/2.)
             leny = len(self.ydataA)
             if self.nSpec > 1:
+                pformat = "%04d %s %.4f %.4f\n"
                 for i in range(min(self.nChan, leny)):
-                    outline = str(i).zfill(4) + ' ' + str(long(x)) + ' ' + str(self.ydataA) + str(self.ydataB[i]) + '\n'
+                    outline = pformat % (i, str(long(x)), self.ydataA[i], self.ydataB[i])
                     outfile.write(outline)
                     x = x + dx
             else:
+                pformat = "%04d %s %.4f\n"
                 for i in range(min(self.nChan, leny)):
-                    outline = str(i).zfill(4) + ' ' + str(long(x)) + ' ' + str(self.ydataA[i]) + '\n'
+#                    outline = str(i).zfill(4) + ' ' + str(long(x)) + ' ' + str(self.ydataA[i]) + '\n'
+                    outline = pformat % (i, str(long(x)), self.ydataA[i])
+                    outline = outline.replace('  ', ' ')
                     outfile.write(outline)
                     x = x + dx
             del outline

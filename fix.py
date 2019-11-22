@@ -2,6 +2,7 @@
 #The list of header items to fix is given in help.
 #These include El (elevation) and Az (azimuth)
 #HISTORY
+#19NOV22 GIL don't plot spectra
 #19SEP24 GIL turn off plotting by default
 #19FEB20 GIL initial version
 #
@@ -43,6 +44,7 @@ device = ""
 # flag replacing file
 replace = False
 aFix = False
+doPlot = False
 
 ifile = 1
 iii = ifile
@@ -85,6 +87,11 @@ while iii < nargs:
         print "Observers: ", observer
         ifile = ifile + 2
         aFix = True
+    if anarg[0:2] == "-P":
+        doPlot = True
+        iii = iii + 1
+        print "Plotting fixed observations"
+        ifile = ifile + 1
     if anarg[0:3] == "-NO":
         note = sys.argv[iii+1]
         iii = iii + 1
@@ -161,6 +168,7 @@ if aFix == False:
     print " -nt  Number of time samples in the observations"
     print " -rs  Index of the Reference Time Sample"
     print " -re  Replace original file with revised header"
+    print " -p   Plot fixed events"
     exit()
 
 nplot = 0
@@ -231,7 +239,6 @@ for iii in range(nfiles):
         except:
             print "Cound not remove file: ",filename
         outname = filename
-#        print "Replacing file: ", outname
     else:
         parts = filepart.split('.')
         nparts = len(parts)
@@ -241,6 +248,27 @@ for iii in range(nfiles):
             outname = parts[0] + "-fix"
         else:
             outname = parts[0] + "-fix." + parts[nparts-1]
+ 
+# now if a spectrum, fix name for elevation above zero 
+# Spectra do not have time series.
+    if rs.nTime <= 0:
+        parts = outname.split('.')
+        nparts = len(parts)
+        # last part of file name is file type
+        filetype = parts[nparts-1]
+        if rs.telel > 0.:
+            filetype = 'ast'
+        else:
+            filetype = 'hot'
+        if nparts == 2:
+            outname = parts[0] + "." + filetype
+        elif nparts == 1:
+            outname = parts[0]
+        else:  # else multiple name parts separated by "." 
+            outname = ""
+            for iii in range(nparts-1):
+                outname = outname + parts[iii] + "."
+            outname = outname + filetype
 #    print "Output file name: ", outname
     rs.write_ascii_file( dirname, outname)
 
@@ -252,11 +280,13 @@ for iii in range(nfiles):
     ya = rs.ydataA
     yb = rs.ydataB
 
+# plotting only works for events
     if rs.nTime < 1:
-        print "Not an Event: ",filename
         continue
 
     if nplot > 10:
+        continue
+    if not doPlot:
         continue
     nplot = nplot+1
 
@@ -303,8 +333,9 @@ for iii in range(nfiles):
 
     plt.plot(xv, yv, colors[nplot], linestyle=linestyles[nplot],label=label)
 # put labels on plot
-plt.title(note)
-plt.xlabel('Time (s)')
-plt.ylabel('Intensity (Counts)')
-plt.legend(loc='upper right')
-plt.show()
+if doPlot:
+    plt.title(note)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Intensity (Counts)')
+    plt.legend(loc='upper right')
+    plt.show()

@@ -54,6 +54,18 @@ nargs = len(sys.argv)
 timearg = 1
 namearg = 2
 
+if nargs < 3:
+    print "M: Median baseline calibrated horn observations"
+    print "Usage: M [-F] [-L <velocity>] [-H <velocity>] <average_seconds> <files>"
+    print "Where <average_seconds>: Number of seconds of observations to average."
+    print "-F optionally do a polynomial baseline fit"
+    print "-L optionally set the low velocity region for baseline fit"
+    print "-H optionall set the high velocity region for baseline fit"
+    print "Observation file list must include at least one hot load file"
+    print ""
+    print "Glen Langston - NSF   November 22, 2019"
+    exit()
+
 # some SDRs put spike in center of spectrum; indicate spike flagging here
 flagCenter = False
 flagCenter = True
