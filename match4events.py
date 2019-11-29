@@ -1,6 +1,8 @@
 #Python find matchs in 4 data directories
 #HISTORY
-#19NOV17 GIL get matching of 4 directories working
+#19NOV27 GIL now check for multiple matches
+#19NOV19 GIL add match of all 4 directories
+#19NOV17 GIL get matching of pairs of directories working
 #19NOV15 GIL read date 
 #19NOV08 GIL reduce printout
 #19OCT10 GIL optionall plot matchs
@@ -109,13 +111,18 @@ eventAveDec = np.zeros(nday) # count events per half hour
 w = blackman(N)
 nu = np.zeros(nblock)  # creat frequency array
 nplot = 0
-nfiles = nargs-ifile
+nfiles = 4
+dir3 = ""
+dir4 = ""
 
 if calendar == "":
+    nfiles = nargs-ifile
     dir1 = sys.argv[ifile]
     dir2 = sys.argv[ifile+1]
-    dir3 = sys.argv[ifile+2]
-    dir4 = sys.argv[ifile+3]
+    if nfiles > 2:
+        dir3 = sys.argv[ifile+2]
+    if nfiles > 3:
+        dir4 = sys.argv[ifile+3]
 else:
     dir1 = "pi1-events-" + calendar
     dir2 = "pi2-events-" + calendar
@@ -128,17 +135,7 @@ if doDebug:
     print "Dir 3: ", dir3
     print "Dir 4: ", dir4
 
-MAXEVENTS = 5000
-
-if nfiles < 2:
-    print "MATCH: Match events listed in Two directories"
-    print "Usage: MATCH [-OF seconds] [-D] dir1 dir2"
-    print "Where: Optionally the user provides the maximum offset to call a match"
-    print "Where -D  Optionally print debugging info"
-    print ""
-    print "Glen Langston, November 8, 2019"
-    exit()
-    
+MAXEVENTS = 10000
 
 def main():
     """
@@ -201,8 +198,8 @@ def main():
     mjd1s = np.zeros(nEve1)
     peak1s = np.zeros(nEve1)
     rms1s = np.zeros(nEve1)
-    dt1s = np.zeros(nEve1)
-    ii1s = np.arange(nEve1) * 0
+    dt12s = np.zeros(nEve1)
+    ii12s = np.arange(nEve1) * 0
     event1s = event1s[0:nEve1]
 
     iii = 0
@@ -213,9 +210,11 @@ def main():
         mjd1s[iii] = rs.emjd
         peak1s[iii] = rs.epeak
         rms1s[iii] = rs.erms
-        if (50 * int(iii/50) == iii) and doDebug:
+        if (100 * int(iii/100) == iii) and doDebug:
             print "Event %5d: %12.9f: %7.3f+/-%5.3f" % (iii, rs.emjd, rs.epeak, rs.erms)
         iii = iii + 1
+
+    print "%5d Events in Directory: %s" % (nEve1, dir1)
 
 # second directory
     for filename in files2:
@@ -229,12 +228,18 @@ def main():
         else:
             continue
 
+# directory 2
     mjd2s = np.zeros(nEve2)
     peak2s = np.zeros(nEve2)
     rms2s = np.zeros(nEve2)
-    dt2s = np.zeros(nEve2)
-    ii2s = np.arange(nEve2) * 0
     event2s = event2s[0:nEve2]
+
+# matches between 2 and 3
+    dt23s = np.zeros(nEve2)
+    ii23s = np.arange(nEve2) * 0
+# matches between 2 and 4
+    dt24s = np.zeros(nEve2)
+    ii24s = np.arange(nEve2) * 0
 
     iii = 0
     for filename in event2s:
@@ -244,9 +249,11 @@ def main():
         mjd2s[iii] = rs.emjd
         peak2s[iii] = rs.epeak
         rms2s[iii] = rs.erms
-        if (50 * int(iii/50) == iii) and doDebug:
+        if (100 * int(iii/100) == iii) and doDebug:
             print "Event %5d: %12.9f: %7.3f+/-%5.3f" % (iii, rs.emjd, rs.epeak, rs.erms)
         iii = iii + 1
+
+    print "%5d Events in Directory: %s" % (nEve2, dir2)
 
 # third directory
     for filename in files3:
@@ -255,17 +262,23 @@ def main():
         if nparts < 2:   # if not fooo.eve type file name
             continue
         if parts[nparts-1] == "eve":
-            event1s[nEve3] = filename
+            event3s[nEve3] = filename
             nEve3 = nEve3 + 1
         else:
             continue
 
+# directory 3
     mjd3s = np.zeros(nEve3)
     peak3s = np.zeros(nEve3)
     rms3s = np.zeros(nEve3)
-    dt3s = np.zeros(nEve3)
-    ii3s = np.arange(nEve3) * 0
-    event3s = event1s[0:nEve3]
+    event3s = event3s[0:nEve3]
+
+# matches between 1 and 3
+    dt13s = np.zeros(nEve1)
+    ii13s = np.arange(nEve1) * 0
+# match betweeen 3 and 4
+    dt34s = np.zeros(nEve3)
+    ii34s = np.arange(nEve3) * 0
 
     iii = 0
     for filename in event3s:
@@ -275,9 +288,11 @@ def main():
         mjd3s[iii] = rs.emjd
         peak3s[iii] = rs.epeak
         rms3s[iii] = rs.erms
-        if (50 * int(iii/50) == iii) and doDebug:
+        if (100 * int(iii/100) == iii) and doDebug:
             print "Event %5d: %12.9f: %7.3f+/-%5.3f" % (iii, rs.emjd, rs.epeak, rs.erms)
         iii = iii + 1
+
+    print "%5d Events in Directory: %s" % (nEve3, dir3)
 
 # forth directory
     for filename in files4:
@@ -291,30 +306,55 @@ def main():
         else:
             continue
 
+# directory 4
     mjd4s = np.zeros(nEve4)
     peak4s = np.zeros(nEve4)
     rms4s = np.zeros(nEve4)
-    dt4s = np.zeros(nEve4)
-    ii4s = np.arange(nEve4) * 0
-    event4s = event1s[0:nEve4]
+    event4s = event4s[0:nEve4]
 
+# matches between 1 and 4
+    dt14s = np.zeros(nEve1)
+    ii14s = np.arange(nEve1) * 0
+
+#read in all events in directory 4
     iii = 0
-    for filename in event1s:
+    for filename in event4s:
         fullname = join(dir4, filename)
         rs.read_spec_ast( fullname)
         rs.azel2radec()    # compute ra,dec from az,el
         mjd4s[iii] = rs.emjd
         peak4s[iii] = rs.epeak
         rms4s[iii] = rs.erms
-        if (50 * int(iii/50) == iii) and doDebug:
+        if (100 * int(iii/100) == iii) and doDebug:
             print "Event %5d: %12.9f: %7.3f+/-%5.3f" % (iii, rs.emjd, rs.epeak, rs.erms)
         iii = iii + 1
 
-    if doDebug:
-        print "%5d Events in Directory: %s" % (nEve1, dir1)
-        print "%5d Events in Directory: %s" % (nEve2, dir2)
-        print "%5d Events in Directory: %s" % (nEve3, dir3)
-        print "%5d Events in Directory: %s" % (nEve4, dir4)
+    print "%5d Events in Directory: %s" % (nEve4, dir4)
+
+# there are 4 directories and 3 x 2 x 1 = 6 pairs of directories for matchs
+# for eacsh of the directories there are 4 sets of files
+#   mjdNs      - full mjds of events
+#   peakNs     - peaks of each events
+#   rmsNs      - noise in samples near events
+#   eventNs    - names of event files
+# now for each of the matches there are different Indecies
+# 1 = Match between 1+2
+# iiMs    - index to second directory for event match
+# dtMs    - time offset between first and second directory
+# eventMs - name of second event that matches the first directory
+# 2 = Match between 2+3
+# 3 = Match between 1+3
+# 4 = Match between 1+4
+# 5 = Match between 2+4
+# 6 = Match between 3+4
+
+# determine the maximum number of matches
+    maxMatch = max(nEve1, nEve2, nEve3, nEve4)
+    nMatch = 0
+    match1s = np.arange( maxMatch) * 0
+    match2s = np.arange( maxMatch) * 0 
+    match3s = np.arange( maxMatch) * 0
+    match4s = np.arange( maxMatch) * 0 
 
     # now match event times in directories 1 and 2
     for iii in range(nEve1):
@@ -327,9 +367,9 @@ def main():
             if dt < dtMin:
                 dtMin = dt
                 dtj = jjj
-        ii1s[iii] = dtj
-        dt1s[iii] = dtMin
-
+        ii12s[iii] = dtj
+        dt12s[iii] = dtMin
+        
     # now match event times in directories 1 and 3
     for iii in range(nEve1):
         mjd1 = mjd1s[iii]
@@ -341,8 +381,8 @@ def main():
             if dt < dtMin:
                 dtMin = dt
                 dtj = jjj
-        ii3s[iii] = dtj
-        dt3s[iii] = dtMin
+        ii13s[iii] = dtj
+        dt13s[iii] = dtMin
 
     # now match event times in directories 1 and 4
     for iii in range(nEve1):
@@ -355,8 +395,8 @@ def main():
             if dt < dtMin:
                 dtMin = dt
                 dtj = jjj
-        ii4s[iii] = dtj
-        dt4s[iii] = dtMin
+        ii14s[iii] = dtj
+        dt14s[iii] = dtMin
 
     # now match event times in directories 2 and 3
     for iii in range(nEve2):
@@ -369,8 +409,8 @@ def main():
             if dt < dtMin:
                 dtMin = dt
                 dtj = jjj
-        ii2s[iii] = dtj
-        dt2s[iii] = dtMin
+        ii23s[iii] = dtj
+        dt23s[iii] = dtMin
 
     # now match event times in directories 2 and 4
     for iii in range(nEve2):
@@ -383,8 +423,8 @@ def main():
             if dt < dtMin:
                 dtMin = dt
                 dtj = jjj
-        ii5s[iii] = dtj
-        dt5s[iii] = dtMin
+        ii24s[iii] = dtj
+        dt24s[iii] = dtMin
 
     # finally match event times in directories 3 and 4
     for iii in range(nEve3):
@@ -393,41 +433,31 @@ def main():
         dtMin = abs(mjd3 - mjd4s[0])
         for jjj in range(nEve4):
             mjd4 = mjd4s[jjj]
-            dt = abs(mjd2 - mjd4)
+            dt = abs(mjd3 - mjd4)
             if dt < dtMin:
                 dtMin = dt
                 dtj = jjj
-        ii6s[iii] = dtj
-        dt6s[iii] = dtMin
+        ii34s[iii] = dtj
+        dt34s[iii] = dtMin
 
     # now report out the minimum time offsets and times less than 1 second off
     OneMjdSec = 1./86400.
     TwoMjdSec = 2.*OneMjdSec
 
+# now match each pair of directories.  Match 1+2
     nMatch = 0
-    for iii in range(nEve1):
-        if dt1s[iii] < offset:
-            nMatch = nMatch + 1
-            dts = dt1s[iii]/OneMjdSec
-            jjj = ii1s[iii]
-            print "Event %s Matches %s; Offset: %9.6f s" % (event1s[iii], event2s[jjj], dts)
-            if doDebug:
-                print "%5d %18.9f: %5d %18.9f" % (iii, mjd1s[iii], jjj, mjd2s[jjj])
-            if doPlot:
-                eventAName = dir1 + "/" + event1s[iii]
-                eventBName = dir2 + "/" + event2s[jjj]
-                plotEvent = "~/bin/E %s %s" % (eventAName, eventBName)
-                os.system(plotEvent)
+    iMatch = 0
 
-    print "Found %d Event Matches between directories 1 and 2" % (nMatch)
-    nMatch = 0
     for iii in range(nEve1):
-        if dt1s[iii] < offset:
+        if dt12s[iii] < offset:
             nMatch = nMatch + 1
-            dts = dt1s[iii]/OneMjdSec
-            jjj = ii1s[iii]
-            print "Event %s Matches %s; Offset: %9.6f s" % (event1s[iii], event2s[jjj], dts)
+            dts = dt12s[iii]/OneMjdSec
+            jjj = ii12s[iii]
+            match1s[iMatch] = iii
+            match2s[iMatch] = jjj
+            iMatch = iMatch + 1
             if doDebug:
+                print "Event %s Matches %s; Offset: %9.6f s" % (event1s[iii], event2s[jjj], dts)
                 print "%5d %18.9f: %5d %18.9f" % (iii, mjd1s[iii], jjj, mjd2s[jjj])
             if doPlot:
                 eventAName = dir1 + "/" + event1s[iii]
@@ -438,14 +468,18 @@ def main():
     nMatch12 = nMatch
     print "Found %d Event Matches between directories 1 and 2" % (nMatch12)
 
+# find matches bewteen 1 and 3
     nMatch = 0
     for iii in range(nEve1):
-        if dt1s[iii] < offset:
+        if dt13s[iii] < offset:
             nMatch = nMatch + 1
-            dts = dt3s[iii]/OneMjdSec
-            jjj = ii3s[iii]
-            print "Event %s Matches %s; Offset: %9.6f s" % (event1s[iii], event3s[jjj], dts)
+            dts = dt13s[iii]/OneMjdSec
+            jjj = ii13s[iii]
+            match1s[iMatch] = iii
+            match3s[iMatch] = jjj
+            iMatch = iMatch + 1
             if doDebug:
+                print "Event %s Matches %s; Offset: %9.6f s" % (event1s[iii], event3s[jjj], dts)
                 print "%5d %18.9f: %5d %18.9f" % (iii, mjd1s[iii], jjj, mjd3s[jjj])
             if doPlot:
                 eventAName = dir1 + "/" + event1s[iii]
@@ -458,13 +492,17 @@ def main():
 
 # find matches between 1 and 4
     nMatch = 0
+    iMatch = 0
     for iii in range(nEve1):
-        if dt1s[iii] < offset:
+        if dt14s[iii] < offset:
             nMatch = nMatch + 1
-            dts = dt4s[iii]/OneMjdSec
-            jjj = ii4s[iii]
-            print "Event %s Matches %s; Offset: %9.6f s" % (event1s[iii], event4s[jjj], dts)
+            dts = dt14s[iii]/OneMjdSec
+            jjj = ii14s[iii]
+            match1s[iMatch] = iii
+            match4s[iMatch] = jjj
+            iMatch = iMatch + 1
             if doDebug:
+                print "Event %s Matches %s; Offset: %9.6f s" % (event1s[iii], event4s[jjj], dts)
                 print "%5d %18.9f: %5d %18.9f" % (iii, mjd1s[iii], jjj, mjd4s[jjj])
             if doPlot:
                 eventAName = dir1 + "/" + event1s[iii]
@@ -478,15 +516,18 @@ def main():
 # find matches between 2 and 3
     nMatch = 0
     for iii in range(nEve2):
-        if dt2s[iii] < offset:
+        if dt23s[iii] < offset:
             nMatch = nMatch + 1
-            dts = dt3s[iii]/OneMjdSec
-            jjj = ii3s[iii]
-            print "Event %s Matches %s; Offset: %9.6f s" % (event2s[iii], event3s[jjj], dts)
+            dts = dt23s[iii]/OneMjdSec
+            jjj = ii23s[iii]
+            match2s[iMatch] = iii
+            match3s[iMatch] = jjj
+            iMatch = iMatch + 1
             if doDebug:
+                print "Event %s Matches %s; Offset: %9.6f s" % (event2s[iii], event3s[jjj], dts)
                 print "%5d %18.9f: %5d %18.9f" % (iii, mjd2s[iii], jjj, mjd3s[jjj])
             if doPlot:
-                eventAName = dir1 + "/" + event2s[iii]
+                eventAName = dir2 + "/" + event2s[iii]
                 eventBName = dir3 + "/" + event3s[jjj]
                 plotEvent = "~/bin/E %s %s" % (eventAName, eventBName)
                 os.system(plotEvent)
@@ -497,12 +538,15 @@ def main():
 # find matches between 2 and 4
     nMatch = 0
     for iii in range(nEve2):
-        if dt2s[iii] < offset:
+        if dt24s[iii] < offset:
             nMatch = nMatch + 1
-            dts = dt4s[iii]/OneMjdSec
-            jjj = ii4s[iii]
-            print "Event %s Matches %s; Offset: %9.6f s" % (event2s[iii], event4s[jjj], dts)
+            dts = dt24s[iii]/OneMjdSec
+            jjj = ii24s[iii]
+            match2s[iMatch] = iii
+            match4s[iMatch] = jjj
+            iMatch = iMatch + 1
             if doDebug:
+                print "Event %s Matches %s; Offset: %9.6f s" % (event2s[iii], event4s[jjj], dts)
                 print "%5d %18.9f: %5d %18.9f" % (iii, mjd2s[iii], jjj, mjd4s[jjj])
             if doPlot:
                 eventAName = dir2 + "/" + event2s[iii]
@@ -516,13 +560,16 @@ def main():
 # find matches between 3 and 4
     nMatch = 0
     for iii in range(nEve3):
-        if dt1s[iii] < offset:
+        if dt34s[iii] < offset:
             nMatch = nMatch + 1
-            dts = dt4s[iii]/OneMjdSec
-            jjj = ii4s[iii]
-            print "Event %s Matches %s; Offset: %9.6f s" % (event3s[iii], event4s[jjj], dts)
+            dts = dt34s[iii]/OneMjdSec
+            jjj = ii34s[iii]
+            match3s[iMatch] = iii
+            match4s[iMatch] = jjj
+            iMatch = iMatch + 1
             if doDebug:
-                print "%5d %18.9f: %5d %18.9f" % (iii, mjd4s[iii], jjj, mjd4s[jjj])
+                print "Event %s Matches %s; Offset: %9.6f s" % (event3s[iii], event4s[jjj], dts)
+                print "%5d %18.9f: %5d %18.9f" % (iii, mjd3s[iii], jjj, mjd4s[jjj])
             if doPlot:
                 eventAName = dir3 + "/" + event3s[iii]
                 eventBName = dir4 + "/" + event4s[jjj]
@@ -531,6 +578,130 @@ def main():
 
     nMatch34 = nMatch
     print "Found %d Event Matches between directories 3 and 4" % (nMatch34)
+
+# now for all matches found, find other matches
+    nMatch = iMatch
+    print "Total number of pairs of matches: %d" % (nMatch)
+
+    for iii in range(nMatch):
+        mjd1 = 0
+        mjd2 = 0
+        mjd3 = 0
+        mdj4 = 0
+        if match1s[iii] != 0:
+            jjj = int(match1s[iii])
+            mjd1 = mjd1s[jjj] 
+            event1 = event1s[jjj]
+        if match2s[iii] != 0:
+            jjj = int(match2s[iii])
+            mjd2 = mjd2s[jjj] 
+            event2 = event2s[jjj]
+        if match3s[iii] != 0:
+            jjj = int(match3s[iii])
+            mjd3 = mjd3s[jjj] 
+            event3 = event3s[jjj]
+        if match4s[iii] != 0:
+            jjj = int(match4s[iii])
+            mjd4 = mjd4s[jjj] 
+            event4 = event4s[jjj]
+        avemjd = 0.5 * (mjd1+mjd2+mjd3+mjd4)
+
+# now find new matches if not already found
+        if mjd1 == 0:
+            dtMin = abs(avemjd - mjd1s[0])
+            dtj = 0
+            for kkk in range(nEve1):
+                mjd = mjd1s[kkk]
+# now compute average mjd from the two found:
+                dt = abs(mjd - avemjd)
+                if dt < dtMin:
+                    dtMin = dt
+                    dtj = kkk
+            if dtMin < 2.*offset:
+                match1s[iii] = dtj
+
+# now find new matches if not already found
+        if mjd2 == 0:
+            dtMin = abs(avemjd - mjd2s[0])
+            dtj = 0
+            for kkk in range(nEve2):
+                mjd = mjd2s[kkk]
+# now compute average mjd from the two found:
+                dt = abs(mjd - avemjd)
+                if dt < dtMin:
+                    dtMin = dt
+                    dtj = kkk
+            if dtMin < 2.*offset:
+                match2s[iii] = dtj
+
+# now find new matches if not already found
+        if mjd3 == 0:
+            dtMin = abs(avemjd - mjd3s[0])
+            dtj = 0
+            for kkk in range(nEve3):
+                mjd = mjd3s[kkk]
+# now compute average mjd from the two found:
+                dt = abs(mjd - avemjd)
+                if dt < dtMin:
+                    dtMin = dt
+                    dtj = kkk
+            if dtMin < 2.*offset:
+                match3s[iii] = dtj
+
+# now find new matches if not already found
+        if mjd4 == 0:
+            dtMin = abs(avemjd - mjd4s[0])
+            dtj = 0
+            for kkk in range(nEve4):
+                mjd = mjd4s[kkk]
+# now compute average mjd from the two found:
+                dt = abs(mjd - avemjd)
+                if dt < dtMin:
+                    dtMin = dt
+                    dtj = kkk
+            if dtMin < 2.*offset:
+                match4s[iii] = dtj
+                print "Directory 4 has a third match: %3d %3d %3d %3d" % (match1s[iii], match2s[iii], match3s[iii], match4s[iii])
+
+# now finally count matches
+    counts = np.arange(nMatch) * 0
+
+    print "Finding 4 matches"
+    for iii in range(nMatch):
+       count = 0
+       if int(match1s[iii]) != 0:
+           count = count + 1
+       if int(match2s[iii]) != 0:
+           count = count + 1
+       if int(match3s[iii]) != 0:
+           count = count + 1
+       if int(match4s[iii]) != 0:
+           count = count + 1
+       counts[iii] = count
+
+    countns = np.arange(4) * 0
+            
+    print "Finding 4 matches"
+    for iii in range(nMatch):
+        count = int(counts[iii])
+        countns[count-1] = countns[count-1] + 1
+        if count > 3:
+            print "Event with %d Matches" % (count)
+            j1 = int(match1s[iii])
+            if j1 != 0:
+                print event1s[j1], mjd1s[j1]
+            j2 = int(match2s[iii])
+            if j2 != 0:
+                print event2s[j2], mjd2s[j2]
+            j3 = int(match3s[iii])
+            if j3 != 0:
+                print event3s[j3], mjd3s[j3]
+            j4 = int(match4s[iii])
+            if j4 != 0:
+                print event4s[j4], mjd4s[j4]
+
+    for iii in range(4):
+        print "%3d Events have %d Matches" % (countns[iii], iii+1)
 
 if __name__ == "__main__":
     main()
