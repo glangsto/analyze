@@ -1,5 +1,7 @@
 #Python find matchs in 4 data directories
 #HISTORY
+#19NOV30 GIL fix reading first directory
+#19NOV29 GIL set print for number of matches
 #19NOV27 GIL now check for multiple matches
 #19NOV19 GIL add match of all 4 directories
 #19NOV17 GIL get matching of pairs of directories working
@@ -28,6 +30,7 @@ if nargs < 3:
     print "Where: Optionally the user provides the maximum time offset (secs) to call a match"
     print "Where -D  Optionally print debugging info"
     print "Where -C  Optionally provide a calendar date (ie 19Nov17) instead of directories"
+    print "Where -N <n> Optionally print matches when number is equal or greater to <n>"
     print ""
     print "Glen Langston, November 18, 2019"
     exit()
@@ -56,6 +59,7 @@ note = ""             # optional note for top of plot
 calendar = ""
 doPlot = False
 doDebug = False
+nPrint = 4
 
 # read through arguments extracting parameters
 while iii < nargs:
@@ -66,11 +70,12 @@ while iii < nargs:
         print "Maximum Time Offset: %8.6f s for Match: " % ( offset)
         offset = offset/86400.   # convert to MJDs
         ifile = ifile + 2
-    if str(anarg[0:3]) == "-ND":
-        ndays = np.int( sys.argv[iii+1])
+    if str(anarg[0:3]) == "-N":
+        nPrint = np.int( sys.argv[iii+1])
         iii = iii + 1
-        print "Divide Day into N Parts: ", nday
-        aFix = True
+        if nPrint <= 0:
+            nPrint = 2
+        print "Print if %d or more matches" % (nPrint)
         ifile = ifile + 2
     if str(anarg[0:3]) == "-SI":
         sigma = np.float( sys.argv[iii+1])
@@ -103,11 +108,6 @@ while iii < nargs:
 N = nblock                 # abreviation
 ablock = np.zeros(nblock)  # creat array to FFT
 eventblock = np.zeros(nblock)  # creat array to FFT
-eventCounts = np.zeros(nday)  # count events per fraction of a day
-eventAveGLat = np.zeros(nday) # count events per fraction of a day
-eventAveGLon = np.zeros(nday) # count events per half hour
-eventAveRa = np.zeros(nday) # count events per fraction of a day
-eventAveDec = np.zeros(nday) # count events per half hour
 w = blackman(N)
 nu = np.zeros(nblock)  # creat frequency array
 nplot = 0
@@ -127,7 +127,8 @@ else:
     dir1 = "pi1-events-" + calendar
     dir2 = "pi2-events-" + calendar
     dir3 = "pi3-events-" + calendar
-    dir4 = "odroid5-events-" + calendar
+#    dir4 = "odroid5-events-" + calendar
+    dir4 = "pi4-events-" + calendar
 
 if doDebug:
     print "Dir 1: ", dir1
@@ -195,12 +196,16 @@ def main():
         else:
             continue
 
+    if nEve1 < 1:
+        nEve1 = 1
     mjd1s = np.zeros(nEve1)
     peak1s = np.zeros(nEve1)
     rms1s = np.zeros(nEve1)
     dt12s = np.zeros(nEve1)
     ii12s = np.arange(nEve1) * 0
     event1s = event1s[0:nEve1]
+    if nEve1 == 1:
+        nEve1 = 0
 
     iii = 0
     for filename in event1s:
@@ -229,6 +234,8 @@ def main():
             continue
 
 # directory 2
+    if nEve2 < 1:
+        nEve2 = 1
     mjd2s = np.zeros(nEve2)
     peak2s = np.zeros(nEve2)
     rms2s = np.zeros(nEve2)
@@ -240,6 +247,9 @@ def main():
 # matches between 2 and 4
     dt24s = np.zeros(nEve2)
     ii24s = np.arange(nEve2) * 0
+
+    if nEve2 == 1:
+        nEve2 = 0
 
     iii = 0
     for filename in event2s:
@@ -268,6 +278,8 @@ def main():
             continue
 
 # directory 3
+    if nEve3 < 1:
+        nEve3 = 1
     mjd3s = np.zeros(nEve3)
     peak3s = np.zeros(nEve3)
     rms3s = np.zeros(nEve3)
@@ -279,6 +291,9 @@ def main():
 # match betweeen 3 and 4
     dt34s = np.zeros(nEve3)
     ii34s = np.arange(nEve3) * 0
+
+    if nEve3 == 1:
+        nEve3 = 0
 
     iii = 0
     for filename in event3s:
@@ -307,6 +322,10 @@ def main():
             continue
 
 # directory 4
+    if nEve4 < 1:
+        nEve4 = 1
+        event4s = event4s[0:nEve4]
+
     mjd4s = np.zeros(nEve4)
     peak4s = np.zeros(nEve4)
     rms4s = np.zeros(nEve4)
@@ -315,6 +334,9 @@ def main():
 # matches between 1 and 4
     dt14s = np.zeros(nEve1)
     ii14s = np.arange(nEve1) * 0
+
+    if nEve4 == 1:
+        nEve4 = 0
 
 #read in all events in directory 4
     iii = 0
@@ -332,7 +354,7 @@ def main():
     print "%5d Events in Directory: %s" % (nEve4, dir4)
 
 # there are 4 directories and 3 x 2 x 1 = 6 pairs of directories for matchs
-# for eacsh of the directories there are 4 sets of files
+# for each of the directories there are 4 sets of files
 #   mjdNs      - full mjds of events
 #   peakNs     - peaks of each events
 #   rmsNs      - noise in samples near events
@@ -342,6 +364,7 @@ def main():
 # iiMs    - index to second directory for event match
 # dtMs    - time offset between first and second directory
 # eventMs - name of second event that matches the first directory
+# 1 = Match between 1+2
 # 2 = Match between 2+3
 # 3 = Match between 1+3
 # 4 = Match between 1+4
@@ -349,6 +372,11 @@ def main():
 # 6 = Match between 3+4
 
 # determine the maximum number of matches
+    mjd1 = 0.
+    mjd2 = 0.
+    mjd3 = 0.
+    mjd4 = 0.
+
     maxMatch = max(nEve1, nEve2, nEve3, nEve4)
     nMatch = 0
     match1s = np.arange( maxMatch) * 0
@@ -363,26 +391,30 @@ def main():
         dtMin = abs(mjd1 - mjd2s[0])
         for jjj in range(nEve2):
             mjd2 = mjd2s[jjj]
-            dt = abs(mjd1 - mjd2)
-            if dt < dtMin:
-                dtMin = dt
+            dt = mjd1 - mjd2
+            dtabs = abs(dt)
+            if dtabs < dtMin:
+                dtMin = dtabs
+                dtPM = dt   # dt with sign Plus/Minus = PM
                 dtj = jjj
         ii12s[iii] = dtj
-        dt12s[iii] = dtMin
+        dt12s[iii] = dtPM
         
     # now match event times in directories 1 and 3
     for iii in range(nEve1):
         mjd1 = mjd1s[iii]
         dtj = 0
-        dtMin = abs(mjd1 - mjd3s[0])
+        dtabs = abs(mjd1 - mjd3s[0])
         for jjj in range(nEve3):
             mjd3 = mjd3s[jjj]
-            dt = abs(mjd1 - mjd3)
-            if dt < dtMin:
-                dtMin = dt
+            dt = mjd1 - mjd3
+            dtabs = abs(dt)
+            if dtabs < dtMin:
+                dtMin = dtabs
+                dtPM = dt
                 dtj = jjj
         ii13s[iii] = dtj
-        dt13s[iii] = dtMin
+        dt13s[iii] = dtPM
 
     # now match event times in directories 1 and 4
     for iii in range(nEve1):
@@ -391,12 +423,18 @@ def main():
         dtMin = abs(mjd1 - mjd4s[0])
         for jjj in range(nEve4):
             mjd4 = mjd4s[jjj]
-            dt = abs(mjd1 - mjd4)
+            if mjd4 == 0:
+                dtMin = 0
+                dtj = 0
+                continue
+            dt = mjd1 - mjd4
+            dtabs = abs(dt)
             if dt < dtMin:
-                dtMin = dt
+                dtMin = dtabs
+                dtPM = dt
                 dtj = jjj
         ii14s[iii] = dtj
-        dt14s[iii] = dtMin
+        dt14s[iii] = dtPM
 
     # now match event times in directories 2 and 3
     for iii in range(nEve2):
@@ -409,8 +447,9 @@ def main():
             if dt < dtMin:
                 dtMin = dt
                 dtj = jjj
+                dtPM = dt
         ii23s[iii] = dtj
-        dt23s[iii] = dtMin
+        dt23s[iii] = dtPM
 
     # now match event times in directories 2 and 4
     for iii in range(nEve2):
@@ -419,12 +458,16 @@ def main():
         dtMin = abs(mjd2 - mjd4s[0])
         for jjj in range(nEve4):
             mjd4 = mjd4s[jjj]
-            dt = abs(mjd2 - mjd4)
-            if dt < dtMin:
-                dtMin = dt
+            if mjd4 == 0:
+                continue
+            dt = mjd2 - mjd4
+            dtabs = abs(dt)
+            if dtabs < dtMin:
+                dtMin = dtabs
+                dtPM = dt
                 dtj = jjj
         ii24s[iii] = dtj
-        dt24s[iii] = dtMin
+        dt24s[iii] = dtPM
 
     # finally match event times in directories 3 and 4
     for iii in range(nEve3):
@@ -433,12 +476,14 @@ def main():
         dtMin = abs(mjd3 - mjd4s[0])
         for jjj in range(nEve4):
             mjd4 = mjd4s[jjj]
-            dt = abs(mjd3 - mjd4)
-            if dt < dtMin:
-                dtMin = dt
+            dt = mjd3 - mjd4
+            dtabs = abs(dt)
+            if dtabs < dtMin:
+                dtMin = dtabs
                 dtj = jjj
+                dtPM = dt
         ii34s[iii] = dtj
-        dt34s[iii] = dtMin
+        dt34s[iii] = dtPM
 
     # now report out the minimum time offsets and times less than 1 second off
     OneMjdSec = 1./86400.
@@ -449,7 +494,7 @@ def main():
     iMatch = 0
 
     for iii in range(nEve1):
-        if dt12s[iii] < offset:
+        if abs(dt12s[iii]) < offset:
             nMatch = nMatch + 1
             dts = dt12s[iii]/OneMjdSec
             jjj = ii12s[iii]
@@ -471,7 +516,7 @@ def main():
 # find matches bewteen 1 and 3
     nMatch = 0
     for iii in range(nEve1):
-        if dt13s[iii] < offset:
+        if abs(dt13s[iii]) < offset:
             nMatch = nMatch + 1
             dts = dt13s[iii]/OneMjdSec
             jjj = ii13s[iii]
@@ -492,9 +537,10 @@ def main():
 
 # find matches between 1 and 4
     nMatch = 0
-    iMatch = 0
     for iii in range(nEve1):
-        if dt14s[iii] < offset:
+        if dt14s[iii] == 0:
+            continue
+        if abs(dt14s[iii]) < offset:
             nMatch = nMatch + 1
             dts = dt14s[iii]/OneMjdSec
             jjj = ii14s[iii]
@@ -516,7 +562,7 @@ def main():
 # find matches between 2 and 3
     nMatch = 0
     for iii in range(nEve2):
-        if dt23s[iii] < offset:
+        if abs(dt23s[iii]) < offset:
             nMatch = nMatch + 1
             dts = dt23s[iii]/OneMjdSec
             jjj = ii23s[iii]
@@ -538,7 +584,9 @@ def main():
 # find matches between 2 and 4
     nMatch = 0
     for iii in range(nEve2):
-        if dt24s[iii] < offset:
+        if dt24s[iii] == 0:
+            continue
+        if abs(dt24s[iii]) < offset:
             nMatch = nMatch + 1
             dts = dt24s[iii]/OneMjdSec
             jjj = ii24s[iii]
@@ -560,7 +608,7 @@ def main():
 # find matches between 3 and 4
     nMatch = 0
     for iii in range(nEve3):
-        if dt34s[iii] < offset:
+        if abs(dt34s[iii]) < offset:
             nMatch = nMatch + 1
             dts = dt34s[iii]/OneMjdSec
             jjj = ii34s[iii]
@@ -659,7 +707,7 @@ def main():
                 if dt < dtMin:
                     dtMin = dt
                     dtj = kkk
-            if dtMin < 2.*offset:
+            if (dtMin < 2.*offset) and (dtj > 0):
                 match4s[iii] = dtj
                 print "Directory 4 has a third match: %3d %3d %3d %3d" % (match1s[iii], match2s[iii], match3s[iii], match4s[iii])
 
@@ -685,7 +733,7 @@ def main():
     for iii in range(nMatch):
         count = int(counts[iii])
         countns[count-1] = countns[count-1] + 1
-        if count > 3:
+        if count >= nPrint:
             print "Event with %d Matches" % (count)
             j1 = int(match1s[iii])
             if j1 != 0:
@@ -700,8 +748,14 @@ def main():
             if j4 != 0:
                 print event4s[j4], mjd4s[j4]
 
-    for iii in range(4):
-        print "%3d Events have %d Matches" % (countns[iii], iii+1)
+    
+    nSum = 0
+    for iii in range(3):
+        jjj = iii + 1
+        print "%3d Events have %d Matches" % (countns[jjj], jjj+1)
+        nSum = nSum + (jjj*countns[iii])
+
+    print "%3d Events had no Matches" % (nEve1+nEve2+nEve3+nEve4 - nSum)
 
 if __name__ == "__main__":
     main()
