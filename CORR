@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# find the plotting program
+if [ -e corr.py ]
+then
+    python corr.py "$@"
+else
+    if [ -e ~/bin/corr.py ]
+    then
+       python ~/bin/corr.py "$@"
+    fi     
+fi
