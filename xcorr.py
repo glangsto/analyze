@@ -1,7 +1,7 @@
 #Python Script to correlate samples in raw NSF events 
-#plot the self correlation values samples near an event
+#plot the cross correlation values samples from two horns
 #HISTORY
-#19DEC12 GIL try to signal from cross correlation
+#19DEC12 GIL try to estimate signal from cross correlation
 #19DEC11 GIL simultaneously correlate I and Q parts 
 #19DEC11 GIL test flipping the I/Q order with the -O argument
 #19DEC10 GIL initial version
@@ -30,25 +30,25 @@ doAbs = False
 doDebug = False
 doZero = False
 doOrder = False
-nChannel = 0
+
+linelist = [1420.0, 1418.0]  # RFI lines in MHz
+linewidth = [7, 7]
 
 if nargs < 2:
     print "CORR: Cross correlate Event Samples over a range in sample offsets"
     print "Usage: "
-    print " CORR [-T 'My Plot Title'] [-A -D -Z] [-C <n>] <nSamples> fileNames "
+    print " CORR [-T 'My Plot Title'] [-A -D -Z] <nSamples> fileNames "
     print "where:"
     print " <nSamples> is the maximum number of samples to compute the cross correlation"
     print "  A range of +/- nSamples correllations are performed and plotted"
     print "  -T <plot title String> Optionally Enables user labeling of the plot"
     print " -A        Optionally plot the absolute value of the cross correlation"
-    print " -C <n>    Optionally only compute the correlation for the central <n> samples around an event."
     print " -D        Optionally print debugging Info"
     print " -Z        Optionally Zero event before cross correlation"
     print ""
     print "Glen Langston - 2019 December 11"
     exit()
 
-nCenter = 0
 namearg = 1
 iarg = 1          # start searching for input flags
 
@@ -67,10 +67,6 @@ while iarg < nargs:
     elif sys.argv[iarg].upper() == '-A':   # if absolute value of cross correlation plotted
         doAbs = True
         print "-A Plotting absolute value of cross correlation."
-    elif sys.argv[iarg].upper() == '-C':   # setting a range of samples to correllate
-        iarg = iarg+1
-        nChannel = int( sys.argv[iarg])
-        print "Summing only over the central +/- %d channels" % (nChannel)
     else:
         break
     iarg = iarg+1
@@ -90,6 +86,7 @@ print "Cross correlating over a range of +/- %d samples" % (nCorr)
 
 note = "Events"
 nplot = 0
+count = 0
 for iii in range(namearg, min(nargs,25)):
 
     filename = sys.argv[iii]
@@ -136,31 +133,24 @@ for iii in range(namearg, min(nargs,25)):
         print "Not an Event: ",filename
         continue
 
-    center = int(rs.nSamples/2)
+    # count number of event read
+    count = count + 1
     if doZero:
+        center = int(rs.nSamples/2)
         rs.ydataA[(center-5):(center+5)] = 0.0
         rs.ydataB[(center-5):(center+5)] = 0.0
 
-    if nChannel <= 0:
-        ib = nCorr
-        ie = rs.nSamples-nCorr
-    else:
-        ib = center - nChannel
-        ie = center + nChannel
+    ib = nCorr
+    ie = rs.nSamples-nCorr
     n  = ie-ib
-    
     if doDebug: 
         print "ib: %d, ie: %d, n: %d" % ( ib, ie, n)
     xv = np.zeros(n)
-    yi1 = rs.ydataA[ib:ie]
-    yq1 = rs.ydataB[ib:ie]
-
-    yi1rms = np.std( yi1)
-    yq1rms = np.std( yq1)
-
-    y1 = pd.DataFrame({ 'i': yi1, 'q': yq1})
-    print "I rms: %7.4f;  Q rms: %7.4f; n: %d" % ( yi1rms, yq1rms, n)
-    #    print "y1.corr(): ", y1.corr()
+#    If only have one event can not yet cross correlate
+    if count <= 1: 
+        yi1 = rs.ydataA[ib:ie]
+        yq1 = rs.ydataB[ib:ie]
+        continue
 
     # convert time offsets to micro-seconds
     dt = 1.E6/rs.bandwidthHz
@@ -175,46 +165,33 @@ for iii in range(namearg, min(nargs,25)):
     corrs = np.zeros( 2*nCorr+1)
 
     # maximum correlation comes from the auto correlation
-    allcorr = (yi1*yi1) + (yq1*yq1)
-    ymax = allcorr.sum()
+    ymax = 0.
 
     printcount = 0
-    # for all samples to cross correllate
     for kkk in range((2*nCorr)+1):
+        # prepare to plot correlation
         jjj = kkk-nCorr
-        # select range for cross correllation
-        if nChannel <= 0:
-            ib = kkk
-            ie = kkk+n
-        else:
-            ib = center - nChannel + jjj
-            ie = center + nChannel + jjj
-        # prepare to plot correlation time axis
+        ib = kkk
+        ie = kkk+n
         dts[kkk] = jjj*dt
 
         yi2 = rs.ydataA[ib:ie]
         yq2 = rs.ydataB[ib:ie]
-        y2 = pd.DataFrame({ 'i': yi2, 'q': yq2})
         if doDebug:
+            y2 = pd.DataFrame({ 'i': yi2, 'q': yq2})
             print "y2.corr(): ", y2.corr()
 
-        # simultaneously multiple the two time vectors togethere
         allcorr = (yi1*yi2) + (yq1*yq2)
-        allcorr = allcorr/ymax
-        if doDebug:
-            print allcorr
-#        corrrms = np.std(allcorr)/np.sqrt(float(n))
-        corrrms = np.std(allcorr[0:10])
+        corrrms = np.std( allcorr[0:10])
         sumall = allcorr.sum()
         corrs[kkk] = sumall
         
-        if (printcount % 10 == 0) or ((jjj > -3) and (jjj < 3)):
+        if (printcount % 10 == 0) or ((jjj > -3) and (jjj < 4)):
             print "Self correlation offset: %4d, %10.3fus %8.5f +/- %7.5f" % (jjj, dts[kkk], corrs[kkk], corrrms)
         printcount += 1
 
-    # all cross correlations complete
     ymax = max(corrs)
-    # if plotting absolute values of correllations
+    corrs = corrs/ymax
     if doAbs:
         corrs = np.abs( corrs)
 
@@ -234,6 +211,10 @@ for iii in range(namearg, min(nargs,25)):
     else:
         snr = 0.
 
+#   now save most recently read event for cross correlation the next round
+    yi1 = yi2
+    yq1 = yq2
+
 #    print(' Ra: %6.2f Dec: %6.2f Max: %8.3f +/- %7.3f SNR: %6.1f ; %s' % (ra, dec, ypeak, yrms, snr, label))
     if nplot <= 0:
         title = mytitle + " Az,El: %6.1f,%6.1f" % (rs.telaz, rs.telel)
@@ -244,11 +225,10 @@ for iii in range(namearg, min(nargs,25)):
     yallmin = min(ymin,yallmin)
     yallmax = max(ymax,yallmax)
 #    plt.ylim(yallmin,min(yallmax,0.5))
-    plt.ylim(yallmin,yallmax)
-
+#    plt.ylim(yallmin,yallmax)
 
     plt.plot(dts, corrs, colors[iii-1], linestyle=linestyles[iii-1],label=label)
-plt.xlim(dts[int(nCorr/1.5)],dts[2*nCorr])
+#plt.xlim(dts[0],dts[2*nCorr])
 plt.title(title)
 plt.xlabel('Correllation Time Offset (micro-seconds)')
 plt.ylabel('Cross Correlation Intensity (Counts)')

@@ -377,7 +377,8 @@ def main():
     mjd3 = 0.
     mjd4 = 0.
 
-    maxMatch = max(nEve1, nEve2, nEve3, nEve4)
+#    maxMatch = max(nEve1, nEve2, nEve3, nEve4)+1
+    maxMatch = nEve1 + nEve2 + nEve3 + nEve4
     nMatch = 0
     match1s = np.arange( maxMatch) * 0
     match2s = np.arange( maxMatch) * 0 
@@ -495,12 +496,12 @@ def main():
 
     for iii in range(nEve1):
         if abs(dt12s[iii]) < offset:
-            nMatch = nMatch + 1
             dts = dt12s[iii]/OneMjdSec
             jjj = ii12s[iii]
             match1s[iMatch] = iii
             match2s[iMatch] = jjj
             iMatch = iMatch + 1
+            nMatch = nMatch + 1
             if doDebug:
                 print "Event %s Matches %s; Offset: %9.6f s" % (event1s[iii], event2s[jjj], dts)
                 print "%5d %18.9f: %5d %18.9f" % (iii, mjd1s[iii], jjj, mjd2s[jjj])
@@ -517,12 +518,12 @@ def main():
     nMatch = 0
     for iii in range(nEve1):
         if abs(dt13s[iii]) < offset:
-            nMatch = nMatch + 1
             dts = dt13s[iii]/OneMjdSec
             jjj = ii13s[iii]
             match1s[iMatch] = iii
             match3s[iMatch] = jjj
             iMatch = iMatch + 1
+            nMatch = nMatch + 1
             if doDebug:
                 print "Event %s Matches %s; Offset: %9.6f s" % (event1s[iii], event3s[jjj], dts)
                 print "%5d %18.9f: %5d %18.9f" % (iii, mjd1s[iii], jjj, mjd3s[jjj])
@@ -541,12 +542,12 @@ def main():
         if dt14s[iii] == 0:
             continue
         if abs(dt14s[iii]) < offset:
-            nMatch = nMatch + 1
             dts = dt14s[iii]/OneMjdSec
             jjj = ii14s[iii]
             match1s[iMatch] = iii
             match4s[iMatch] = jjj
             iMatch = iMatch + 1
+            nMatch = nMatch + 1
             if doDebug:
                 print "Event %s Matches %s; Offset: %9.6f s" % (event1s[iii], event4s[jjj], dts)
                 print "%5d %18.9f: %5d %18.9f" % (iii, mjd1s[iii], jjj, mjd4s[jjj])
@@ -563,12 +564,12 @@ def main():
     nMatch = 0
     for iii in range(nEve2):
         if abs(dt23s[iii]) < offset:
-            nMatch = nMatch + 1
             dts = dt23s[iii]/OneMjdSec
             jjj = ii23s[iii]
             match2s[iMatch] = iii
             match3s[iMatch] = jjj
             iMatch = iMatch + 1
+            nMatch = nMatch + 1
             if doDebug:
                 print "Event %s Matches %s; Offset: %9.6f s" % (event2s[iii], event3s[jjj], dts)
                 print "%5d %18.9f: %5d %18.9f" % (iii, mjd2s[iii], jjj, mjd3s[jjj])
@@ -587,12 +588,12 @@ def main():
         if dt24s[iii] == 0:
             continue
         if abs(dt24s[iii]) < offset:
-            nMatch = nMatch + 1
             dts = dt24s[iii]/OneMjdSec
             jjj = ii24s[iii]
             match2s[iMatch] = iii
             match4s[iMatch] = jjj
             iMatch = iMatch + 1
+            nMatch = nMatch + 1
             if doDebug:
                 print "Event %s Matches %s; Offset: %9.6f s" % (event2s[iii], event4s[jjj], dts)
                 print "%5d %18.9f: %5d %18.9f" % (iii, mjd2s[iii], jjj, mjd4s[jjj])
@@ -609,12 +610,12 @@ def main():
     nMatch = 0
     for iii in range(nEve3):
         if abs(dt34s[iii]) < offset:
-            nMatch = nMatch + 1
             dts = dt34s[iii]/OneMjdSec
             jjj = ii34s[iii]
             match3s[iMatch] = iii
             match4s[iMatch] = jjj
             iMatch = iMatch + 1
+            nMatch = nMatch + 1
             if doDebug:
                 print "Event %s Matches %s; Offset: %9.6f s" % (event3s[iii], event4s[jjj], dts)
                 print "%5d %18.9f: %5d %18.9f" % (iii, mjd3s[iii], jjj, mjd4s[jjj])
