@@ -1,6 +1,7 @@
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#19DEC30 GIL add title option
 #19SEP23 GIL use function for averaging 
 #19SEP21 GIL fix finding extra spectrum
 #19SEP11 GIL do not use statistics, use numpy equivalent
@@ -46,6 +47,8 @@ doFold = False
 lowel = 60.
 # optionally turn on debug plotting
 doDebug = False
+myTitle = ""      # Default no input title
+
 iarg = 1
 # for all arguments, read list and exit when no flag argument found
 while iarg < nargs:
@@ -58,6 +61,10 @@ while iarg < nargs:
         flagRfi = True
     elif sys.argv[iarg].upper() == '-C':
         flagCenter = True
+    elif sys.argv[iarg].upper() == '-T':   # if plot title provided
+        iarg = iarg+1
+        myTitle = sys.argv[iarg]
+        print 'Plot Title : ', myTitle
     elif sys.argv[iarg].upper() == '-MINEL':  # if min elevation 
         iarg = iarg + 1
         lowel = float( sys.argv[iarg])
@@ -601,18 +608,22 @@ if firstdate != lastdate:
 else:
     date = firstdate
 
-mytitle = "%s    " % (date)
-if (firstaz == otheraz):
-    mytitle = mytitle + "Az = %6.1f, " % (firstaz)
+if myTitle == "":
+    myTitle = "%s    " % (date)
 else:
-    mytitle = mytitle + "Az = %6.1f to %6.1f, " % (firstaz, otheraz)
+    myTitle = myTitle + "  "
+
+if (firstaz == otheraz):
+    myTitle = myTitle + "Az = %6.1f, " % (firstaz)
+else:
+    myTitle = myTitle + "Az = %6.1f to %6.1f, " % (firstaz, otheraz)
 
 if minel == maxel:
-    mytitle = mytitle + " El=%6.1f" % (minel)
+    myTitle = myTitle + " El=%6.1f" % (minel)
 else:
-    mytitle = mytitle + " El=%6.1f to %6.1f" % (minel, maxel)
+    myTitle = myTitle + " El=%6.1f to %6.1f" % (minel, maxel)
 
-fig.canvas.set_window_title(mytitle)
+fig.canvas.set_window_title(myTitle)
 for tick in ax1.xaxis.get_major_ticks():
     tick.label.set_fontsize(14) 
     # specify integer or one of preset strings, e.g.
@@ -633,7 +644,7 @@ if dy < 8:
     dy = 8
 # set the y scale to go above and below all data
 plt.ylim((yallmin-(dy/8.)), (yallmax+(dy/4.)))
-plt.title(mytitle, fontsize=16)
+plt.title(myTitle, fontsize=16)
 plt.xlabel('Velocity (km/sec)', fontsize=16)
 plt.ylabel('Intensity (Kelvins)', fontsize=16)
 #plt.legend(loc='upper left')

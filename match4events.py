@@ -1,5 +1,7 @@
 #Python find matchs in 4 data directories
 #HISTORY
+#20JAN14 GIL fix index boundary issues
+#19DEC27 GIL if date is after December 20, use different directory
 #19NOV30 GIL fix reading first directory
 #19NOV29 GIL set print for number of matches
 #19NOV27 GIL now check for multiple matches
@@ -50,7 +52,7 @@ yallmin =  9.e9
 iOffset = 1
 ifile = 1
 iii = ifile
-offset = 0.5          # default match offset is  0.5 seconds
+offset = 1.0/86400.   # default match offset is  1 seconds = 1/86400 of a day
 nday = 24             # by default divide day in 24 hours
 nblock = 256          # number of samples to FFT
 sigma = 5.0           #
@@ -128,7 +130,8 @@ else:
     dir2 = "pi2-events-" + calendar
     dir3 = "pi3-events-" + calendar
 #    dir4 = "odroid5-events-" + calendar
-    dir4 = "pi4-events-" + calendar
+#    dir4 = "pi4-events-" + calendar
+    dir4 = "pi6-events-" + calendar
 
 if doDebug:
     print "Dir 1: ", dir1
@@ -289,8 +292,8 @@ def main():
     dt13s = np.zeros(nEve1)
     ii13s = np.arange(nEve1) * 0
 # match betweeen 3 and 4
-    dt34s = np.zeros(nEve3)
-    ii34s = np.arange(nEve3) * 0
+    dt34s = np.zeros(max(nEve3,nEve4))
+    ii34s = np.arange(max(nEve3,nEve4)) * 0
 
     if nEve3 == 1:
         nEve3 = 0
@@ -378,7 +381,7 @@ def main():
     mjd4 = 0.
 
 #    maxMatch = max(nEve1, nEve2, nEve3, nEve4)+1
-    maxMatch = nEve1 + nEve2 + nEve3 + nEve4
+    maxMatch = nEve1 + nEve2 + nEve3 + nEve4 + 1
     nMatch = 0
     match1s = np.arange( maxMatch) * 0
     match2s = np.arange( maxMatch) * 0 
@@ -389,7 +392,9 @@ def main():
     for iii in range(nEve1):
         mjd1 = mjd1s[iii]
         dtj = 0
-        dtMin = abs(mjd1 - mjd2s[0])
+        mjd2 = mjd2s[dtj]
+        dtMin = abs(mjd1 - mjd2)
+        dtPM = mjd1 - mjd2
         for jjj in range(nEve2):
             mjd2 = mjd2s[jjj]
             dt = mjd1 - mjd2
@@ -405,7 +410,9 @@ def main():
     for iii in range(nEve1):
         mjd1 = mjd1s[iii]
         dtj = 0
-        dtabs = abs(mjd1 - mjd3s[0])
+        mjd3 = mjd3s[dtj]
+        dtMin = abs(mjd1 - mjd3)
+        dtPM = mjd1 - mjd3
         for jjj in range(nEve3):
             mjd3 = mjd3s[jjj]
             dt = mjd1 - mjd3
@@ -421,7 +428,9 @@ def main():
     for iii in range(nEve1):
         mjd1 = mjd1s[iii]
         dtj = 0
-        dtMin = abs(mjd1 - mjd4s[0])
+        mjd4 = mjd4s[dtj]
+        dtMin = abs(mjd1 - mjd4)
+        dtPM = mjd1 - mjd4
         for jjj in range(nEve4):
             mjd4 = mjd4s[jjj]
             if mjd4 == 0:
@@ -441,7 +450,9 @@ def main():
     for iii in range(nEve2):
         mjd2 = mjd2s[iii]
         dtj = 0
-        dtMin = abs(mjd2 - mjd3s[0])
+        mjd3 = mjd3s[dtj]
+        dtMin = abs(mjd2 - mjd3)
+        dtPM = mjd2 - mjd3
         for jjj in range(nEve3):
             mjd3 = mjd3s[jjj]
             dt = abs(mjd2 - mjd3)
@@ -456,7 +467,10 @@ def main():
     for iii in range(nEve2):
         mjd2 = mjd2s[iii]
         dtj = 0
-        dtMin = abs(mjd2 - mjd4s[0])
+        mjd4 = mjd4s[0]
+        dtMin = abs(mjd2 - mjd4)
+        dtj = 0
+        dtPM = mjd2 - mjd4
         for jjj in range(nEve4):
             mjd4 = mjd4s[jjj]
             if mjd4 == 0:
@@ -474,7 +488,9 @@ def main():
     for iii in range(nEve3):
         mjd3 = mjd3s[iii]
         dtj = 0
-        dtMin = abs(mjd3 - mjd4s[0])
+        mjd4 = mjd4s[dtj]
+        dtMin = abs(mjd3 - mjd4)
+        dtPM = mjd3 - mjd4
         for jjj in range(nEve4):
             mjd4 = mjd4s[jjj]
             dt = mjd3 - mjd4
@@ -715,7 +731,7 @@ def main():
 # now finally count matches
     counts = np.arange(nMatch) * 0
 
-    print "Finding 4 matches"
+    print "Finding matches"
     for iii in range(nMatch):
        count = 0
        if int(match1s[iii]) != 0:
@@ -748,7 +764,6 @@ def main():
             j4 = int(match4s[iii])
             if j4 != 0:
                 print event4s[j4], mjd4s[j4]
-
     
     nSum = 0
     for iii in range(3):

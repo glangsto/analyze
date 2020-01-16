@@ -1,6 +1,9 @@
-#Python Script to plot calibrated/baseline-fit  NSF record data.
+1#Python Script to plot calibrated/baseline-fit  NSF record data.
 #plot the raw data from the observation
 #HISTORY
+#20JAN03 GIL compute 20 RMSs across the spectrum and take the median of these as representative
+#20JAN02 GIL compute RMS in signal free region; test for gain correction
+#19DEC30 GIL add title option
 #19OCT08 GIL update constant values and comments
 #19OCT03 GIL add options to fit a polynomial baseline and setting velocity ranges
 #19OCT03 GIL add polynomical baseline fit option
@@ -47,7 +50,7 @@ except:
 avetimesec = 3600.
 # put your list of known RFI features here.  Must have at least two.
 linelist = [1400.00, 1420.0]  # RFI lines in MHz
-linewidth = [5, 5]
+linewidth = [7, 7]
 
 nargs = len(sys.argv)
 #first argument is the averaging time in seconds
@@ -79,8 +82,10 @@ lowel = 60.
 # optionally turn on debug plotting
 doPoly = False
 doDebug = False
+nGain = 20
 firstRun = True
-maxvel = 200.
+myTitle = ""      # Default no input title
+maxvel = 220.
 minvel = -maxvel
 
 iarg = 1
@@ -97,6 +102,10 @@ while iarg < nargs:
         flagRfi = True
     elif sys.argv[iarg].upper() == '-C':
         flagCenter = True
+    elif sys.argv[iarg].upper() == '-G':
+        iarg = iarg+1
+        nGain = int( sys.argv[iarg])
+        print 'Dividing the Spectrum into %3d chunks and computing RMS for each' % (nGain)
     elif sys.argv[iarg].upper() == '-L':
         iarg = iarg+1
         minvel = np.float( sys.argv[iarg])
@@ -112,6 +121,10 @@ while iarg < nargs:
     elif sys.argv[iarg].upper() == '-D':
         print 'Adding Debug Printing'
         doDebug = True
+    elif sys.argv[iarg].upper() == '-T':   # if plot title provided
+        iarg = iarg+1
+        myTitle = sys.argv[iarg]
+        print 'Plot Title : ', myTitle
     else:
         break
     iarg = iarg + 1
@@ -276,9 +289,11 @@ def compute_tsky_hotcold( yv, gain, vel, minvel, maxvel):
     if flagCenter:             # if flagging spike in center of plot
     # remove spike in center of the plot
         icenter = int(nData/2)
-        tsys[icenter] = (tsys[icenter-2] + tsys[icenter+2])*.5
-        tsys[icenter-1] = (3.*tsys[icenter-2] + tsys[icenter+2])*.25
-        tsys[icenter+1] = (tsys[icenter-2] + 3.*tsys[icenter+2])*.25
+        tsys[icenter] = (tsys[icenter-3] + tsys[icenter+3])*.5
+        tsys[icenter-1] = (3.*tsys[icenter-3] + tsys[icenter+3])*.25
+        tsys[icenter+1] = (tsys[icenter-3] + 3.*tsys[icenter+3])*.25
+        tsys[icenter-2] = (2.*tsys[icenter-3] + tsys[icenter+3])*.3333
+        tsys[icenter+2] = (tsys[icenter-3] + 2.*tsys[icenter+3])*.3333
 
     # get indicies for given max and min velocities
     imin, imax = velocity_to_indicies( vel, minvel, maxvel)
@@ -327,6 +342,7 @@ names = sys.argv[namearg:]
 names = sorted(names)
 nFiles = len(names)
 # create the spectrum class/structure to receive spectra
+
 rs = radioastronomy.Spectrum()
 
 # now run through and find hot and cold loads obs
@@ -391,6 +407,9 @@ yv = hot.ydataA
 nData = len( xv)        # get data length and indicies for middle of spectra 
 n6 = int(nData/6)
 n56 = 5*n6
+rmss = np.zeros( nGain)
+dx = int( nData/(nGain+4))
+print 'Computing %d RMS in %d channels each' % (nGain, dx)
 
 #previously just copy
 hv = copy.deepcopy(yv)
@@ -405,7 +424,7 @@ for jjj in range (nData):
 xa, xb = velocity_to_indicies( vel, minvel, maxvel)
 print 'Min Vel, channel: ',xa, minvel
 print 'Max Vel, channel: ',xb, maxvel
-                                   
+
 if doDebug:
     print 'Min,Max Galactic Latitudes %7.1f,%7.1f (d)' % (minGlat, maxGlat)
 
@@ -619,9 +638,19 @@ for filename in names:
         tsky = compute_tsky_hotcold( yv, gain, velcorr, minvel, maxvel)
         ymed = np.median(tsky[xa:xb])
         ystd = np.std(tsky[xa:xb])
-        if ystd <= 0.:
-                ystd = 0.001
-            
+
+        ia = 2*dx
+        ib = 3*dx
+        # divide spectrum into bins and compute RMS for each
+        for lll in range(nGain):
+            rmss[lll] = np.std(tsky[ia:ib])
+            ia=ia+dx
+            ib=ib+dx
+
+        rmsmin = min( rmss)
+        rmsmax = max( rmss)
+        rmsmed = np.median( rmss)
+
         ymin = min(tsky[xa:xb])
         ymax = max(tsky[xa:xb])
         yallmin = min(ymin,yallmin)
@@ -650,12 +679,15 @@ for filename in names:
         atime = datestr[1]
         timeparts = atime.split('.')
         labeltime = timeparts[0]
-        label = '%s, A,E: %5s,%5s, L,L: %5.1f,%5.1f' % (labeltime, az, el, gallon, gallat)
+        label = '%s, A,E: %5.1f,%5.1f, L,L: %4.0f,%4.0f' % (labeltime, az, el, gallon, gallat)
         if minel == maxel:
             label = '%s L,L=%5.1f,%5.1f (%d)' % (labeltime, gallon, gallat, ncold)
         else:
-            label = '%s L,L=%5.1f,%4.1f A,E=%4.0f,%4.0f' % (labeltime, gallon, gallat, az, el)
-        print ' Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ymax, ymed, (ymax-ymed)/ystd, ncold, label)
+            label = '%s L,L=%5.1f,%5.1f A,E=%3.0f,%3.0f' % (labeltime, gallon, gallat, az, el)
+        if nplot < 1:
+            print '    Max     Median              RMSs           N      Time   Galactic '
+            print '    (K)      (K)      Median    Bottom    Top  Ave            Lon, Lat '
+        print '%9.1f %8.2f %8.2f %8.2f %8.2f %3d %s' % (ymax, ymed, rmsmed, rmsmin, rmsmax, ncold, label)
         if gallat < 7.5 and gallat > -7.5:
             lw = 4
         elif gallat < 15. and gallat > -15.:
@@ -711,18 +743,22 @@ if firstdate != lastdate:
 else:
     date = firstdate
 
-mytitle = "%s    " % (date)
-if (firstaz == otheraz):
-    mytitle = mytitle + "Az = %6.1f, " % (firstaz)
+if myTitle == "":
+    myTitle = "%s    " % (date)
 else:
-    mytitle = mytitle + "Az = %6.1f to %6.1f, " % (firstaz, otheraz)
+    myTitle = myTitle + "  "
+
+if (firstaz == otheraz):
+    myTitle = myTitle + "Az = %6.1f, " % (firstaz)
+else:
+    myTitle = myTitle + "Az = %6.1f to %6.1f, " % (firstaz, otheraz)
 
 if minel == maxel:
-    mytitle = mytitle + " El=%6.1f" % (minel)
+    myTitle = myTitle + " El=%6.1f" % (minel)
 else:
-    mytitle = mytitle + " El=%6.1f to %6.1f" % (minel, maxel)
+    myTitle = myTitle + " El=%6.1f to %6.1f" % (minel, maxel)
 
-fig.canvas.set_window_title(mytitle)
+fig.canvas.set_window_title(myTitle)
 for tick in ax1.xaxis.get_major_ticks():
     tick.label.set_fontsize(14) 
     # specify integer or one of preset strings, e.g.
@@ -743,7 +779,7 @@ if yallmax < 8:
     yallmax = 8
 # set the y scale to go above and below all data
 plt.ylim((yallmin*.97)-1., 1.15*yallmax)
-plt.title(mytitle, fontsize=16)
+plt.title(myTitle, fontsize=16)
 plt.xlabel('Velocity (km/sec)', fontsize=16)
 plt.ylabel('Intensity (Kelvins)', fontsize=16)
 #plt.legend(loc='upper left')

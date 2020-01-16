@@ -2,6 +2,7 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#19DEC30 GIL add title option
 #17NOV21 GIL use time in file to show date and time
 #16AUG29 GIL make more efficient
 #16AUG16 GIL use new radiospectrum class
@@ -29,6 +30,7 @@ doFold = False    # fold spectra to address an old issue; not normally used.
 linelist = [1400.00, 1420.0]  # RFI lines in MHz
 linewidth = [5, 5]   # integer number of channels to interpolate over
 outDir = "./"     # define output directory for saving files
+myTitle = ""      # Default no input title
 
 # currently used velocities for baseline fitting
 maxvel = 180.
@@ -36,8 +38,7 @@ minvel = -550.
 
 nargs = len(sys.argv)
 #first argument is the averaging time in seconds
-timearg = 1
-namearg = 2
+namearg = 1
 iarg = 1          # start searching for input flags
 # for all arguments, read list and exit when no flag argument found
 while iarg < nargs:
@@ -61,26 +62,27 @@ while iarg < nargs:
         doSub = True
     elif sys.argv[iarg].upper() == '-O':   # now look for flags with arguments
         iarg = iarg+1
-        timearg = timearg+1
         namearg = namearg+1
         outDir = sys.argv[iarg]
         print 'Output directory: ', outDir
+    elif sys.argv[iarg].upper() == '-T':   # if plot title provided
+        iarg = iarg+1
+        namearg = namearg+1
+        myTitle = sys.argv[iarg]
+        print 'Plot Title : ', myTitle
     elif sys.argv[iarg].upper() == '-VA':   # now look for flags with arguments
         iarg = iarg+1
-        timearg = timearg+1
         namearg = namearg+1
         minvel = float(sys.argv[iarg])
         print 'Minimum velocity for baseline fit: %7.2f km/sec ' % (minvel)
     elif sys.argv[iarg].upper() == '-VB':   # now look for flags with arguments
         iarg = iarg+1
-        timearg = timearg+1
         namearg = namearg+1
         maxvel = float(sys.argv[iarg])
         print 'Maximum velocity for baseline fit: %7.2f km/sec ' % (maxvel)
     else:
         break
     iarg = iarg + 1
-    timearg = timearg+1
     namearg = namearg+1
 # end of while not reading file names
 
@@ -104,7 +106,7 @@ rs = radioastronomy.Spectrum()
 nplot = 0
 
 # plot no more than N spectra
-for iii in range(1, min(nargs,25)):
+for iii in range(namearg, min(nargs,20)):
 
     filename = sys.argv[iii]
     if verbose:
@@ -181,7 +183,9 @@ for iii in range(1, min(nargs,25)):
     plt.ylim(0.9*yallmin,1.25*yallmax)
 
     plt.plot(xv, yv, colors[iii-1], linestyle=linestyles[iii-1],label=label, lw=2)
-plt.title(note, fontsize=16)
+if myTitle == "":
+    myTitle = note
+plt.title(myTitle, fontsize=16)
 plt.xlabel('Frequency (MHz)',fontsize=16)
 ylabel = 'Intensity (%s)' % rs.bunit
 plt.ylabel(ylabel, fontsize=16)
