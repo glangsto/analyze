@@ -45,41 +45,41 @@ while iarg < nargs:
 
     # if folding data
     if sys.argv[iarg].upper() == '-F':
-        print 'Folding specectra'
+        print('Folding specectra')
         doFold = True
     elif sys.argv[iarg].upper() == '-R':
         flagRfi = True
     elif sys.argv[iarg].upper() == '-C':
         flagCenter = True
     elif sys.argv[iarg].upper() == '-D':
-        print 'Adding Debug Printing'
+        print('Adding Debug Printing')
         doDebug = True
     elif sys.argv[iarg].upper() == '-S':
-        print 'Saving Average Spectra in -ave files'
+        print('Saving Average Spectra in -ave files')
         doSave = True
     elif sys.argv[iarg].upper() == '-B':
-        print 'Baseline subtraction'
+        print('Baseline subtraction')
         doSub = True
     elif sys.argv[iarg].upper() == '-O':   # now look for flags with arguments
         iarg = iarg+1
         namearg = namearg+1
         outDir = sys.argv[iarg]
-        print 'Output directory: ', outDir
+        print('Output directory: ', outDir)
     elif sys.argv[iarg].upper() == '-T':   # if plot title provided
         iarg = iarg+1
         namearg = namearg+1
         myTitle = sys.argv[iarg]
-        print 'Plot Title : ', myTitle
+        print('Plot Title : ', myTitle)
     elif sys.argv[iarg].upper() == '-VA':   # now look for flags with arguments
         iarg = iarg+1
         namearg = namearg+1
         minvel = float(sys.argv[iarg])
-        print 'Minimum velocity for baseline fit: %7.2f km/sec ' % (minvel)
+        print('Minimum velocity for baseline fit: %7.2f km/sec ' % (minvel))
     elif sys.argv[iarg].upper() == '-VB':   # now look for flags with arguments
         iarg = iarg+1
         namearg = namearg+1
         maxvel = float(sys.argv[iarg])
-        print 'Maximum velocity for baseline fit: %7.2f km/sec ' % (maxvel)
+        print('Maximum velocity for baseline fit: %7.2f km/sec ' % (maxvel))
     else:
         break
     iarg = iarg + 1
@@ -110,9 +110,9 @@ for iii in range(namearg, min(nargs,20)):
 
     filename = sys.argv[iii]
     if verbose:
-        print '%5d: %s' % (iii, filename)
+        print('%5d: %s' % (iii, filename))
 
-#    print filename
+#    print(filename)
     rs.read_spec_ast( filename)
 # for averages can not use az,el to get ra,dec and glat, glon
 #    rs.azel2radec()    # compute ra,dec from az,el 

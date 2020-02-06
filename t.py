@@ -55,7 +55,7 @@ while iarg < nargs:
 
     # if folding data
     if sys.argv[iarg].upper() == '-F':
-        print 'Folding specectra'
+        print( 'Folding specectra')
         doFold = True
     elif sys.argv[iarg].upper() == '-R':
         flagRfi = True
@@ -64,13 +64,13 @@ while iarg < nargs:
     elif sys.argv[iarg].upper() == '-T':   # if plot title provided
         iarg = iarg+1
         myTitle = sys.argv[iarg]
-        print 'Plot Title : ', myTitle
+        print( 'Plot Title : ', myTitle)
     elif sys.argv[iarg].upper() == '-MINEL':  # if min elevation 
         iarg = iarg + 1
         lowel = float( sys.argv[iarg])
-        print "Using elevations > %7.2f (d) for Cold load calculation" % (lowel)
+        print( "Using elevations > %7.2f (d) for Cold load calculation" % (lowel))
     elif sys.argv[iarg].upper() == '-D':
-        print 'Adding Debug Printing'
+        print( 'Adding Debug Printing')
         doDebug = True
     else:
         break
@@ -81,7 +81,7 @@ while iarg < nargs:
 
 #first argument is the averaging time in seconds
 avetimesec = float(sys.argv[timearg])
-print "Average time: ", avetimesec, " (seconds)"
+print( "Average time: ", avetimesec, " (seconds)")
 newObs = False
 allFiles = False
 
@@ -155,13 +155,13 @@ for filename in names:
     parts = aname.split('.')
     nparts = len(parts)
     if nparts < 2:
-        print 'File is not an astronomy file: ',filename
+        print( 'File is not an astronomy file: ',filename)
         continue
     else:
         extension = parts[nparts-1]
     extension = extension.upper()
     if (extension != 'HOT') and (extension != 'AST') and (extension != 'CLD'):
-        print 'Extension not recognized : ', parts[nparts-1]
+        print( 'Extension not recognized : ', parts[nparts-1])
         continue
 
     rs.read_spec_ast(filename)
@@ -194,9 +194,9 @@ for filename in names:
             
 if nhot > 0:
     hot.ydataA = scalefactor * hot.ydataA / float(nhot)
-    print "Found %3d Hot load observations" % nhot
+    print( "Found %3d Hot load observations" % nhot)
 else:
-    print "No Hot load data, can not calibrate"
+    print( "No Hot load data, can not calibrate")
     exit()
 
 xv = hot.xdata * 1.E-6
@@ -232,8 +232,8 @@ for jjj in range (1, (nData-1)):
         xb = jjj
 
 if doDebug:
-    print 'Min Vel at channel: ',xa, minvel
-    print 'Max Vel at channel: ',xb, maxvel
+    print( 'Min Vel at channel: ',xa, minvel)
+    print( 'Max Vel at channel: ',xb, maxvel)
                                    
 # will need smoothed hot load values in remaining calc
 #for iii in range(1,(nData-2)):
@@ -241,7 +241,7 @@ if doDebug:
 #hv = yv
 
 if doDebug:
-    print 'Min,Max Galactic Latitudes %7.1f,%7.1f (d)' % (minGlat, maxGlat)
+    print( 'Min,Max Galactic Latitudes %7.1f,%7.1f (d)' % (minGlat, maxGlat))
 
 # assume only a limited range of galactic latitudes are available
 # not range about +/-60.
@@ -284,11 +284,11 @@ for filename in names:
             nhigh = nhigh + 1
 
 if nhigh < 1.:
-    print "No high galactic latitude data: can not calibrate"
+    print( "No high galactic latitude data: can not calibrate")
     exit()
 else:
     high.ydataA = scalefactor * high.ydataA/nhigh
-    print "Found %3d High Galactic Latitude spectra" % (nhigh)
+    print( "Found %3d High Galactic Latitude spectra" % (nhigh))
     yv = high.ydataA
 
     cv = interpolate.lines( linelist, linewidth, xv, yv) # interpolate rfi
@@ -319,7 +319,7 @@ def average_spec( ave_spec, in_spec, nave, firstutc, lastutc):
         firstutc = in_spec.utc
         lastutc = in_spec.utc
         nave = 1
-        # print 'Xmin: ', min(ave_spec.xdata)/1e6, 'Xmax: ', max(ave_spec.xdata),' MHz'
+        # print( 'Xmin: ', min(ave_spec.xdata)/1e6, 'Xmax: ', max(ave_spec.xdata),' MHz')
         # sums are weighted by durations
         ave_spec.ydataA = in_spec.ydataA * in_spec.durationSec
         # keep track of observing time for weighted sum
@@ -363,17 +363,17 @@ def compute_tsky_hotcold( xv, yv, hv, cv, thot, tcold):
         imax = temp
 
     if imin < 0:
-        print 'Imin Error computing baseline: ', imin
+        print( 'Imin Error computing baseline: ', imin)
         imin = 0
     if imin >= nData:
-        print 'Imin Error computing baseline: ', imin
+        print( 'Imin Error computing baseline: ', imin)
         imin = nData-1
 
     if imax < 0:
-        print 'Imax Error computing baseline: ', imax
+        print( 'Imax Error computing baseline: ', imax)
         imax = 0
     if imax >= nData:
-        print 'Imax Error computing baseline: ', imax
+        print( 'Imax Error computing baseline: ', imax)
         imax = nData-1
 
     ya = np.median(tsky[(xa-10):(xa+10)])
@@ -420,7 +420,7 @@ for iii in range(nData):
 Tsys = np.median(trx[n6:n56])
 tStdA = np.std(trx[n6:n26])
 tStdB = np.std(trx[n46:n56])
-print "Median Receiver Temp: %7.2f +/- %5.2f (%5.2f %5.2f) (K)" % ( Tsys, (tStdA+tStdB)/2., tStdA, tStdB)
+print( "Median Receiver Temp: %7.2f +/- %5.2f (%5.2f %5.2f) (K)" % ( Tsys, (tStdA+tStdB)/2., tStdA, tStdB))
 
 #plt.plot(xv, trx, colors[1], linestyle=linestyles[0],label="Tsys")
 #plt.legend(loc='upper left')
@@ -443,13 +443,13 @@ for filename in names:
     extension = parts[1]
     nRead = nRead + 1
     if doDebug:
-        print "%3d: %s " % (nRead, filename)
+        print( "%3d: %s " % (nRead, filename))
 
     if nRead == nFiles:   # if this is the last file, must force output
         allFiles = True
 
     rs = radioastronomy.Spectrum()
-#  print filename
+#  print( filename)
     rs.read_spec_ast(filename)
     rs.azel2radec()    # compute ra,dec from az,el
 # if not a sky observation
@@ -497,16 +497,16 @@ for filename in names:
         newObs = (lastfreq != rs.centerFreqHz) or (lastbw != rs.bandwidthHz) or (lastgain != rs.gains[0]) or newAzEl
         if newObs:
             if lastfreq != rs.centerFreqHz:
-                print "Change: LastFreq: ", lastfreq/1e6, "New: ", rs.centerFreqHz/1e6, " MHz"
+                print( "Change: LastFreq: ", lastfreq/1e6, "New: ", rs.centerFreqHz/1e6, " MHz")
                 lastfreq = rs.centerFreqHz
             if lastbw != rs.bandwidthHz:
-                print "Change: LastBandwidth: ", lastbw/1e6, "New: ", rs.bandwidthHz/1e6, " MHz"
+                print( "Change: LastBandwidth: ", lastbw/1e6, "New: ", rs.bandwidthHz/1e6, " MHz")
                 lastbw = rs.bandwidthHz
             if lastgain != rs.gains[0]:
-                print "Change: LastGain: ", lastgain, "New: ", rs.gains[0], " dB"
+                print( "Change: LastGain: ", lastgain, "New: ", rs.gains[0], " dB")
                 lastgain = rs.gains[0]
             if newAzEl:
-                print "Change: LastAzEl: ", lastaz,lastel, "New: ", rs.telaz,rs.telel, " degrees"
+                print( "Change: LastAzEl: ", lastaz,lastel, "New: ", rs.telaz,rs.telel, " degrees")
                 lastaz = rs.telaz
                 lastel = rs.telel
 
@@ -518,7 +518,7 @@ for filename in names:
         if (dt > avetime) or newObs or allFiles:
             cold.ydataA = cold.ydataA/float(cold.durationSec)
             if doDebug:
-                print "Average duration: %7.1f " % (cold.durationSec)
+                print( "Average duration: %7.1f " % (cold.durationSec))
 
             # not calibrating hot load observations.
             if cold.telel < 0.:
@@ -553,7 +553,7 @@ for filename in names:
             # compute average time from first and last utcs
             aveutc,duration = radioastronomy.aveutcs( firstutc, lastutc)
             if doDebug and (efirstutc == lastutc):
-                print "first and last utcs are the same: ", firstutc
+                print( "first and last utcs are the same: ", firstutc)
             # keep the average time, but use the duration from the integration times.
             cold.utc = aveutc 
             # pull out coordinates for labeling
@@ -565,9 +565,9 @@ for filename in names:
             label = 'L,L=%5.1f,%5.1f' % (gallon, gallat)
             
             if doDebug:
-                print "First utc: ", firstutc
-                print "Last  utc: ", lastutc
-                print "Ave   utc: ", aveutc
+                print( "First utc: ", firstutc)
+                print( "Last  utc: ", lastutc)
+                print( "Ave   utc: ", aveutc)
             avedatetime = cold.utc.isoformat()
             datestr = avedatetime.split('T')
             atime = datestr[1]
@@ -578,7 +578,7 @@ for filename in names:
                 label = '%s L,L=%5.1f,%5.1f (%d)' % (labeltime, gallon, gallat, ncold)
             else:
                 label = '%s L,L=%5.1f,%4.1f A,E=%4.0f,%4.0f' % (labeltime, gallon, gallat, az, el)
-            print ' Max: %9.1f  Median: %8.2f +/- %5.2f %3d %s' % (ymax, tSys, tStd, ncold, label)
+            print( ' Max: %9.1f  Median: %8.2f +/- %5.2f %3d %s' % (ymax, tSys, tStd, ncold, label))
             if gallat < 7.5 and gallat > -7.5:
                 plt.plot(vel, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label, lw=4)
             elif gallat < 15. and gallat > -15.:
@@ -600,7 +600,7 @@ for filename in names:
 # end of all files to read
 
 if doDebug:
-    print 'Number of remaining observations not plotted: ', ncold
+    print( 'Number of remaining observations not plotted: ', ncold)
 
 # if observations cover multiple days
 if firstdate != lastdate:

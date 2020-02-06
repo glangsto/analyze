@@ -21,7 +21,7 @@ def lines( linelist, lineWidth, x, y):
     nx2 = int(nx/2)
     ny = len(y)
     if nx != ny:
-        print "x and y data do not match", nx, ny
+        print("x and y data do not match", nx, ny)
         return y
 
     yout = copy.deepcopy(y) # init the output
@@ -36,7 +36,8 @@ def lines( linelist, lineWidth, x, y):
             nwidth = lineWidth 
         else:
             nwidth = lineWidth[min(jjj,nwidth-1)]
-        nwidth2 = max(1, nwidth/2)
+        nwidth = int(nwidth)
+        nwidth2 = int(max(1, nwidth/2))
         iline = 0
 
         for iii in range(nwidth2, nx-nwidth2+1):
