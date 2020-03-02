@@ -24,18 +24,18 @@ try:
     from PyAstronomy import pyasl
     baryCenterAvailable = True
 except:
-    print "!!!! Unable to import PyAstronomy !!!!"
-    print "Can not compute Bary Center velocity offset"
-    print "In Linux, try: "
-    print "sudo pip install PyAstronomy"
+    print("!!!! Unable to import PyAstronomy !!!!")
+    print("Can not compute Bary Center velocity offset")
+    print("In Linux, try: ")
+    print("sudo pip install PyAstronomy")
     baryCenterAvailable = False
 
 try:
     import jdutil
 except:
-    print "!!!! Unable to import jdutil !!!!"
-    print "This python file (jdutil.py) must be in your python path"
-    print "Can not compute Julian Date from datetime"
+    print("!!!! Unable to import jdutil !!!!")
+    print("This python file (jdutil.py) must be in your python path")
+    print("Can not compute Julian Date from datetime")
     baryCenterAvailable = False
 
 # some SDRs put spike in center of spectrum; indicate spike flagging here
@@ -73,42 +73,42 @@ nFit = 10
 
 nargs = len(sys.argv)
 if nargs < 3:
-    print "C: Calibrate Science Aficonado (NSF) horn observations"
-    print "C: Optionally produce average hot and cold load spectra"
-    print "Usage: C [options]  <average_seconds> <files>"
-    print ""
-    print "Where many parameters are optional:"
-    print "-B Subtract a linear baseline fit to Spectra at Min and Max Velocities"
-    print "   Min and max default velocities are: %7.1f, %7.1f km/sec" % (minvel, maxvel)
-    print "-C Flag the Center channel, using interpolation."
-    print "   This removes a strong narrow feature created by many Software Defined Radios (SDRs)"
-    print "-D Additional Debug printing."
-    print "-I Optionally Flag Known Radio Frequency Interference (RFI)"
-    print "   Note you need to update the c.py program to add your list of Frequencies"
-    print "   RFI frequencies are Location Dependent"
-    print "-H <highvelocity>  High velocity for fit of baseline"
-    print "-L <lowvelocity>   Low  velocity for fit of baseline"
-    print "-HOT <hot load Temperature> Set the effective temperature of the hot load (Kelvins)"
-    print "-N Not Calibrate.  This mode is used for tests of raw spectra"
-    print "-O <output directory> Set the output directory for saved files"
-    print "-R <Reference Frequency> Rest Frequency (Hz) used for Doppler calculations: %8.3f (MHz)" % (nureference*1.E-6)
-    print "-S Save average spectra in files.  The Hot and Cold Load averages are saved, too."
-    print "   Average spectra have -ave added to their names"
-    print "   Calibrated spectra have a .kel (for Kelvins) extension"
-    print "-K Save the kelvins calibrated spectra as well"
-    print "-X Hanning smooth the hot load observation to reduce calibration noise"
-    print "-T <plot title String> Label for plot"
-    print "-VA <low velocity> limit to exclude for baseline fitting"
-    print "-VB <high velocity> limit to exclude for baseline fitting"
-    print "Where:"
-    print "   <average_seconds>: Number of seconds of observations to average."
-    print "   <average_seconds> is clock time, not observing time, so 3600. gives one plot for each hour"
-    print "   <files> are Horn Observation files"
-    print "   <files> must include both data pointed up (.ast) and down (.hot) observations"
-    print "      All .hot files are assumed to have a system temperature of %7.1f K" % thot
-    print ""
-    print " -- Glen Langston (glangsto@nsf.gov), 2018 December 11"
-    print ""
+    print("C: Calibrate Science Aficonado (NSF) horn observations")
+    print("C: Optionally produce average hot and cold load spectra")
+    print("Usage: C [options]  <average_seconds> <files>")
+    print("")
+    print("Where many parameters are optional:")
+    print("-B Subtract a linear baseline fit to Spectra at Min and Max Velocities")
+    print("   Min and max default velocities are: %7.1f, %7.1f km/sec" % (minvel, maxvel))
+    print("-C Flag the Center channel, using interpolation.")
+    print("   This removes a strong narrow feature created by many Software Defined Radios (SDRs)")
+    print("-D Additional Debug printing.")
+    print("-I Optionally Flag Known Radio Frequency Interference (RFI)")
+    print("   Note you need to update the c.py program to add your list of Frequencies")
+    print("   RFI frequencies are Location Dependent")
+    print("-H <highvelocity>  High velocity for fit of baseline")
+    print("-L <lowvelocity>   Low  velocity for fit of baseline")
+    print("-HOT <hot load Temperature> Set the effective temperature of the hot load (Kelvins)")
+    print("-N Not Calibrate.  This mode is used for tests of raw spectra")
+    print("-O <output directory> Set the output directory for saved files")
+    print("-R <Reference Frequency> Rest Frequency (Hz) used for Doppler calculations: %8.3f (MHz)" % (nureference*1.E-6))
+    print("-S Save average spectra in files.  The Hot and Cold Load averages are saved, too.")
+    print("   Average spectra have -ave added to their names")
+    print("   Calibrated spectra have a .kel (for Kelvins) extension")
+    print("-K Save the kelvins calibrated spectra as well")
+    print("-X Hanning smooth the hot load observation to reduce calibration noise")
+    print("-T <plot title String> Label for plot")
+    print("-VA <low velocity> limit to exclude for baseline fitting")
+    print("-VB <high velocity> limit to exclude for baseline fitting")
+    print("Where:")
+    print("   <average_seconds>: Number of seconds of observations to average.")
+    print("   <average_seconds> is clock time, not observing time, so 3600. gives one plot for each hour")
+    print("   <files> are Horn Observation files")
+    print("   <files> must include both data pointed up (.ast) and down (.hot) observations")
+    print("      All .hot files are assumed to have a system temperature of %7.1f K" % thot)
+    print("")
+    print(" -- Glen Langston (glangsto@nsf.gov), 2018 December 11")
+    print("")
     exit()
 
 #first argument is the averaging time in seconds
@@ -121,67 +121,67 @@ while iarg < nargs:
     # if folding data
     if sys.argv[iarg].upper() == '-F':
         doPoly = True
-        print "Fitting a polynomial to the spectral baseline"
+        print("Fitting a polynomial to the spectral baseline")
     elif sys.argv[iarg].upper() == '-I':
         flagRfi = True
     elif sys.argv[iarg].upper() == '-MINEL':  # if min elevation 
         iarg = iarg + 1
         lowel = float( sys.argv[iarg])
-        print "Using elevations > %7.2f (d) for Cold load calculation" % (lowel)
+        print("Using elevations > %7.2f (d) for Cold load calculation" % (lowel))
     elif sys.argv[iarg].upper() == '-N':   # if no calibration 
-        print 'Not calibrating Average Spectra in -ave files'
+        print('Not calibrating Average Spectra in -ave files')
         doCalibrate = False
     elif sys.argv[iarg].upper() == '-C':
         flagCenter = True
     elif sys.argv[iarg].upper() == '-L':
         iarg = iarg+1
         minvel = np.float( sys.argv[iarg])
-        print 'Minium (low)  velocity for sum: %7.2f km/sec' % (minvel)
+        print('Minium (low)  velocity for sum: %7.2f km/sec' % (minvel))
     elif sys.argv[iarg].upper() == '-H':
         iarg = iarg+1
         maxvel = np.float( sys.argv[iarg])
-        print 'Maximum (high) velocity for sum: %7.2f km/sec' % (maxvel)
+        print('Maximum (high) velocity for sum: %7.2f km/sec' % (maxvel))
     elif sys.argv[iarg].upper() == '-D':
-        print 'Adding Debug Printing'
+        print('Adding Debug Printing')
         doDebug = True
     elif sys.argv[iarg].upper() == '-S':
-        print 'Saving Average Spectra in -ave files'
+        print('Saving Average Spectra in -ave files')
         doSave = True
     elif sys.argv[iarg].upper() == '-K':
-        print 'Saving Kelvins Calibration in .kel files'
+        print('Saving Kelvins Calibration in .kel files')
         doSave = True
     elif sys.argv[iarg].upper() == '-B':
-        print 'Baseline subtraction'
+        print('Baseline subtraction')
         doSub = True
     elif sys.argv[iarg].upper() == '-X':
-        print 'Hanning Smooth the Hot load Observation'
+        print('Hanning Smooth the Hot load Observation')
         doHanning = True
     elif sys.argv[iarg].upper() == '-O':   # now look for flags with arguments
         iarg = iarg+1
         outDir = sys.argv[iarg]
-        print 'Output directory: ', outDir
+        print('Output directory: ', outDir)
     elif sys.argv[iarg].upper() == '-HOT':   # now look for flags with arguments
         iarg = iarg+1
         thot = float(sys.argv[iarg])
-        print 'Hot Load Temperature: %7.2f K ', thot
+        print('Hot Load Temperature: %7.2f K ', thot)
     elif sys.argv[iarg].upper() == '-R':   # reference frequency (Hz)
         iarg = iarg+1
         nureference = float(sys.argv[iarg])
-        print 'Reference Frequency: %8.3f (MHz): ', nureference * 1.E-6
+        print('Reference Frequency: %8.3f (MHz): ', nureference * 1.E-6)
     elif sys.argv[iarg].upper() == '-T':   # now look for flags with arguments
         iarg = iarg+1
         mytitle = sys.argv[iarg]
-        print 'Plot title: ', mytitle
+        print('Plot title: ', mytitle)
     elif sys.argv[iarg].upper() == '-VA':   # now look for flags with arguments
         iarg = iarg+1
         minvel = float(sys.argv[iarg])
-        print 'Minimum velocity for baseline fit: %7.2f km/sec ' % (minvel)
-        print '20 channels near this velocity will be used for the fit'
+        print('Minimum velocity for baseline fit: %7.2f km/sec ' % (minvel))
+        print('20 channels near this velocity will be used for the fit')
     elif sys.argv[iarg].upper() == '-VB':   # now look for flags with arguments
         iarg = iarg+1
         maxvel = float(sys.argv[iarg])
-        print 'Maximum velocity for baseline fit: %7.2f km/sec ' % (maxvel)
-        print '20 channels near this velocity will be used for the fit'
+        print('Maximum velocity for baseline fit: %7.2f km/sec ' % (maxvel))
+        print('20 channels near this velocity will be used for the fit')
     else:
         break
     iarg = iarg + 1
@@ -193,14 +193,14 @@ while iarg < nargs:
 try:
     avetimesec = float(sys.argv[timearg])
 except:
-    print 'First position argumen must be the average time in seconds'
-    print 'First argument: ', sys.argv[timearg]
+    print('First position argumen must be the average time in seconds')
+    print('First argument: ', sys.argv[timearg])
     exit()
 
 avetime = dt.timedelta(seconds=avetimesec)  # need datatime format
 
 if doDebug:
-    print "Average time: ", avetimesec, " (seconds)"
+    print("Average time: ", avetimesec, " (seconds)")
 
 newObs = False
 allFiles = False
@@ -307,7 +307,7 @@ def compute_vbarycenter( spectrum):
         corr, hjd = pyasl.helcorr(longitude, latitude, altitude, \
                                       ra2000, dec2000, jd, debug=doDebug)
         if doDebug or firstRun:
-            print "Barycentric correction [km/s]: %8.3f" % (corr)
+            print("Barycentric correction [km/s]: %8.3f" % (corr))
             firstRun = False
     else:
         corr = 0.
@@ -332,17 +332,17 @@ def velocity_to_indicies( vel, minvel, maxvel):
         imax = temp
 
     if imin < 0:
-        print 'Imin Error computing baseline: ', imin
+        print('Imin Error computing baseline: ', imin)
         imin = 0
     if imin >= nData:
-        print 'Imin Error computing baseline: ', imin
+        print('Imin Error computing baseline: ', imin)
         imin = nData-1
 
     if imax < 0:
-        print 'Imax Error computing baseline: ', imax
+        print('Imax Error computing baseline: ', imax)
         imax = 0
     if imax >= nData:
-        print 'Imax Error computing baseline: ', imax
+        print('Imax Error computing baseline: ', imax)
         imax = nData-1
 
 # now make sure range increases
@@ -364,7 +364,7 @@ def compute_tsky_hotcold( yv, gain, vel, minvel, maxvel):
     tsys = np.zeros(nData)    # initialize arrays
 
     if nData < 16:
-        print "Error, velocity array too small: ",nData
+        print("Error, velocity array too small: ",nData)
 
     for jjj in range(nData):
         tsys[jjj] = yv[jjj]/gain[jjj]
@@ -390,14 +390,14 @@ def compute_tsky_hotcold( yv, gain, vel, minvel, maxvel):
 #                print 'ya,b: %6.1f,%6.1f; slope: %8.4f' % (ya, yb, slope)
 # This is the only difference between M and T processing
         if doDebug:
-            print "Slope %7.3f K/channel" % (slope)
+            print("Slope %7.3f K/channel" % (slope))
         for iii in range( nData):
             tsys[iii] = tsys[iii] - (ya + (slope*(iii-imin)))
         
     return tsys
 
 if doDebug:
-    print 'First Name: ',names[0], namearg
+    print('First Name: ',names[0], namearg)
 
 hotnames = copy.deepcopy( names)
 coldnames = copy.deepcopy( names)
@@ -420,13 +420,13 @@ for filename in names:
     parts = aname.split('.')
     nparts = len(parts)
     if nparts < 2:
-        print 'File is not an astronomy file: ',filename
+        print('File is not an astronomy file: ',filename)
         continue
     else:
         extension = parts[nparts-1]
     extension = extension.upper()
     if (extension != 'HOT') and (extension != 'AST') and (extension != 'CLD'):
-        print 'Extension not recognized : ', parts[nparts-1]
+        print('Extension not recognized : ', parts[nparts-1])
         continue
 
     rs.read_spec_ast(filename)
@@ -437,9 +437,10 @@ for filename in names:
     if rs.telel < 0:
         if nhot == 0:
             hot = copy.deepcopy( rs)
+            hot.ydataA = rs.ydataA/rs.count
             nhot = 1
         else:
-            hot.ydataA = hot.ydataA + rs.ydataA
+            hot.ydataA = hot.ydataA + (rs.ydataA/rs.count)
             hot.count = hot.count + rs.count
             nhot = nhot + 1
     else: # else above horizon, find min, max galactic latitudes
@@ -459,9 +460,9 @@ for filename in names:
             
 if nhot > 0:
     hot.ydataA = hot.ydataA / float(nhot)
-    print "Found %3d Hot load observations" % nhot
+    print("Found %3d Hot load observations" % nhot)
 else:
-    print "No Hot load data, can not calibrate"
+    print("No Hot load data, can not calibrate")
     exit()
 
 #xv = hot.xdata * 1.E-6
@@ -482,11 +483,11 @@ for jjj in range (nData):
     vel[jjj] = c * (nureference - xv[jjj])/nureference
 
 xa, xb = velocity_to_indicies( vel, minvel, maxvel)
-print 'Min Vel, channel: ',xa, minvel
-print 'Max Vel, channel: ',xb, maxvel
+print('Min Vel, channel: ',xa, minvel)
+print('Max Vel, channel: ',xb, maxvel)
                                    
 if doDebug:
-    print 'Min,Max Galactic Latitudes %7.1f,%7.1f (d)' % (minGlat, maxGlat)
+    print('Min,Max Galactic Latitudes %7.1f,%7.1f (d)' % (minGlat, maxGlat))
 
 # assume only a limited range of galactic latitudes are available
 # not range about +/-60.
@@ -513,27 +514,27 @@ if doHanning:
         hv[iii] = (yv[iii-1]+yv[iii]+yv[iii]+yv[iii+1])*.25
 
 if doDebug:
-    print "hv: %8.2f (counts)" % (hv[300])
+    print("hv: %8.2f (counts)" % (hv[300]))
 
 if doSave:
     hot.writecount = 1
     hot.ydataA = hv
     hot.write_ascii_ave( outDir)
 else:
-    print ""
+    print("")
         
 if doDebug: 
-    print ''
-    print 'Hot File Coord: '
-    print 'nChan, refChan: ',hot.nChan, hot.refChan
-    print 'centerFreqHz  : ',hot.centerFreqHz
-    print 'bandwidthHz   : ',hot.bandwidthHz
-    print ''
-    print 'N Channels    : ',nData
-    print 'velocity range: ', velbaseline
-    print 'Reference Freq. ', nureference
-    print 'Min Vel at channel: ',xa, minvel
-    print 'Max Vel at channel: ',xb, maxvel
+    print('')
+    print('Hot File Coord: ')
+    print('nChan, refChan: ',hot.nChan, hot.refChan)
+    print('centerFreqHz  : ',hot.centerFreqHz)
+    print('bandwidthHz   : ',hot.bandwidthHz)
+    print('')
+    print('N Channels    : ',nData)
+    print('velocity range: ', velbaseline)
+    print('Reference Freq. ', nureference)
+    print('Min Vel at channel: ',xa, minvel)
+    print('Max Vel at channel: ',xb, maxvel)
                                    
 
 ############################################################ Start Cold processing
@@ -553,19 +554,19 @@ for filename in names:
     if rs.gallat > maxGlat or rs.gallat < minGlat:
         if nhigh == 0:
             high = copy.deepcopy( rs)
-            high.ydataA = rs.ydataA
+            high.ydataA = rs.ydataA/rs.count
             nhigh = 1
         else:
-            high.ydataA = high.ydataA + rs.ydataA
+            high.ydataA = high.ydataA + (rs.ydataA/rs.count)
             high.count = high.count + rs.count
             nhigh = nhigh + 1
 
 if nhigh < 1.:
-    print "No high galactic latitude data: can not calibrate"
+    print("No high galactic latitude data: can not calibrate")
     exit()
 else:
     high.ydataA = high.ydataA/nhigh
-    print "Found %3d High Galactic Latitude spectra" % (nhigh)
+    print("Found %3d High Galactic Latitude spectra" % (nhigh))
     yv = high.ydataA
 
 cv = copy.deepcopy(yv)
@@ -588,14 +589,14 @@ for iii in range(nData):
     gain[iii] = hv[iii]/(thot + tSysMiddle - tcold)
     
 if doDebug:
-    print "cv: %8.2f (counts)" % (cv[300])
+    print("cv: %8.2f (counts)" % (cv[300]))
 
 if doSave:
     high.writecount = 2
     high.ydataA = copy.deepcopy(cv)
     high.write_ascii_ave( outDir)
 else:
-    print ""
+    print("")
 
 ########################### End of Cold Spectrum
 fig, ax1 = plt.subplots(figsize=(10, 6))
@@ -612,7 +613,7 @@ if not doCalibrate: # if not calibrating, show hot and cold spectra
     yallmax = max(tsky[xa:xb])
     plt.plot(vel, tsky, '-r', linestyle='-', label="Hot  Load", lw=2)
     if doDebug:
-        print 'hv[300]: ', tsky[300]
+        print('hv[300]: ', tsky[300])
 
     tsky = copy.deepcopy(cv)
     if doSub:
@@ -629,7 +630,7 @@ if not doCalibrate: # if not calibrating, show hot and cold spectra
 
     plt.plot(vel, tsky, '-b', linestyle='-', label="Cold Load", lw=2)
     if doDebug:
-        print 'cv[300]: ', tsky[300]
+        print('cv[300]: ', tsky[300])
 
 # end if not calibrating, then plot hot/cold
 
@@ -699,16 +700,16 @@ for filename in plotnames:
     newObs = (lastfreq != rs.centerFreqHz) or (lastbw != rs.bandwidthHz) or (lastgain != rs.gains[0]) or newAzEl
     if newObs:
         if lastfreq != rs.centerFreqHz:
-            print "Change LastFreq: ", lastfreq/1e6, "New: ", rs.centerFreqHz/1e6, " MHz"
+            print("Change LastFreq: ", lastfreq/1e6, "New: ", rs.centerFreqHz/1e6, " MHz")
             lastfreq = rs.centerFreqHz
         if lastbw != rs.bandwidthHz:
-            print "Change LastBandwidth: ", lastbw/1e6, "New: ", rs.bandwidthHz/1e6, " MHz"
+            print("Change LastBandwidth: ", lastbw/1e6, "New: ", rs.bandwidthHz/1e6, " MHz")
             lastbw = rs.bandwidthHz
         if lastgain != rs.gains[0]:
-            print "Change LastGain: ", lastgain, "New: ", rs.gains[0], " dB"
+            print("Change LastGain: ", lastgain, "New: ", rs.gains[0], " dB")
             lastgain = rs.gains[0]
         if newAzEl:
-            print "Change LastAzEl: ", lastaz,lastel, "New: ", rs.telaz,rs.telel, " degrees"
+            print("Change LastAzEl: ", lastaz,lastel, "New: ", rs.telaz,rs.telel, " degrees")
             lastaz = rs.telaz
             lastel = rs.telel
 
@@ -728,15 +729,15 @@ for filename in plotnames:
             veryfirstutc = rs.utc
 
     if doDebug:
-        print "Ncold: ",ncold
-        print "newObs: ",newObs
-        print "newObs: ",allFiles
+        print("Ncold: ",ncold)
+        print("newObs: ",newObs)
+        print("newObs: ",allFiles)
         
     # if time to average (or end of all files)
     if (DT > avetime) or newObs or allFiles:
         cold.ydataA = cold.ydataA/float(cold.durationSec)
         if doDebug:
-            print "Average duration: %7.1f " % (cold.durationSec)
+            print("Average duration: %7.1f " % (cold.durationSec))
 
         yv = cold.ydataA
         if flagRfi:
@@ -764,7 +765,7 @@ for filename in plotnames:
         # compute average time from first and last utcs
         aveutc,duration = radioastronomy.aveutcs( firstutc, lastutc)
         if doDebug and (firstutc == lastutc):
-            print "first and last utcs are the same: ", firstutc
+            print("first and last utcs are the same: ", firstutc)
         # keep the average time, but use the duration from the integration times.
         cold.utc = aveutc 
             # pull out coordinates for labeling
@@ -780,8 +781,8 @@ for filename in plotnames:
         tStd = (tStdA+tStdB)/.2
 
         if doDebug:
-            print('Calibrated Max, Median and Std Dev: %8.3f %8.3f %8.3f (K)' % (ymax, tSys, tStd))
-            print 'xa,xb: ',xa,xb
+            print(('Calibrated Max, Median and Std Dev: %8.3f %8.3f %8.3f (K)' % (ymax, tSys, tStd)))
+            print('xa,xb: ',xa,xb)
         date, time = cold.datetime()
         labeltime = date + " " + time
         if minel == maxel:
@@ -807,7 +808,7 @@ for filename in plotnames:
             cold.ydataA = tsky
             cold.write_ascii_ave( outDir)
         else:
-            print ""
+            print("")
                 
         # indicate that we're now restarting averaging
         ncold = 0

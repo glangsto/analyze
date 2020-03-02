@@ -50,37 +50,37 @@ while iii < nargs:
     if str(anarg[0:3]) == "-OF":
         offset = np.float( sys.argv[iii+1])
         iii = iii + 1
-        print "Time Offset Interval: %8.6f s for Group: " % ( offset)
+        print("Time Offset Interval: %8.6f s for Group: " % ( offset))
         ifile = ifile + 2
     if str(anarg[0:3]) == "-G":
         ngroup = np.int( sys.argv[iii+1])
         iii = iii + 1
         if ngroup < 1:
-            print "Minimum group size is 2"
+            print("Minimum group size is 2")
             ngroup = 2
-        print "N of events to consider a long group: ", ngroup
+        print("N of events to consider a long group: ", ngroup)
         ifile = ifile + 2
     if str(anarg[0:3]) == "-SI":
         sigma = np.float( sys.argv[iii+1])
         iii = iii + 1
-        print "Keeping Events > %7.2f Sigma " % (sigma)
+        print("Keeping Events > %7.2f Sigma " % (sigma))
         ifile = ifile + 2
     if str(anarg[0:2]) == "-M":
-        print "Moving Events"
+        print("Moving Events")
         doMove = True
         ifile = ifile + 1
     if str(anarg[0:3]) == "-D":
-        print "Debugging"
+        print("Debugging")
         doDebug = True
         ifile = ifile + 1
     if anarg[0:3] == "-NO":
         note = sys.argv[iii+1]
         iii = iii + 1
-        print "Note: ", note
+        print("Note: ", note)
         ifile = ifile + 2
     if anarg[0:2] == "-P":
         doPlot = True
-        print "Plotting Ungroupded Events"
+        print("Plotting Ungroupded Events")
         ifile = ifile + 1
     iii = iii + 1
 
@@ -96,7 +96,7 @@ def moveFiles( inDir, groupDir, nInGroup, groupFiles):
     global doDebug
     outDir = "./" + groupDir
     if doDebug:
-        print "Moving %d events to directory %s " % ( nInGroup, groupDir)
+        print("Moving %d events to directory %s " % ( nInGroup, groupDir))
     mkdir = "mkdir %s 2> /dev/null" % (outDir)
     if not os.path.isfile( outDir):
         os.system(mkdir)
@@ -120,15 +120,16 @@ def main():
 
     nargs = len(sys.argv)
     if nargs < 2:
-        print 'GROUP: GROUP events into long and short duration'
-        print 'usage: GROUP [-OF seconds] [-N number] [-M] [-P] [-D] dir1'
-        print 'where: -M  move groups into a sub-directory'
-        print '       -P  plot ungrouped events'
-        print '       -D  print debugging info'
+        print('GROUP: GROUP events into long and short duration')
+        print('usage: GROUP [-OF seconds] [-G number] [-M] [-P] [-D] dir1')
+        print('where: -M  move groups into a sub-directory')
+        print('       -P  plot ungrouped events')
+        print('       -G  <number> is the minimum number of events to call a group')
+        print('       -D  print debugging info')
         exit()
 
     dir1 = sys.argv[ifile]
-    print "Dir 1: ", dir1
+    print("Dir 1: ", dir1)
 
     from os import listdir
     from os.path import isfile, join
@@ -136,11 +137,11 @@ def main():
     
     groupDir = dir1 + "/groups"
 
-    print "Time offset to identify a group: %7.2f s " % (offset)
+    print("Time offset to identify a group: %7.2f s " % (offset))
 
     offset = offset/86400.   # convert to MJDs
 
-    print "%5d Files in Directory 1" % (len(files1))
+    print("%5d Files in Directory 1" % (len(files1)))
 #    print files
     nGroups = 0
 
@@ -181,9 +182,9 @@ def main():
             event1s[iii] = filename 
             iii = iii + 1
         if 50 * int(iii/50) == iii:
-            print "Event %5d: %12.9f: %7.3f+/-%5.3f" % (iii, rs.emjd, rs.epeak, rs.erms)
+            print("Event %5d: %12.9f: %7.3f+/-%5.3f" % (iii, rs.emjd, rs.epeak, rs.erms))
 
-    print "Read %5d events, of which %5d are > %7.2f sigma" % (nEve1, iii, sigma)
+    print("Read %5d events, of which %5d are > %7.2f sigma" % (nEve1, iii, sigma))
 
     # new count of significant events
     nEve1 = iii
@@ -200,7 +201,7 @@ def main():
     lastt = mjd1s[0]
 
     if doDebug:
-        print " Offset limit for grouping: %7.2fs" % ( offset*86400.)
+        print(" Offset limit for grouping: %7.2fs" % ( offset*86400.))
 
     iFirst = 0
     iLast = 0
@@ -210,7 +211,7 @@ def main():
         dt = abs(t - lastt)
 
         if doDebug:
-            print "Event %d offset from previous: %7.2f (%d): " % ( iii, dt * 86400.,  nInGroup)
+            print("Event %d offset from previous: %7.2f (%d): " % ( iii, dt * 86400.,  nInGroup))
         if dt == 0.:
             inGroup = False
             groupFiles[0] = event1s[iii]
@@ -227,22 +228,22 @@ def main():
             iLast = iii
         else:
             if doDebug:
-                print "N in Group: %d" % (nInGroup)
+                print("N in Group: %d" % (nInGroup))
             # if was in a group, but no longer
             if nInGroup >= ngroup:
                 if doMove:
                     moveFiles( dir1, groupDir, nInGroup, groupFiles)
                 dMjd = mjd1s[iLast] - mjd1s[iFirst]
                 duration = 86400. * dMjd
-                print "Group of %5d events (%s-%s), dur: %9.3f (s)" % (nInGroup, firstFile, lastFile, duration)
+                print("Group of %5d events (%s-%s), dur: %9.3f (s)" % (nInGroup, firstFile, lastFile, duration))
                 nGroups = nGroups + 1
             else:
                 kkk = iFirst
                 if doDebug:
-                    print " First: %d, Last: %d"  % (iFirst, iLast)
+                    print(" First: %d, Last: %d"  % (iFirst, iLast))
                 for jjj in range(nInGroup):
                     if doDebug:
-                        print " Index: %d, nAlone: %d; File Index %d" % (jjj, nAlone, kkk)
+                        print(" Index: %d, nAlone: %d; File Index %d" % (jjj, nAlone, kkk))
                     aloneEvents[nAlone] = event1s[kkk]
                     nAlone = nAlone + 1
                     kkk = kkk + 1
@@ -268,7 +269,7 @@ def main():
             nAlone = nAlone + 1
             kkk = kkk + 1
 
-    print "Found %5d groups and %5d isolated events " % (nGroups, nAlone)
+    print("Found %5d groups and %5d isolated events " % (nGroups, nAlone))
     return
 
 if __name__ == "__main__":

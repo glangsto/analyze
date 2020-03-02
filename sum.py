@@ -32,12 +32,12 @@ timearg = 1
 firstfilearg = 2
 
 if nargs < 2:
-    print "SUM: Summarize a set of observations, computing the intensity integrals"
-    print "usage: SUM [plot] <aveTimeSeconds> <file names>"
-    print "where plot           optional string indicating the average spectra should be plotted"
-    print "where aveTimeSeconds time range of data to be averaged before output, in seconds"
-    print "where file names     list of files to examine.  This list must include hot load files"
-    print ""
+    print("SUM: Summarize a set of observations, computing the intensity integrals")
+    print("usage: SUM [plot] <aveTimeSeconds> <file names>")
+    print("where plot           optional string indicating the average spectra should be plotted")
+    print("where aveTimeSeconds time range of data to be averaged before output, in seconds")
+    print("where file names     list of files to examine.  This list must include hot load files")
+    print("")
     exit()
 
 # assume no plotting
@@ -88,7 +88,7 @@ firstrun = True
 #first argument is the averaging time in seconds
 
 avetimesec = float(sys.argv[timearg])
-print "Average time: ", avetimesec, " (seconds)"
+print("Average time: ", avetimesec, " (seconds)")
 
 # first read through all data and find hot load
 names = sys.argv[firstfilearg:]
@@ -146,17 +146,17 @@ def interpolate_range( minvel, maxvel, vel, ys):
         imin = imax
         imax = temp
     if imin < 10:
-        print 'Imin Error computing baseline: ', imin
+        print('Imin Error computing baseline: ', imin)
         imin = 10
         if imin >= nData-10:
-            print 'Imin Error computing baseline: ', imin
+            print('Imin Error computing baseline: ', imin)
             imin = nData-10
             
     if imax < 11:
-        print 'Imax Error computing baseline: ', imax
+        print('Imax Error computing baseline: ', imax)
         imax = 11
     if imax >= nData-11:
-        print 'Imax Error computing baseline: ', imax
+        print('Imax Error computing baseline: ', imax)
         imax = nData-11
         
     ya = np.median(ys[(imin-10):(imin+10)])
@@ -176,10 +176,10 @@ def write_sum( outname, minvel, maxvel, ra, dec, gallon, gallat, time, vel, tsky
     nvel = len(vel)
     nsky = len(tsky)
     if (nsky > nvel):
-        print "Error writing sum: Velocites > Intensity array sizes: ", nvel, nsky
+        print("Error writing sum: Velocites > Intensity array sizes: ", nvel, nsky)
 
     if nvel < 5:
-        print 'Not enough values in arrays to compute reliable sums'
+        print('Not enough values in arrays to compute reliable sums')
 
     # compute reference velicity and increments
     nvel2 = int(nvel/2)
@@ -188,8 +188,8 @@ def write_sum( outname, minvel, maxvel, ra, dec, gallon, gallat, time, vel, tsky
     vref = vel[nvel2]
     imin = int(((minvel-vref)/dv) + nvel2)
     if imin < 0 or imin > nvel-1:
-        print 'Array does not contain minimum velocity: ',minvel
-        print 'vel[0]: ', vel[0], 'vel[n-1]: ', vel[nvel-1]
+        print('Array does not contain minimum velocity: ',minvel)
+        print('vel[0]: ', vel[0], 'vel[n-1]: ', vel[nvel-1])
         if imin < 0:
             imin = 0
         else:
@@ -197,8 +197,8 @@ def write_sum( outname, minvel, maxvel, ra, dec, gallon, gallat, time, vel, tsky
 
     imax = int(((maxvel-vref)/dv) + nvel2) + 1
     if imax < 0 or imax >= nvel:
-        print 'Array does not contain maximum velocity: ',maxvel
-        print 'vel[0]: ', vel[0], 'vel[n-1]: ', vel[nvel-1]
+        print('Array does not contain maximum velocity: ',maxvel)
+        print('vel[0]: ', vel[0], 'vel[n-1]: ', vel[nvel-1])
         if imax < 0:
             imax = 0
         else:
@@ -209,9 +209,9 @@ def write_sum( outname, minvel, maxvel, ra, dec, gallon, gallat, time, vel, tsky
         imax = temp
 
     if firstrun:
-        print 'Velocity resolution : %9.3f km/sec' % dv 
-        print 'Velocity range: %9.2f to %9.2f km/sec' % (minvel, maxvel)
-        print 'Index range: %5d to %5d ' % (imin, imax)
+        print('Velocity resolution : %9.3f km/sec' % dv) 
+        print('Velocity range: %9.2f to %9.2f km/sec' % (minvel, maxvel))
+        print('Index range: %5d to %5d ' % (imin, imax))
         firstrun = False
 
 #    print 'Index range for velocities: ', imin, imax
@@ -234,7 +234,7 @@ def write_sum( outname, minvel, maxvel, ra, dec, gallon, gallat, time, vel, tsky
     (vave,vadev,vsdev,vvar,vskew,vcurt) = Moment.moment(vs, vts)    
     # normalize for average temperature
     if ave == 0: 
-        print 'Average temperature is zero, can not normalize average velocity'
+        print('Average temperature is zero, can not normalize average velocity')
     else:        
         vave = vave/ave
         vsdev = vave/ave
@@ -265,7 +265,7 @@ def write_sum( outname, minvel, maxvel, ra, dec, gallon, gallat, time, vel, tsky
     f.write(label)
     f.close()
 
-print 'Applying Az,El offset: %6.1f,%6.1f d' % (azoffset, eloffset)
+print('Applying Az,El offset: %6.1f,%6.1f d' % (azoffset, eloffset))
 lastgain = 0.
 for filename in names:
 
@@ -277,7 +277,7 @@ for filename in names:
 
     if rs.gains[0] != lastgain:
         if lastgain != 0:
-            print 'Gain Change: ', lastgain, ' -> ', rs.gains[0]
+            print('Gain Change: ', lastgain, ' -> ', rs.gains[0])
         lastgain = rs.gains[0]
 
     if rs.telel < 0:
@@ -305,9 +305,9 @@ if hotmedian > .001:
 
 if nhot > 0:
     hot.ydataA = scalefactor * hot.ydataA / float(nhot)
-    print "Found %3d hot load obs" % nhot
+    print("Found %3d hot load obs" % nhot)
 else:
-    print "No hot load data, can not calibrate"
+    print("No hot load data, can not calibrate")
     exit()
 
 xv = hot.xdata * 1.E-6
@@ -330,7 +330,7 @@ for jjj in range (0, nData):
 #    hv[iii] = (yv[iii-2]+yv[iii-1]+yv[iii]+yv[iii+1]+yv[iii+2])/5.
 #hv = yv
 
-print 'Min,Max Galactic Latitudes %7.1f,%7.1f (d)' % (minGlat, maxGlat)
+print('Min,Max Galactic Latitudes %7.1f,%7.1f (d)' % (minGlat, maxGlat))
 
 # assume only a limited range of galactic latitudes are available
 # not range about +/-60.
@@ -372,11 +372,11 @@ for filename in names:
             nhigh = nhigh + 1
 
 if nhigh < 1.:
-    print "No high galactic latitude data: can not calibrate"
+    print("No high galactic latitude data: can not calibrate")
     exit()
 else:
     high.ydataA = scalefactor * high.ydataA/nhigh
-    print "Found %d High Galactic Latitude spectra" % (nhigh)
+    print("Found %d High Galactic Latitude spectra" % (nhigh))
     yv = high.ydataA
 
     cv = interpolate.lines( linelist, linewidth, xv, yv) # interpolate rfi
@@ -408,7 +408,7 @@ for iii in range(nData):
     trx[iii] = (cv[iii]/gain[iii]) - tcold
 
 Tsys = np.median(trx)
-print "Median Receiver + Antenna Temp: ", Tsys
+print("Median Receiver + Antenna Temp: ", Tsys)
 
 avetime = datetime.timedelta(seconds=avetimesec)
 
@@ -530,8 +530,8 @@ for filename in names:
 
                 Tscan = np.median(tsys)
                 if Tscan > Tmax:
-                    print 'Scan average is greater than maximum expected: ',Tscan,Tmax
-                    print 'Scan Time: ',midtime
+                    print('Scan average is greater than maximum expected: ',Tscan,Tmax)
+                    print('Scan Time: ',midtime)
                     ncold = 0
                     continue
                 label = 'Lon,Lat=%5.1f,%5.1f' % (gallon, gallat)
@@ -547,17 +547,17 @@ for filename in names:
                     imax = temp
 
                 if imin < 0:
-                    print 'Imin Error computing baseline: ', imin
+                    print('Imin Error computing baseline: ', imin)
                     imin = 0
                 if imin >= nData:
-                    print 'Imin Error computing baseline: ', imin
+                    print('Imin Error computing baseline: ', imin)
                     imin = nData-1
 
                 if imax < 0:
-                    print 'Imax Error computing baseline: ', imax
+                    print('Imax Error computing baseline: ', imax)
                     imax = 0
                 if imax >= nData:
-                    print 'Imax Error computing baseline: ', imax
+                    print('Imax Error computing baseline: ', imax)
                     imax = nData-1
                     
                 ymed = np.median(tsky[imin:imax])
@@ -590,7 +590,7 @@ for filename in names:
                 write_sum( outname, -90., +90., ra, dec, gallon, gallat, date + ' ' + time, vel, tsky, ncold)
 
                 if ncold > 1:
-                    print ' Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ymax, ymed, ymax/ymed, ncold, label)
+                    print(' Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ymax, ymed, ymax/ymed, ncold, label))
                     if doPlot:
                         if gallat < 7.5 and gallat > -7.5:
                             plt.plot(vel, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label, lw=4)
@@ -604,20 +604,20 @@ for filename in names:
 
             # end if a new observation
             if newObs:
-                print "Change in observing parameters: "
+                print("Change in observing parameters: ")
                 if lastfreq != rs.centerFreqHz:
-                    print "LastFreq: ", lastfreq/1e6, "New: ", rs.centerFreqHz/1e6, " MHz"
+                    print("LastFreq: ", lastfreq/1e6, "New: ", rs.centerFreqHz/1e6, " MHz")
                     lastfreq = rs.centerFreqHz
                 if lastbw != rs.bandwidthHz:
-                    print "LastBandwidth: ", lastbw/1e6, "New: ", rs.bandwidthHz/1e6, " MHz"
+                    print("LastBandwidth: ", lastbw/1e6, "New: ", rs.bandwidthHz/1e6, " MHz")
                     lastbw = rs.bandwidthHz
                 if lastgain != rs.gains[0]:
                     if lastgain != 0:                    
-                        print "LastGain: ", lastgain, "New: ", rs.gains[0], " dB"
+                        print("LastGain: ", lastgain, "New: ", rs.gains[0], " dB")
                     lastgain = rs.gains[0]
                 if newAzEl:
                     if lastaz != 0 or lastel != 0:
-                        print "LastAzEl: ", lastaz,lastel, "New: ", rs.telaz,rs.telel, " degrees"
+                        print("LastAzEl: ", lastaz,lastel, "New: ", rs.telaz,rs.telel, " degrees")
                     lastaz = rs.telaz
                     lastel = rs.telel
 
@@ -666,11 +666,11 @@ for filename in names:
 # check if not data match criteria
 
 if nplot < 1:
-    print 'No Data passed selection critera, no plots'
+    print('No Data passed selection critera, no plots')
     exit()
 
 if not doPlot:
-    print "Computed ",nplot," Integrated Intensities"
+    print("Computed ",nplot," Integrated Intensities")
     exit()
 
 if firstdate != lastdate:

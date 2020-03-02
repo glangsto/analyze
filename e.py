@@ -2,6 +2,7 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#20Feb08 GIL date to title
 #19NOV08 GIL add title option, switch to micro-seconds
 #19OCT10 GIL also show ra and dec
 #19MAR11 GIL fix plot axies
@@ -32,16 +33,16 @@ linelist = [1420.0, 1418.0]  # RFI lines in MHz
 linewidth = [7, 7]
 
 if nargs < 2:
-    print "E: Plot Events"
-    print "Usage: "
-    print " E [-T 'My Plot Title'] fileNames "
-    print "where:"
-    print "  -T <plot title String> Enables user labeling of the plot"
-    print ""
-    print "Where many parameters are optional:"
-    print "-B Subtract a linear baseline fit to Spectra at Min and Max Velocities"
-    print ""
-    print "Glen Langston - 2019 November 8"
+    print("E: Plot Events")
+    print("Usage: ")
+    print(" E [-T 'My Plot Title'] fileNames ")
+    print("where:")
+    print("  -T <plot title String> Enables user labeling of the plot")
+    print("")
+    print("Where many parameters are optional:")
+    print("-B Subtract a linear baseline fit to Spectra at Min and Max Velocities")
+    print("")
+    print("Glen Langston - 2019 November 8")
     exit()
 
 namearg = 1
@@ -52,10 +53,10 @@ while iarg < nargs:
     if sys.argv[iarg].upper() == '-T':   # now look for flags with arguments
         iarg = iarg+1
         mytitle = sys.argv[iarg]
-        print 'Plot title: ', mytitle
+        print('Plot title: ', mytitle)
     elif sys.argv[iarg].upper() == '-D':   # if debugging
         doDebug = True
-        print "-D Additional Debug printing."
+        print("-D Additional Debug printing.")
     else:
         break
     iarg = iarg+1
@@ -91,7 +92,7 @@ for iii in range(namearg, min(nargs,25)):
     seconds = 86400. * (eMjd - iseconds)
 
     if doDebug:
-        print "%s == %s == %12.6f" %( time, timestr, seconds)
+        print("%s == %s == %12.6f" %( time, timestr, seconds))
     parts = timestr.split('T')
     if len(parts) > 1:
         atime = parts[1]
@@ -99,7 +100,7 @@ for iii in range(namearg, min(nargs,25)):
         atime = timestr
 
     if doDebug:
-        print "%s == %s" %( time, atime)
+        print("%s == %s" %( time, atime))
 
     gallon = rs.gallon
     gallat = rs.gallat
@@ -110,7 +111,7 @@ for iii in range(namearg, min(nargs,25)):
     ya = rs.ydataA
     yb = rs.ydataB
     if rs.nTime < 1:
-        print "Not an Event: ",filename
+        print("Not an Event: ",filename)
         continue
 
     xv = np.zeros(rs.nSamples*2)
@@ -120,7 +121,7 @@ for iii in range(namearg, min(nargs,25)):
     dt = 1.E6 * 0.5/rs.bandwidthHz
     t = -2. * dt * rs.refSample
     if iii == -1:  # no op
-        print "First Time %12.9f (s); Delta T = %12.9f (s)" % (t, dt)
+        print("First Time %12.9f (s); Delta T = %12.9f (s)" % (t, dt))
     for i in range(rs.nSamples):
         yv[j] = ya[i]
         xv[j] = t
@@ -152,9 +153,9 @@ for iii in range(namearg, min(nargs,25)):
     else:
         snr = 0.
 
-    print(' Ra: %6.2f Dec: %6.2f Max: %8.3f +/- %7.3f SNR: %6.1f ; %s %s' % (ra, dec, ypeak, yrms, snr, count, label))
+    print((' Ra: %6.2f Dec: %6.2f Max: %8.3f +/- %7.3f SNR: %6.1f ; %s %s' % (ra, dec, ypeak, yrms, snr, count, label)))
     if nplot <= 0:
-        title = mytitle + " Az,El: %6.1f,%6.1f" % (rs.telaz, rs.telel)
+        title = mytitle + " Az,El: %6.1f,%6.1f - %s" % (rs.telaz, rs.telel, date)
         fig,ax1 = plt.subplots(figsize=(10,6))
         fig.canvas.set_window_title(title)
         nplot = nplot + 1

@@ -2,6 +2,7 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#20FEB15 GIL normalize for different integration times
 #19DEC30 GIL add title option
 #17NOV21 GIL use time in file to show date and time
 #16AUG29 GIL make more efficient
@@ -141,6 +142,9 @@ for iii in range(namearg, min(nargs,20)):
     nData = len( xv)
     n6 = int(nData/6)
     n56 = 5*n6
+    # normize for different integration times
+
+    rs.ydataA = rs.ydataA/rs.count
     yv = rs.ydataA
 
     # The latest versions of the software had a different normalization

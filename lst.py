@@ -26,7 +26,7 @@ def calclst(longitude=-79.8397, latitude=34.4331, elevation=0.):
     datestr = dates[0] + ' ' + dates[1]
     location.date = datestr
     lst = location.sidereal_time()
-    print('LST = %s' % lst)
+    print('LST = %s' % (lst))
     return lst
 
 calclst()

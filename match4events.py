@@ -1,5 +1,7 @@
 #Python find matchs in 4 data directories
 #HISTORY
+#20FEB21 GIL search odroid directory too
+#20FEB08 GIL python 2 to 3; search for different names; allow only 3 directories; add plotting
 #20JAN14 GIL fix index boundary issues
 #19DEC27 GIL if date is after December 20, use different directory
 #19NOV30 GIL fix reading first directory
@@ -26,15 +28,16 @@ import copy
 from scipy.signal import blackman
 
 nargs = len( sys.argv)
-if nargs < 3:
-    print "MATCH4: Match events listed in four directories"
-    print "Usage: MATCH4 [-OF seconds] [-D] [-C Date] [dir1 dir2 dir3 dir4]"
-    print "Where: Optionally the user provides the maximum time offset (secs) to call a match"
-    print "Where -D  Optionally print debugging info"
-    print "Where -C  Optionally provide a calendar date (ie 19Nov17) instead of directories"
-    print "Where -N <n> Optionally print matches when number is equal or greater to <n>"
-    print ""
-    print "Glen Langston, November 18, 2019"
+if nargs < 2:
+    print("MATCH4: Match events listed in four directories")
+    print("Usage: MATCH4 [-OF seconds] [-D] [-C Date] [dir1 dir2 dir3 dir4]")
+    print("Where: Optionally the user provides the maximum time offset (secs) to call a match")
+    print("Where -D  Optionally print debugging info")
+    print("Where -C  Optionally provide a calendar date (ie 19Nov17) instead of directories")
+    print("Where -N <n> Optionally print matches when number is equal or greater to <n>")
+    print("Where -P Plot matches")
+    print("")
+    print("Glen Langston, November 18, 2019")
     exit()
 
 
@@ -69,7 +72,7 @@ while iii < nargs:
     if str(anarg[0:3]) == "-OF":
         offset = np.float( sys.argv[iii+1])
         iii = iii + 1
-        print "Maximum Time Offset: %8.6f s for Match: " % ( offset)
+        print("Maximum Time Offset: %8.6f s for Match: " % ( offset))
         offset = offset/86400.   # convert to MJDs
         ifile = ifile + 2
     if str(anarg[0:3]) == "-N":
@@ -77,33 +80,33 @@ while iii < nargs:
         iii = iii + 1
         if nPrint <= 0:
             nPrint = 2
-        print "Print if %d or more matches" % (nPrint)
+        print("Print if %d or more matches" % (nPrint))
         ifile = ifile + 2
     if str(anarg[0:3]) == "-SI":
         sigma = np.float( sys.argv[iii+1])
         iii = iii + 1
-        print "Keeping Events > %7.2f Sigma " % (sigma)
+        print("Keeping Events > %7.2f Sigma " % (sigma))
         aFix = True
         ifile = ifile + 2
     if anarg[0:3] == "-NO":
         note = sys.argv[iii+1]
         iii = iii + 1
-        print "Note: ", note
+        print("Note: ", note)
         ifile = ifile + 2
         aFix = True
     if anarg[0:2] == "-C":
         calendar = sys.argv[iii+1]
         iii = iii + 1
-        print "Matching Date: ", calendar
+        print("Matching Date: ", calendar)
         ifile = ifile + 2
         aFix = True
     if anarg[0:2] == "-P":
         doPlot = True
-        print "Plotting Matching events"
+        print("Plotting Matching events")
         ifile = ifile + 1
     if anarg[0:2] == "-D":
         doDebug = True
-        print "Debugging"
+        print("Debugging")
         ifile = ifile + 1
     iii = iii + 1
 
@@ -113,67 +116,80 @@ eventblock = np.zeros(nblock)  # creat array to FFT
 w = blackman(N)
 nu = np.zeros(nblock)  # creat frequency array
 nplot = 0
-nfiles = 4
-dir3 = ""
-dir4 = ""
+nfiles = nargs-ifile
+dirs = [ "", "", "", "", "", "", "", "", "", "","", "", "", "", "", "",""]
 
+# now find calendars
 if calendar == "":
-    nfiles = nargs-ifile
-    dir1 = sys.argv[ifile]
-    dir2 = sys.argv[ifile+1]
+    dirs[0] = sys.argv[ifile]
+    dirs[1] = sys.argv[ifile+1]
+    ndir = 2
     if nfiles > 2:
-        dir3 = sys.argv[ifile+2]
+        dir[ndir] = sys.argv[ifile+2]
+        ndir+1
     if nfiles > 3:
-        dir4 = sys.argv[ifile+3]
+        dir[ndir] = sys.argv[ifile+3]
+        ndir+1
 else:
-    dir1 = "pi1-events-" + calendar
-    dir2 = "pi2-events-" + calendar
-    dir3 = "pi3-events-" + calendar
-#    dir4 = "odroid5-events-" + calendar
-#    dir4 = "pi4-events-" + calendar
-    dir4 = "pi6-events-" + calendar
+    ndir = 0
+    for idir in range(1,10):
+        adir = "pi%d-events-" % idir
+        adir = adir + calendar
+        if os.path.isdir(adir):
+            dirs[ndir] = adir
+            ndir = ndir + 1
+            print("Found directory: %s" % adir)
+
+    for idir in range(1,10):
+        adir = "odroid%d-events-" % idir
+        adir = adir + calendar
+#        print("TestDir: %s" % (adir))
+        if os.path.isdir(adir):
+            dirs[ndir] = adir
+            ndir = ndir + 1
+            print("Found directory: %s" % adir)
+
+print( "Found %d directories" % (ndir) )
 
 if doDebug:
-    print "Dir 1: ", dir1
-    print "Dir 2: ", dir2
-    print "Dir 3: ", dir3
-    print "Dir 4: ", dir4
+    print("Dir 1: ", dirs[0])
+    print("Dir 2: ", dirs[1])
+    print("Dir 3: ", dirs[2])
+    print("Dir 4: ", dirs[3])
 
 MAXEVENTS = 10000
 
 def main():
     """
-    Main executable for gridding astronomical data
+    Main executable for matching transient events
     """
     dpi = 1
 
     nargs = len(sys.argv)
     if nargs < 2:
-        print 'MATCH: MATCH pairs of events in directories'
-        print 'usage: MATCH [-OF seconds] dir1 dir2'
+        print('MATCH: MATCH pairs of events in directories')
+        print('usage: MATCH [-OF seconds] dir1 dir2')
         exit()
-
-    gridtype = 'PULSAR'
 
     from os import listdir
     from os.path import isfile, join
-    files1 = [f for f in listdir(dir1) if isfile(join(dir1, f))]
-    files2 = [f for f in listdir(dir2) if isfile(join(dir2, f))]
-    if len(dir3) > 0:
-        files3 = [f for f in listdir(dir3) if isfile(join(dir3, f))]
+    files1 = [f for f in listdir(dirs[0]) if isfile(join(dirs[0], f))]
+    files2 = [f for f in listdir(dirs[1]) if isfile(join(dirs[1], f))]
+    if len(dirs[2]) > 0:
+        files3 = [f for f in listdir(dirs[2]) if isfile(join(dirs[2], f))]
     else:
         files3 = ""
-    if len(dir4) > 0: 
-        files4 = [f for f in listdir(dir4) if isfile(join(dir4, f))]
+    if len(dirs[3]) > 0: 
+        files4 = [f for f in listdir(dirs[3]) if isfile(join(dirs[3], f))]
     else:
         files4 = ""
 
     count = 0
     if doDebug: 
-        print "%5d Files in Directory 1" % (len(files1))
-        print "%5d Files in Directory 2" % (len(files2))
-        print "%5d Files in Directory 3" % (len(files3))
-        print "%5d Files in Directory 4" % (len(files4))
+        print("%5d Files in Directory 1" % (len(files1)))
+        print("%5d Files in Directory 2" % (len(files2)))
+        print("%5d Files in Directory 3" % (len(files3)))
+        print("%5d Files in Directory 4" % (len(files4)))
     nEve1 = 0
     nEve2 = 0
     nEve3 = 0
@@ -212,17 +228,17 @@ def main():
 
     iii = 0
     for filename in event1s:
-        fullname = join(dir1, filename)
+        fullname = join(dirs[0], filename)
         rs.read_spec_ast( fullname)
         rs.azel2radec()    # compute ra,dec from az,el
         mjd1s[iii] = rs.emjd
         peak1s[iii] = rs.epeak
         rms1s[iii] = rs.erms
         if (100 * int(iii/100) == iii) and doDebug:
-            print "Event %5d: %12.9f: %7.3f+/-%5.3f" % (iii, rs.emjd, rs.epeak, rs.erms)
+            print("Event %5d: %12.9f: %7.3f+/-%5.3f" % (iii, rs.emjd, rs.epeak, rs.erms))
         iii = iii + 1
 
-    print "%5d Events in Directory: %s" % (nEve1, dir1)
+    print("%5d Events in Directory: %s" % (nEve1, dirs[0]))
 
 # second directory
     for filename in files2:
@@ -256,17 +272,17 @@ def main():
 
     iii = 0
     for filename in event2s:
-        fullname = join(dir2, filename)
+        fullname = join(dirs[1], filename)
         rs.read_spec_ast( fullname)
         rs.azel2radec()    # compute ra,dec from az,el
         mjd2s[iii] = rs.emjd
         peak2s[iii] = rs.epeak
         rms2s[iii] = rs.erms
         if (100 * int(iii/100) == iii) and doDebug:
-            print "Event %5d: %12.9f: %7.3f+/-%5.3f" % (iii, rs.emjd, rs.epeak, rs.erms)
+            print("Event %5d: %12.9f: %7.3f+/-%5.3f" % (iii, rs.emjd, rs.epeak, rs.erms))
         iii = iii + 1
 
-    print "%5d Events in Directory: %s" % (nEve2, dir2)
+    print("%5d Events in Directory: %s" % (nEve2, dirs[1]))
 
 # third directory
     for filename in files3:
@@ -300,17 +316,17 @@ def main():
 
     iii = 0
     for filename in event3s:
-        fullname = join(dir3, filename)
+        fullname = join(dirs[2], filename)
         rs.read_spec_ast( fullname)
         rs.azel2radec()    # compute ra,dec from az,el
         mjd3s[iii] = rs.emjd
         peak3s[iii] = rs.epeak
         rms3s[iii] = rs.erms
         if (100 * int(iii/100) == iii) and doDebug:
-            print "Event %5d: %12.9f: %7.3f+/-%5.3f" % (iii, rs.emjd, rs.epeak, rs.erms)
+            print("Event %5d: %12.9f: %7.3f+/-%5.3f" % (iii, rs.emjd, rs.epeak, rs.erms))
         iii = iii + 1
 
-    print "%5d Events in Directory: %s" % (nEve3, dir3)
+    print("%5d Events in Directory: %s" % (nEve3, dirs[2]))
 
 # forth directory
     for filename in files4:
@@ -344,17 +360,17 @@ def main():
 #read in all events in directory 4
     iii = 0
     for filename in event4s:
-        fullname = join(dir4, filename)
+        fullname = join(dirs[3], filename)
         rs.read_spec_ast( fullname)
         rs.azel2radec()    # compute ra,dec from az,el
         mjd4s[iii] = rs.emjd
         peak4s[iii] = rs.epeak
         rms4s[iii] = rs.erms
         if (100 * int(iii/100) == iii) and doDebug:
-            print "Event %5d: %12.9f: %7.3f+/-%5.3f" % (iii, rs.emjd, rs.epeak, rs.erms)
+            print("Event %5d: %12.9f: %7.3f+/-%5.3f" % (iii, rs.emjd, rs.epeak, rs.erms))
         iii = iii + 1
 
-    print "%5d Events in Directory: %s" % (nEve4, dir4)
+    print("%5d Events in Directory: %s" % (nEve4, dirs[3]))
 
 # there are 4 directories and 3 x 2 x 1 = 6 pairs of directories for matchs
 # for each of the directories there are 4 sets of files
@@ -519,16 +535,11 @@ def main():
             iMatch = iMatch + 1
             nMatch = nMatch + 1
             if doDebug:
-                print "Event %s Matches %s; Offset: %9.6f s" % (event1s[iii], event2s[jjj], dts)
-                print "%5d %18.9f: %5d %18.9f" % (iii, mjd1s[iii], jjj, mjd2s[jjj])
-            if doPlot:
-                eventAName = dir1 + "/" + event1s[iii]
-                eventBName = dir2 + "/" + event2s[jjj]
-                plotEvent = "~/bin/E %s %s" % (eventAName, eventBName)
-                os.system(plotEvent)
+                print("Event %s Matches %s; Offset: %9.6f s" % (event1s[iii], event2s[jjj], dts))
+                print("%5d %18.9f: %5d %18.9f" % (iii, mjd1s[iii], jjj, mjd2s[jjj]))
 
     nMatch12 = nMatch
-    print "Found %d Event Matches between directories 1 and 2" % (nMatch12)
+    print("Found %d Event Matches between directories 1 and 2" % (nMatch12))
 
 # find matches bewteen 1 and 3
     nMatch = 0
@@ -541,16 +552,11 @@ def main():
             iMatch = iMatch + 1
             nMatch = nMatch + 1
             if doDebug:
-                print "Event %s Matches %s; Offset: %9.6f s" % (event1s[iii], event3s[jjj], dts)
-                print "%5d %18.9f: %5d %18.9f" % (iii, mjd1s[iii], jjj, mjd3s[jjj])
-            if doPlot:
-                eventAName = dir1 + "/" + event1s[iii]
-                eventBName = dir3 + "/" + event3s[jjj]
-                plotEvent = "~/bin/E %s %s" % (eventAName, eventBName)
-                os.system(plotEvent)
+                print("Event %s Matches %s; Offset: %9.6f s" % (event1s[iii], event3s[jjj], dts))
+                print("%5d %18.9f: %5d %18.9f" % (iii, mjd1s[iii], jjj, mjd3s[jjj]))
 
     nMatch13 = nMatch
-    print "Found %d Event Matches between directories 1 and 3" % (nMatch13)
+    print("Found %d Event Matches between directories 1 and 3" % (nMatch13))
 
 # find matches between 1 and 4
     nMatch = 0
@@ -565,16 +571,12 @@ def main():
             iMatch = iMatch + 1
             nMatch = nMatch + 1
             if doDebug:
-                print "Event %s Matches %s; Offset: %9.6f s" % (event1s[iii], event4s[jjj], dts)
-                print "%5d %18.9f: %5d %18.9f" % (iii, mjd1s[iii], jjj, mjd4s[jjj])
-            if doPlot:
-                eventAName = dir1 + "/" + event1s[iii]
-                eventBName = dir4 + "/" + event4s[jjj]
-                plotEvent = "~/bin/E %s %s" % (eventAName, eventBName)
-                os.system(plotEvent)
+                print("Event %s Matches %s; Offset: %9.6f s" % (event1s[iii], event4s[jjj], dts))
+                print("%5d %18.9f: %5d %18.9f" % (iii, mjd1s[iii], jjj, mjd4s[jjj]))
+
 
     nMatch14 = nMatch
-    print "Found %d Event Matches between directories 1 and 4" % (nMatch14)
+    print("Found %d Event Matches between directories 1 and 4" % (nMatch14))
 
 # find matches between 2 and 3
     nMatch = 0
@@ -587,16 +589,11 @@ def main():
             iMatch = iMatch + 1
             nMatch = nMatch + 1
             if doDebug:
-                print "Event %s Matches %s; Offset: %9.6f s" % (event2s[iii], event3s[jjj], dts)
-                print "%5d %18.9f: %5d %18.9f" % (iii, mjd2s[iii], jjj, mjd3s[jjj])
-            if doPlot:
-                eventAName = dir2 + "/" + event2s[iii]
-                eventBName = dir3 + "/" + event3s[jjj]
-                plotEvent = "~/bin/E %s %s" % (eventAName, eventBName)
-                os.system(plotEvent)
+                print("Event %s Matches %s; Offset: %9.6f s" % (event2s[iii], event3s[jjj], dts))
+                print("%5d %18.9f: %5d %18.9f" % (iii, mjd2s[iii], jjj, mjd3s[jjj]))
 
     nMatch23 = nMatch
-    print "Found %d Event Matches between directories 2 and 3" % (nMatch23)
+    print("Found %d Event Matches between directories 2 and 3" % (nMatch23))
 
 # find matches between 2 and 4
     nMatch = 0
@@ -611,16 +608,11 @@ def main():
             iMatch = iMatch + 1
             nMatch = nMatch + 1
             if doDebug:
-                print "Event %s Matches %s; Offset: %9.6f s" % (event2s[iii], event4s[jjj], dts)
-                print "%5d %18.9f: %5d %18.9f" % (iii, mjd2s[iii], jjj, mjd4s[jjj])
-            if doPlot:
-                eventAName = dir2 + "/" + event2s[iii]
-                eventBName = dir4 + "/" + event4s[jjj]
-                plotEvent = "~/bin/E %s %s" % (eventAName, eventBName)
-                os.system(plotEvent)
+                print("Event %s Matches %s; Offset: %9.6f s" % (event2s[iii], event4s[jjj], dts))
+                print("%5d %18.9f: %5d %18.9f" % (iii, mjd2s[iii], jjj, mjd4s[jjj]))
 
     nMatch24 = nMatch
-    print "Found %d Event Matches between directories 2 and 4" % (nMatch24)
+    print("Found %d Event Matches between directories 2 and 4" % (nMatch24))
 
 # find matches between 3 and 4
     nMatch = 0
@@ -633,20 +625,15 @@ def main():
             iMatch = iMatch + 1
             nMatch = nMatch + 1
             if doDebug:
-                print "Event %s Matches %s; Offset: %9.6f s" % (event3s[iii], event4s[jjj], dts)
-                print "%5d %18.9f: %5d %18.9f" % (iii, mjd3s[iii], jjj, mjd4s[jjj])
-            if doPlot:
-                eventAName = dir3 + "/" + event3s[iii]
-                eventBName = dir4 + "/" + event4s[jjj]
-                plotEvent = "~/bin/E %s %s" % (eventAName, eventBName)
-                os.system(plotEvent)
+                print("Event %s Matches %s; Offset: %9.6f s" % (event3s[iii], event4s[jjj], dts))
+                print("%5d %18.9f: %5d %18.9f" % (iii, mjd3s[iii], jjj, mjd4s[jjj]))
 
     nMatch34 = nMatch
-    print "Found %d Event Matches between directories 3 and 4" % (nMatch34)
+    print("Found %d Event Matches between directories 3 and 4" % (nMatch34))
 
 # now for all matches found, find other matches
     nMatch = iMatch
-    print "Total number of pairs of matches: %d" % (nMatch)
+    print("Total number of pairs of matches: %d" % (nMatch))
 
     for iii in range(nMatch):
         mjd1 = 0
@@ -726,12 +713,12 @@ def main():
                     dtj = kkk
             if (dtMin < 2.*offset) and (dtj > 0):
                 match4s[iii] = dtj
-                print "Directory 4 has a third match: %3d %3d %3d %3d" % (match1s[iii], match2s[iii], match3s[iii], match4s[iii])
+                print("Directory 4 has a third match: %3d %3d %3d %3d" % (match1s[iii], match2s[iii], match3s[iii], match4s[iii]))
 
 # now finally count matches
     counts = np.arange(nMatch) * 0
 
-    print "Finding matches"
+    print("Finding matches")
     for iii in range(nMatch):
        count = 0
        if int(match1s[iii]) != 0:
@@ -746,32 +733,46 @@ def main():
 
     countns = np.arange(4) * 0
             
-    print "Finding 4 matches"
+    print("Finding 4 matches")
     for iii in range(nMatch):
+        matchevents = [ "", "", "", "", "", "", ""]
+        ematch = 0
         count = int(counts[iii])
         countns[count-1] = countns[count-1] + 1
         if count >= nPrint:
-            print "Event with %d Matches" % (count)
+            print("Event with %d Matches" % (count))
             j1 = int(match1s[iii])
             if j1 != 0:
-                print event1s[j1], mjd1s[j1]
+                print(event1s[j1], mjd1s[j1])
+                matchevents[ematch] = dirs[0]+"/"+event1s[j1]
+                ematch = ematch+1
             j2 = int(match2s[iii])
             if j2 != 0:
-                print event2s[j2], mjd2s[j2]
+                print(event2s[j2], mjd2s[j2])
+                matchevents[ematch] = dirs[1]+"/"+event2s[j2]
+                ematch = ematch+1
             j3 = int(match3s[iii])
             if j3 != 0:
-                print event3s[j3], mjd3s[j3]
+                print(event3s[j3], mjd3s[j3])
+                matchevents[ematch] = dirs[2]+"/"+event3s[j3]
+                ematch = ematch+1
             j4 = int(match4s[iii])
             if j4 != 0:
-                print event4s[j4], mjd4s[j4]
-    
+                print(event4s[j4], mjd4s[j4])
+                matchevents[ematch] = dirs[3]+"/"+event4s[j4]
+                ematch = ematch+1
+            if doPlot:
+                print("Found %d matching events: %s ... %s" % (ematch, matchevents[0], matchevents[ematch-1]))
+                plotEvent = "~/bin/E %s %s %s %s" % (matchevents[0], matchevents[1], matchevents[2], matchevents[3])
+                os.system(plotEvent)
+                
     nSum = 0
     for iii in range(3):
         jjj = iii + 1
-        print "%3d Events have %d Matches" % (countns[jjj], jjj+1)
+        print("%3d Events have %d Matches" % (countns[jjj], jjj+1))
         nSum = nSum + (jjj*countns[iii])
 
-    print "%3d Events had no Matches" % (nEve1+nEve2+nEve3+nEve4 - nSum)
+    print("%3d Events had no Matches" % (nEve1+nEve2+nEve3+nEve4 - nSum))
 
 if __name__ == "__main__":
     main()

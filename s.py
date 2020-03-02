@@ -14,13 +14,13 @@ dy = -1.
 
 nargs = len( sys.argv)
 if nargs < 2:
-    print 'S: Summarize a list of observations'
-    print 'S usage:'
-    print 'S [-v] <filenames>'
-    print 'where'
-    print '-v          optionally print verbose summary information'
-    print '<filenames> list of file names to summarize'
-    print '  Only *.ast, *.hot and *.cld files will be read. Others will be skipped'
+    print('S: Summarize a list of observations')
+    print('S usage:')
+    print('S [-v] <filenames>')
+    print('where')
+    print('-v          optionally print verbose summary information')
+    print('<filenames> list of file names to summarize')
+    print('  Only *.ast, *.hot and *.cld files will be read. Others will be skipped')
     exit()
 
 linestyles = ['-','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.']
@@ -69,7 +69,7 @@ for filename in names:
     if (parts[1] != 'ast') and (parts[1] != 'hot') and (parts[1] != 'cld'):
         continue
     if verbose:
-        print 'File: ',filename
+        print('File: ',filename)
     rs.read_spec_ast( filename)
     rs.azel2radec()    # compute ra,dec from az,el
 
@@ -99,11 +99,11 @@ for filename in names:
         if nread == 0:
             label = (labelfmt % (time,rs.telaz,rs.telel,gallon,gallat,freq,bw,gain,filename))
         elif nsame > 1:
-            print "%4d %s " % (nsame, label)
+            print("%4d %s " % (nsame, label))
         label = labelfmt % (time,rs.telaz,rs.telel,gallon,gallat,freq,bw,gain, filename)
         if nread == 0:
-            print 'Count  Time    Az    El   G-Lon G-Lat  Frequency  BW   Gain    Filename'
-        print "%4d %s " % (1, label)
+            print('Count  Time    Az    El   G-Lon G-Lat  Frequency  BW   Gain    Filename')
+        print("%4d %s " % (1, label))
         nsame = 1
     else:
         nsame = nsame + 1
@@ -112,4 +112,4 @@ for filename in names:
     label = labelfmt % (time,rs.telaz,rs.telel,gallon,gallat,freq,bw,gain, filename)
 
 if nsame > 0:
-    print "%4d %s " % (nsame, label)
+    print("%4d %s " % (nsame, label))

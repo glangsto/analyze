@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# find the plotting program
+if [ -e xcorr.py ]
+then
+    python xcorr.py "$@"
+else
+    if [ -e ~/bin/xcorr.py ]
+    then
+       python ~/bin/xcorr.py "$@"
+    fi     
+fi

@@ -29,6 +29,9 @@ avetimesec = 3600.
 # put your list of known RFI features here.  Must have at least two.
 linelist = [1400.00, 1420.0]  # RFI lines in MHz
 linewidth = [5, 5]
+# min and maximum default velocities
+maxvel = 220.
+minvel = -maxvel
 
 nargs = len(sys.argv)
 #first argument is the averaging time in seconds
@@ -50,6 +53,18 @@ doDebug = False
 myTitle = ""      # Default no input title
 
 iarg = 1
+if nargs < 3:
+    print("T: Comput Tsys calibrated horn observations")
+    print("Usage: T [-F] [-L <velocity>] [-H <velocity>] <average_seconds> <files>")
+    print("Where <average_seconds>: Number of seconds of observations to average.")
+    print("-F optionally do a polynomial baseline fit")
+    print("-L optionally set the low velocity region for baseline fit")
+    print("-H optionall set the high velocity region for baseline fit")
+    print("Observation file list must include at least one hot load file")
+    print("")
+    print("Glen Langston - NSF   November 22, 2019")
+    exit()
+
 # for all arguments, read list and exit when no flag argument found
 while iarg < nargs:
 
@@ -61,6 +76,14 @@ while iarg < nargs:
         flagRfi = True
     elif sys.argv[iarg].upper() == '-C':
         flagCenter = True
+    elif sys.argv[iarg].upper() == '-H':
+        iarg = iarg+1
+        maxvel = np.float( sys.argv[iarg])
+        print('Maximum (high) velocity for sum: %7.2f km/sec' % (maxvel))
+    elif sys.argv[iarg].upper() == '-L':
+        iarg = iarg+1
+        minvel = np.float( sys.argv[iarg])
+        print('Minium (low)  velocity for sum: %7.2f km/sec' % (minvel))
     elif sys.argv[iarg].upper() == '-T':   # if plot title provided
         iarg = iarg+1
         myTitle = sys.argv[iarg]
@@ -94,18 +117,6 @@ xallmin = 9.e9
 yallmax = -9.e9
 yallmin = 9.e9
 # velocities for fitting baselines
-minvel = -450.
-minvel = -280.
-maxvel = 210.
-# currently used
-maxvel = 160.
-minvel = -160.
-# currently used
-maxvel = 180.
-minvel = -550.
-# currently used
-maxvel = 200.
-minvel = -180.
 
 c = 299792.  # (v km/sec)
 nuh1 = 1420.4056 # neutral hydrogen frequency (MHz)
@@ -172,9 +183,10 @@ for filename in names:
     if rs.telel < 0:
         if nhot == 0:
             hot = copy.deepcopy( rs)
+            hot.ydataA = (rs.ydataA/rs.count)
             nhot = 1
         else:
-            hot.ydataA = hot.ydataA + rs.ydataA
+            hot.ydataA = hot.ydataA + (rs.ydataA/rs.count)
             hot.count = hot.count + rs.count
             nhot = nhot + 1
     else: # else above horizon, find min, max galactic latitudes
@@ -266,6 +278,7 @@ for filename in names:
 
     rs = radioastronomy.Spectrum()
     rs.read_spec_ast(filename)
+    print( "Spectrum count: %d " % (rs.count))
     rs.azel2radec()    # compute ra,dec from az,el
     if doFold:
         rs.foldfrequency()
@@ -276,10 +289,10 @@ for filename in names:
     if rs.gallat > maxGlat or rs.gallat < minGlat:
         if nhigh == 0:
             high = copy.deepcopy( rs)
-            high.ydataA = rs.ydataA
+            high.ydataA = (rs.ydataA/rs.count)
             nhigh = 1
         else:
-            high.ydataA = high.ydataA + rs.ydataA
+            high.ydataA = high.ydataA + (rs.ydataA/rs.count)
             high.count = high.count + rs.count
             nhigh = nhigh + 1
 
@@ -321,11 +334,13 @@ def average_spec( ave_spec, in_spec, nave, firstutc, lastutc):
         nave = 1
         # print( 'Xmin: ', min(ave_spec.xdata)/1e6, 'Xmax: ', max(ave_spec.xdata),' MHz')
         # sums are weighted by durations
+        in_spec.ydataA = in_spec.ydataA/in_spec.count
         ave_spec.ydataA = in_spec.ydataA * in_spec.durationSec
         # keep track of observing time for weighted sum
         ave_spec.durationSec = in_spec.durationSec
     else: # else not enough time yet, average ave_spec data
         lastutc = in_spec.utc
+        in_spec.ydataA = in_spec.ydataA/in_spec.count
         ave_spec.count = ave_spec.count + in_spec.count
         nave = nave + 1
         ave_spec.ydataA = ave_spec.ydataA + (in_spec.ydataA * in_spec.durationSec)
@@ -637,7 +652,8 @@ for tick in ax1.yaxis.get_major_ticks():
 #plt.xlim(-400., 250.)      # set velocity range for particular investigation
 #plt.xlim(-600., 300.)
 #plt.xlim(-350., 350.)
-plt.xlim(-250., 250.)
+#plt.xlim(-250., 250.)
+plt.xlim(minvel, maxvel)
 # keep the plot from becoming too narrow
 dy = yallmax - yallmin
 if dy < 8:
