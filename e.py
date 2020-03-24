@@ -2,6 +2,7 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#20Mar24 GIL increment color in plot order
 #20Feb08 GIL date to title
 #19NOV08 GIL add title option, switch to micro-seconds
 #19OCT10 GIL also show ra and dec
@@ -18,7 +19,7 @@ dy = -1.
 
 nargs = len( sys.argv)
 
-linestyles = ['-','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.']
+linestyles = ['-','-.','--','-.','--','-','--','--','--','-.','-','--','-.','-','--','-.','-','--','-','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.']
 colors = ['-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g']
 
 scalefactor = 1e8
@@ -28,6 +29,8 @@ yallmax = -9.e9
 yallmin =  9.e9
 mytitle = ""      # define plot title
 doDebug = False
+doAzEl = False
+doMag = False
 
 linelist = [1420.0, 1418.0]  # RFI lines in MHz
 linewidth = [7, 7]
@@ -35,14 +38,15 @@ linewidth = [7, 7]
 if nargs < 2:
     print("E: Plot Events")
     print("Usage: ")
-    print(" E [-T 'My Plot Title'] fileNames ")
+    print(" E [-A] [-T 'My Plot Title'] fileNames ")
     print("where:")
     print("  -T <plot title String> Enables user labeling of the plot")
     print("")
     print("Where many parameters are optional:")
-    print("-B Subtract a linear baseline fit to Spectra at Min and Max Velocities")
+    print("-A Show Az,El instead of Ra,Dec")
+    print("-M Compute Magnitude")
     print("")
-    print("Glen Langston - 2019 November 8")
+    print("Glen Langston - 2020 March 24")
     exit()
 
 namearg = 1
@@ -57,6 +61,10 @@ while iarg < nargs:
     elif sys.argv[iarg].upper() == '-D':   # if debugging
         doDebug = True
         print("-D Additional Debug printing.")
+    elif sys.argv[iarg].upper() == '-A':   # if labeling AzEl
+        doAzEl = True
+    elif sys.argv[iarg].upper() == '-M':   # if labeling AzEl
+        doMag = True
     else:
         break
     iarg = iarg+1
@@ -106,7 +114,10 @@ for iii in range(namearg, min(nargs,25)):
     gallat = rs.gallat
     ra = rs.ra
     dec = rs.dec
-    label = '%s R,D: %6.2f,%6.2f, Lon,Lat=%5.1f,%5.1f' % ( time,rs.ra,rs.dec,gallon,gallat)
+    if doAzEl:
+        label = '%s A,E: %5.1f,%5.1f' % ( time,rs.telaz,rs.telel)
+    else:
+        label = '%s R,D: %6.2f,%6.2f, Lon,Lat=%5.1f,%5.1f' % ( time,rs.ra,rs.dec,gallon,gallat)
     xs = rs.xdata * 1.E6
     ya = rs.ydataA
     yb = rs.ydataB
@@ -114,23 +125,32 @@ for iii in range(namearg, min(nargs,25)):
         print("Not an Event: ",filename)
         continue
 
-    xv = np.zeros(rs.nSamples*2)
-    yv = np.zeros(rs.nSamples*2)
     j = 0
     # convert time offsets to micro-seconds
     dt = 1.E6 * 0.5/rs.bandwidthHz
-    t = -2. * dt * rs.refSample
-    if iii == -1:  # no op
-        print("First Time %12.9f (s); Delta T = %12.9f (s)" % (t, dt))
-    for i in range(rs.nSamples):
-        yv[j] = ya[i]
-        xv[j] = t
-        j = j + 1
-        t = t + dt
-        yv[j] = yb[i]
-        xv[j] = t
-        j = j + 1
-        t = t + dt
+    if doMag:   # if plotting magnitude
+        xv = np.zeros(rs.nSamples)
+        yv = np.zeros(rs.nSamples)
+        t = -dt * rs.refSample
+        for i in range(rs.nSamples):
+            y  = (ya[i]*ya[i]) + (yb[i]*yb[i])
+            yv[j] = np.sqrt(y)
+            xv[j] = t
+            j = j + 1
+            t = t + dt
+    else:
+        xv = np.zeros(rs.nSamples*2)
+        yv = np.zeros(rs.nSamples*2)
+        t = -2. * dt * rs.refSample
+        for i in range(rs.nSamples):
+            yv[j] = ya[i]
+            xv[j] = t
+            j = j + 1
+            t = t + dt
+            yv[j] = yb[i]
+            xv[j] = t
+            j = j + 1
+            t = t + dt
         
     xmin = min(xv)
     xmax = max(xv)
@@ -158,7 +178,7 @@ for iii in range(namearg, min(nargs,25)):
         title = mytitle + " Az,El: %6.1f,%6.1f - %s" % (rs.telaz, rs.telel, date)
         fig,ax1 = plt.subplots(figsize=(10,6))
         fig.canvas.set_window_title(title)
-        nplot = nplot + 1
+    nplot = nplot + 1
     note = rs.noteA
     yallmin = min(ymin,yallmin)
     yallmax = max(ymax,yallmax)
@@ -166,7 +186,7 @@ for iii in range(namearg, min(nargs,25)):
     plt.ylim(yallmin,1.25*yallmax)
 
 
-    plt.plot(xv, yv, colors[iii-1], linestyle=linestyles[iii-1],label=label)
+    plt.plot(xv, yv, colors[nplot-1], linestyle=linestyles[nplot-1],label=label)
 plt.title(title)
 plt.xlabel('Time Offset From Event (micro-seconds)')
 plt.ylabel('Intensity (Counts)')
