@@ -1,6 +1,7 @@
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#20APR01 GIL reduce printout
 #19DEC30 GIL add title option
 #19SEP23 GIL use function for averaging 
 #19SEP21 GIL fix finding extra spectrum
@@ -278,7 +279,7 @@ for filename in names:
 
     rs = radioastronomy.Spectrum()
     rs.read_spec_ast(filename)
-    print( "Spectrum count: %d " % (rs.count))
+#    print( "Spectrum count: %d " % (rs.count))
     rs.azel2radec()    # compute ra,dec from az,el
     if doFold:
         rs.foldfrequency()

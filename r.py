@@ -2,6 +2,7 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#20Apr01 GIL update for new python environment
 #20FEB15 GIL normalize for different integration times
 #19DEC30 GIL add title option
 #17NOV21 GIL use time in file to show date and time
