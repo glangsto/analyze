@@ -1,6 +1,10 @@
 1#Python Script to plot calibrated/baseline-fit  NSF record data.
 #plot the raw data from the observation
 #HISTORY
+#20Apr16 GIL use external baseline fitting function
+#20Apr09 GIL updated polynomial fit inputs, was computing 3rd order, not 2nd order
+#20Apr06 GIL incorperate gain factor measurements as test before mapping
+#20Apr04 GIL allow lower Galactic Latitude
 #20Feb15 GIL normalize for number of spectra averaged
 #20JAN03 GIL compute 20 RMSs across the spectrum and take the median of these as representative
 #20JAN02 GIL compute RMS in signal free region; test for gain correction
@@ -29,6 +33,8 @@ import datetime as dt
 import radioastronomy
 import copy
 import interpolate
+import gainfactor as gf
+
 try:
     from PyAstronomy import pyasl
     baryCenterAvailable = True
@@ -80,11 +86,15 @@ flagRfi = True
 doFold = False
 # specify lowest  elevation for cold load averge
 lowel = 60.
+# default baseline fitting is 2nd order
+fitOrder = 2
 # optionally turn on debug plotting
 doPoly = False
 doRa = True
 doDebug = False
 nGain = 20
+# processor index for gain update; zero means no gain update
+pIndex = 0
 firstRun = True
 myTitle = ""      # Default no input title
 maxvel = 220.
@@ -99,7 +109,19 @@ while iarg < nargs:
         print('Folding specectra')
         doFold = True
     elif sys.argv[iarg].upper() == '-F':
+        iarg = iarg+1
+        fitOrder = int( sys.argv[iarg])
+        if fitOrder < 0:
+            fitOrder = 0
+        elif fitOrder > 10:
+            fitOrder = 10
         doPoly = True
+        if fitOrder == 0:
+            print("Fitting a constant baseline")
+        elif fitOrder == 1:
+            print("Fitting a linear baseline")
+        else:
+            print("Fitting a %d-nd order polynomical baseline" % (fitOrder))
     elif sys.argv[iarg].upper() == '-R':
         flagRfi = True
     elif sys.argv[iarg].upper() == '-C':
@@ -108,6 +130,10 @@ while iarg < nargs:
         iarg = iarg+1
         nGain = int( sys.argv[iarg])
         print('Dividing the Spectrum into %3d chunks and computing RMS for each' % (nGain))
+    elif sys.argv[iarg].upper() == '-I':
+        iarg = iarg+1
+        pIndex = int( sys.argv[iarg])
+        print('Updating Gain using processor Index %d' % (pIndex))
     elif sys.argv[iarg].upper() == '-L':
         iarg = iarg+1
         minvel = np.float( sys.argv[iarg])
@@ -161,23 +187,6 @@ thot = 285.0  # define hot and cold
 tcold = 10.0
 tmin = 20.0 
 tmax = 999.0 # define reasoanable value limits
-
-def fit_baseline( xs, ys, imin, imax, nchan):
-    """
-    fit baseline does a polynomical fit over channels in a select range
-    The baseline is returned.
-    """
-    
-    xfit = np.concatenate( (xs[imin-nchan:imin+nchan],xs[imax-nchan:imax+nchan]))
-    yfit = np.concatenate( (ys[imin-nchan:imin+nchan],ys[imax-nchan:imax+nchan]))
-# calculate polynomial
-    z = np.polyfit(xfit, yfit, 3)
-    f = np.poly1d(z)
-
-# calculate new x's and y's
-    yout = f(xs)
-
-    return yout
 
 def average_spec( ave_spec, in_spec, nave, firstutc, lastutc):
     """
@@ -303,8 +312,9 @@ def compute_tsky_hotcold( yv, gain, vel, minvel, maxvel):
     nfit = 10
     # if fitting a polynomial
     if doPoly:
-        baseline = fit_baseline( vel, tsys, imin, imax, 2*nfit)
+        baseline = gf.fit_baseline( vel, tsys, imin, imax, 2*nfit, fitOrder)
         tsys = tsys - baseline
+    #        tsys = baseline  ; as a test, plotted only the baseline fit
     else: # else a linear baseline
         ya = np.median(tsys[(imin-nfit):(imin+nfit)])
         yb = np.median(tsys[(imax-nfit):(imax+nfit)])
@@ -428,17 +438,18 @@ xa, xb = velocity_to_indicies( vel, minvel, maxvel)
 print('Min Vel, channel: ',xa, minvel)
 print('Max Vel, channel: ',xb, maxvel)
 
-if doDebug:
+#if doDebug:
+if True:
     print('Min,Max Galactic Latitudes %7.1f,%7.1f (d)' % (minGlat, maxGlat))
 
 # assume only a limited range of galactic latitudes are available
 # not range about +/-60.
 use60Range = False
 
-# all galactic latitudes above +/-60d can be used
-if minGlat < -60. or maxGlat > 60.:
-    minGlat = -60.
-    maxGlat = 60.
+# all galactic latitudes above minimum can be used for calibration
+if (minGlat < -50.) or (maxGlat > 50.):
+    minGlat = -50.
+    maxGlat = 50.
 else: # else no high galactic latitude data
     # use highest galactic latitudes - +/-5.degrees
     if -minGlat > maxGlat:  # if negative latitudes higher
@@ -448,11 +459,14 @@ else: # else no high galactic latitude data
         maxGlat = maxGlat - 5.
         minGlat = -90.
 
+if True:
+    print('Min,Max Galactic Latitudes %7.1f,%7.1f (d)' % (minGlat, maxGlat))
+
 # but if no low latitude data are available use minimum
 # now average coldest data for calibration
+rs = radioastronomy.Spectrum()
 for filename in names:
 
-    rs = radioastronomy.Spectrum()
     rs.read_spec_ast(filename)
     rs.azel2radec()    # compute ra,dec from az,el
     if doFold:
@@ -461,7 +475,9 @@ for filename in names:
     if rs.telel < lowel:  #if elevation too low for a cold load obs
         continue
 
-    if rs.gallat > maxGlat or rs.gallat < minGlat:
+    if (rs.gallat > maxGlat) or (rs.gallat < minGlat):
+        if doDebug:
+            print ("%s: %7.1f %7.1f" % (filename, rs.gallon, rs.gallat))
         if nhigh == 0:
             high = copy.deepcopy( rs)
             high.ydataA = rs.ydataA/rs.count
@@ -485,6 +501,7 @@ else:
 gain = np.zeros(nData)
 for iii in range(nData):
     gain[iii] = (hv[iii] - cv[iii])/(thot - tcold)
+#    gain[iii] = hv[iii]/thot
     vel[iii] = c * (nuh1 - xv[iii])/nuh1
 
 #now want gain using only hot counts, but must add in Tsys
@@ -584,20 +601,6 @@ for filename in names:
 
     newAzEl = (lastaz != rs.telaz) or (lastel != rs.telel)
     newObs = (lastfreq != rs.centerFreqHz) or (lastbw != rs.bandwidthHz) or (lastgain != rs.gains[0]) or newAzEl
-    if newObs:
-        if lastfreq != rs.centerFreqHz:
-            print("Change: LastFreq: ", lastfreq/1e6, "New: ", rs.centerFreqHz/1e6, " MHz")
-            lastfreq = rs.centerFreqHz
-        if lastbw != rs.bandwidthHz:
-            print("Change: LastBandwidth: ", lastbw/1e6, "New: ", rs.bandwidthHz/1e6, " MHz")
-            lastbw = rs.bandwidthHz
-        if lastgain != rs.gains[0]:
-            print("Change: LastGain: ", lastgain, "New: ", rs.gains[0], " dB")
-            lastgain = rs.gains[0]
-        if newAzEl:
-            print("Change: LastAzEl: ", lastaz,lastel, "New: ", rs.telaz,rs.telel, " degrees")
-            lastaz = rs.telaz
-            lastel = rs.telel
 
     # time difference is between mid-points of integrations
     DT = DT + (rs.utc - cold.utc)
@@ -635,7 +638,7 @@ for filename in names:
         ncolor = min(nmax-1, nplot)  # select color for this spectrum
 
         # compute velocity correction for this direction and date
-        corr = compute_vbarycenter( cold)
+        corr = gf.compute_vbarycenter( cold)
         velcorr = vel + corr
 
         tsky = compute_tsky_hotcold( yv, gain, velcorr, minvel, maxvel)
@@ -654,10 +657,6 @@ for filename in names:
         rmsmax = max( rmss)
         rmsmed = np.median( rmss)
 
-        ymin = min(tsky[xa:xb])
-        ymax = max(tsky[xa:xb])
-        yallmin = min(ymin,yallmin)
-        yallmax = max(ymax,yallmax)
         # compute average time from first and last utcs
         aveutc,duration = radioastronomy.aveutcs( firstutc, lastutc)
         if doDebug and (efirstutc == lastutc):
@@ -690,6 +689,16 @@ for filename in names:
         if doRa:
             label = label + ' R,D=%5.1f,%5.1f' % (cold.ra, cold.dec)
 
+        if pIndex > 0:
+            gainfactor = gf.compute_gain_factor( pIndex, aveutc, el)
+            print("Gain Factor: %7.2f; for Index %d, %s, %7.1f" % (gainfactor, pIndex, aveutc, el))
+            tsky = gainfactor * tsky
+
+        ymin = min(tsky[xa:xb])
+        ymax = max(tsky[xa:xb])
+        yallmin = min(ymin,yallmin)
+        yallmax = max(ymax,yallmax)
+
         if nplot < 1:
             print('    Max     Median              RMSs           N      Time   Galactic ')
             print('    (K)      (K)      Median    Bottom    Top  Ave            Lon, Lat ')
@@ -704,6 +713,20 @@ for filename in names:
         nplot = nplot + 1
         ncold = 0
 
+    if newObs:
+        if lastfreq != rs.centerFreqHz:
+            print("Change: LastFreq: ", lastfreq/1e6, "New: ", rs.centerFreqHz/1e6, " MHz")
+            lastfreq = rs.centerFreqHz
+        if lastbw != rs.bandwidthHz:
+            print("Change: LastBandwidth: ", lastbw/1e6, "New: ", rs.bandwidthHz/1e6, " MHz")
+            lastbw = rs.bandwidthHz
+        if lastgain != rs.gains[0]:
+            print("Change: LastGain: ", lastgain, "New: ", rs.gains[0], " dB")
+            lastgain = rs.gains[0]
+        if newAzEl:
+            print("Change: LastAzEl: ", lastaz,lastel, "New: ", rs.telaz,rs.telel, " degrees")
+            lastaz = rs.telaz
+            lastel = rs.telel
     # end if a cold file
     if allFiles:
         break

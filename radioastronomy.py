@@ -2,6 +2,7 @@
 Class defining a Radio Frequency Spectrum
 Includes reading and writing ascii files
 HISTORY
+20APR16 GIL add recording of tSys, tRx, tRms
 19NOV22 GIL reduce digits of spectral intensity
 19NOV08 GIL add 3 more digits to Event MJD 
 19SEP14 GIL only use gains[] to store SDR gains
@@ -74,6 +75,22 @@ clight = 299792458. # speed of light in m/sec
 #
 TIMEPARTS = 2   # define time axis of an event; only I and Q 
 #TIMEPARTS = 4  # defien time axis of an event; N Time I and Q
+
+def utcToName( utc):
+    """ 
+    utcToName: returns the 'standard' ascii name of a file for utc date and time
+    input:  utc - datetime value
+    output: ascii string
+    """
+    strnow = utc.isoformat()
+    # separate seconds from fraction of a second
+    datestr = strnow.split('.')
+    daypart = datestr[0]
+    # remove 20 from 2019 dates
+    yymmdd = daypart[2:19]
+    yymmdd = yymmdd.replace(":", "")
+    return yymmdd
+        
 
 def degree2float(instring, hint):
     """
@@ -338,7 +355,13 @@ class Spectrum(object):
         self.etaA = .8 # antenna efficiency (range 0 to 1)
         self.etaB = .99 # efficiency main beam (range 0 to 1)
         self.bunit = 'Counts'       # brightness units
-        self.version = str("2.0.1")
+        self.tSys = 200.            # System Temperature (Kelvins)
+        self.tRx = 100.             # Receiver Temperature (Kelvins)
+        self.tRms = 2.              # Uncertainty in Sys measurement
+        self.tint = 1.              # Average time for tRms+tSys measurement
+        self.KperC = 100.           # Kelvins per Count
+        self.gainFactor = 1.        # Gain Factor to normalize relative to other horns
+        self.version = str("3.0.1")
         self.polA = str("X")        # polariation of A ydata: X, Y, R, L,
         self.polB = str("Y")        # polariation of B ydata: X, Y, R, L,
         self.polAngle = float(0.0)  # orientation of polariation of A
@@ -448,7 +471,8 @@ class Spectrum(object):
         """
     # need the current time to update coordiantes
         now = self.utc
-        print("File %4d: %s (%d)" % (self.writecount, outname, self.count))
+        if self.writecount > 0:
+            print("File %4d: %s (%d)" % (self.writecount, outname, self.count))
         fullname = dirname + outname
         outfile = open(fullname, 'w')
         outfile.write('# File: ' + outname + '\n')
@@ -518,6 +542,18 @@ class Spectrum(object):
         outline = '# Duration  = '  + str(self.durationSec) + '\n'
         outfile.write(outline)
         outline = '# DeltaX    = '  + str(self.deltaFreq) + '\n'
+        outfile.write(outline)
+        outline = '# TSYS      = '  + str(self.tSys) + '\n'
+        outfile.write(outline)
+        outline = '# TRX       = '  + str(self.tRx) + '\n'
+        outfile.write(outline)
+        outline = '# TRMS      = '  + str(self.tRms) + '\n'
+        outfile.write(outline)
+        outline = '# TINT      = '  + str(self.tint) + '\n'
+        outfile.write(outline)
+        outline = '# KPERC     = '  + str(self.KperC) + '\n'
+        outfile.write(outline)
+        outline = '# GAINFACT  = '  + str(self.gainFactor) + '\n'
         outfile.write(outline)
         outline = '# BUNIT     = '  + str(self.bunit).strip() + '\n'
         outfile.write(outline)
@@ -661,21 +697,16 @@ class Spectrum(object):
         Write ascii file containing astronomy data
         File name is based on time of observation
         """
-        now = self.utc
-        strnow = now.isoformat()
-        datestr = strnow.split('.')
-        daypart = datestr[0]
-        yymmdd = daypart[2:19]
-        # distinguish hot load and regular observations
+        outname = utcToName(self.utc)
+        # distinguish events and hot load obs from regular observations
         if self.nSpec <= 0:               # if not a spectrum
-            outname = yymmdd + '.eve'     # must be an event
+            outname = outname + '.eve'    # must be an event
             self.nTime = 1
         else:                             # else a spectrum
             if self.telel > 0:
-                outname = yymmdd + '.ast'
+                outname = outname + '.ast'
             else:
-                outname = yymmdd + '.hot'
-        outname = outname.replace(":", "")
+                outname = outname + '.hot'
         self.write_ascii_file(dirname, outname)
 
     def write_ascii_ave(self, dirname):
@@ -684,10 +715,7 @@ class Spectrum(object):
         File name is based on time of observation
         """
         now = self.utc
-        strnow = now.isoformat()
-        datestr = strnow.split('.')
-        daypart = datestr[0]
-        yymmdd = daypart[2:19]    # actually date and time parts
+        yymmdd = utcToName( now)
         yymmdd = yymmdd + "-ave"  # distiguish averages from observations
         # distinguish hot load and regular observations
         extension = '.ast'
@@ -698,7 +726,6 @@ class Spectrum(object):
         else:
             extension = '.ast'
         outname = yymmdd + extension
-        outname = outname.replace(":", "")
         self.write_ascii_file(dirname, outname)
 
     def read_spec_ast(self, fullname):
