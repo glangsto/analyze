@@ -1,6 +1,8 @@
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#20APR22 GIL improve estimate of integrated intensity
+#20APR21 GIL fix up integrated intensities and velocities
 #20APR17 GIL add option to plot baseline-subtracted obs
 #20APR16 GIL complete logging of calibration values
 #20APR14 GIL add log of calibration values
@@ -41,6 +43,8 @@ except:
     print("sudo pip3 install PyAstronomy")
     baryCenterAvailable = False
 
+# Maximum number of Plots
+maxPlot = int(25)
 # default values
 avetimesec = 3600.
 # put your list of known RFI features here.  Must have at least two.
@@ -50,8 +54,8 @@ linewidth = [5, 5]
 maxvel = 220.
 minvel = -maxvel
 # min and max velocities for intensity integration
-maxIVel = 150.  # symetric integration
-minIVel = -maxIVel
+maxSVel = 150.  # symetric integration
+minSVel = -maxSVel
 # cpu Index for normalizing gain values
 cpuIndex = 0
 # Keep/plot baseline Subtracted spectra
@@ -76,7 +80,7 @@ doFold = False
 # specify lowest  elevation for cold load averge
 lowel = 60.
 # define fitOrder for intensity measurement
-fitOrder = int(2)
+fitOrder = int(1)
 
 # optionally turn on debug plotting
 doDebug = False
@@ -147,6 +151,13 @@ while iarg < nargs:
         iarg = iarg+1
         myTitle = sys.argv[iarg]
         print( 'Plot Title : ', myTitle)
+    elif sys.argv[iarg].upper() == '-N':   # if number of spectra to plot
+        iarg = iarg+1
+        maxPlot = int(sys.argv[iarg])
+        if maxPlot < 1:
+            print("Not Plotting")
+        else:
+            print("Plot will have a maximum of %d spectra" % (maxPlot))
     elif sys.argv[iarg].upper() == '-S':   # if save file name provided
         iarg = iarg+1
         saveFile = sys.argv[iarg]
@@ -445,7 +456,10 @@ def compute_tsky_hotcold( xv, yv, hv, cv, thot, tcold):
     return tsky, vel
 # end of compute_tsky_hotcold()
 
-fig, ax1 = plt.subplots(figsize=(10, 6))
+# if plotting
+if maxPlot > 0:
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+
 #plt.hold(True)
 az = hot.telaz
 el = hot.telel
@@ -457,8 +471,6 @@ trx = np.zeros(nData)
 zeros = np.zeros(nData)
 
 avetime = datetime.timedelta(seconds=avetimesec)
-
-#plt.plot(vel, hv, colors[0], linestyle=linestyles[3],label="hot")
 
 nRead = 0        
 
@@ -562,6 +574,7 @@ for filename in names:
             ncolor = min(nmax-1, nplot) 
 
             tsky, vel = compute_tsky_hotcold( xv, yv, hv, cv, thot, tcold)
+            # get tsys from averages of ends of spectra
             tSys = np.median(tsky[n6:n56])
             tStdA = np.std(tsky[n6:n26])
             tStdB = np.std(tsky[n46:n56])
@@ -584,7 +597,7 @@ for filename in names:
             imin, imax = gf.velocity_to_indicies( velcorr, minvel, maxvel)
 
             # compute indicies for min and max velocity to integrate
-            iVmin, iVmax = gf.velocity_to_indicies( velcorr, minIVel, maxIVel)
+            iVmin, iVmax = gf.velocity_to_indicies( velcorr, minSVel, maxSVel)
 
             # compute average time from first and last utcs
             aveutc,duration = radioastronomy.aveutcs( firstutc, lastutc)
@@ -597,62 +610,91 @@ for filename in names:
             cold.azel2radec()    # compute ra,dec from az,el and average utc
             gallon = cold.gallon
             gallat = cold.gallat
-            label = 'L,L=%5.1f,%5.1f' % (gallon, gallat)
+            label = 'L,L=%5.1f,%6.1f' % (gallon, gallat)
             
             # this code computes and subtracts a baseline so that source intensities can be compared.
             # next compute the integrated intensities after baseline subtraction
-            baseline = gf.fit_baseline( vel[0:nData], tsky[0:nData], imin, imax, 10, fitOrder)
+            baseline = gf.fit_baseline( velcorr[0:nData], tsky[0:nData], imin, imax, 10, fitOrder)
 
             # remove baseline to get the source spectrum
             tSource = tsky[0:nData] - baseline[0:nData]
-            tSourcemin = min(tSource[imin:imax])
-            tSourcemax = max(tSource[imin:imax])
-            iSourcemax = np.argmax(tSource[imin:imax])
-            velSource = vel[iSourcemax+imin]
 
             # if plotting/keeping the baseline subtracted spectra, transfer to Sky
             if doBaseline:
                 tsky = tSource
 
+            # set min and max y for plotting (only)
             ymin = min(tsky[imin:imax])
             ymax = max(tsky[imin:imax])
-            yallmin = min(ymin,yallmin)
-            yallmax = max(ymax,yallmax)
 
-            tSum = 0.
+            # now compute integrated intensity and noise estimates
+            nv = iVmax - iVmin
+            # create sub-arrays of intensity and velocity
+            tSs = tSource[iVmin:iVmax]
+            vSs = velcorr[iVmin:iVmax]
+            tSourcemin = min(tSs)
+            tSourcemax = max(tSs)
+            # get index to maximum value; then get velocity
+            iSourcemax = np.argmax(tSs)
+            velSource = vSs[iSourcemax]
+
             # integrate over spectrum for required velocity range
-            for iii in range(iVmin, iVmax, 1):
-                tSum = tSum + tSource[iii]
-            dTSum = np.std( tSource[iVmin:iVmax])*(maxIVel-minIVel)
-            # Integration is reported in Kelvins*Km/Sec
-            tSumKmSec = tSum * ( maxIVel - minIVel)
+            tSum = np.sum(tSs)
+#            tSumRms = np.std(tSs)*np.sqrt(nv)
+            tSumRms = np.std(tSs)
+            # Integration is reported in Kelvin*Km/Sec;  Multiply by source velocity range
+            tSumKmSec = tSum * ( maxSVel - minSVel)
+            dTSumKmSec = tSumRms * ( maxSVel - minSVel)
+
+            # computed the integrated velocity
+            tvs = tSs*vSs
+            tVSum = np.sum(tvs)
+            tVSumRms = np.std(tvs)
+
+            # now compute intensity weighted velocity
+            if tSum > 0.:
+                tVSum = tVSum/tSum
+                tVSumRms = tVSumRms/tSum
+            else:
+                tVSum=0.
+
+            nChan2 = int(cold.nChan/2)
+            dV = (velcorr[nChan2] - velcorr[nChan2 - 4])*.25
+            if dV < 0:
+                dV = - dV
             # print diagnostic of integration
             if (doDebug):
-                nSumChan = iVmax - iVmin
-                tAve = tSumKmSec/float(nSumChan)
-                print("Average Intensity: %7.3f K +/- %6.3f (%d)" % (tAve, dTSum, nSumChan))
+                print("Min, max Velocity   : %7.1f  to %6.1f; %d,%d" % (minvel,maxvel, imin, imax))
+                print("Min, max Velocity I : %7.1f  to %6.1f; %d,%d" % (minSVel,maxSVel, iVmin, iVmax))
+                print("Average Intensity(K): %7.3f +/- %6.3f K (%d)" % (tSum/nv, tSumRms/nv, nv))
+                print("Int.  Vel.  K km/s  : %7.0f +/- %6.0f K*km/sec" % (tSumKmSec,  dTSumKmSec))
+                print("Peak    Velocity    : %7.1f +/- %6.1f km/sec (%d)" % (velSource,  dV, iSourcemax))
+                print("Integrated Velocity : %7.1f +/- %6.1f km/sec" % (tVSum,  tVSumRms))
 
             avedatetime = cold.utc.isoformat()
             datestr = avedatetime.split('T')
             atime = datestr[1]
             timeparts = atime.split('.')
             labeltime = timeparts[0]
-            label = '%s, A,E: %5s,%5s, L,L: %5.1f,%5.1f' % (labeltime, az, el, gallon, gallat)
+            label = '%s, A,E: %5s,%5s, L,L: %5.1f,%6.1f' % (labeltime, az, el, gallon, gallat)
             if minel == maxel:
                 label = '%s L,L=%5.1f,%5.1f (%d)' % (labeltime, gallon, gallat, ncold)
             else:
-                label = '%s L,L=%5.1f,%4.1f A,E=%4.0f,%4.0f' % (labeltime, gallon, gallat, az, el)
+                label = '%s L,L=%5.1f,%5.1f A,E=%4.0f,%4.0f' % (labeltime, gallon, gallat, az, el)
             print( ' Max: %9.1f  Median: %8.2f +/- %5.2f %3d %s' % (tSourcemax, tSys, tStd, ncold, label))
-            if gallat < 7.5 and gallat > -7.5:
-                plt.plot(vel, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label, lw=4)
-            elif gallat < 15. and gallat > -15.:
-                plt.plot(vel, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label, lw=2)
-            else:
-                plt.plot(vel, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label)
+            if int(nplot) < int(maxPlot):
+                yallmin = min(ymin,yallmin)
+                yallmax = max(ymax,yallmax)
+                if gallat < 7.5 and gallat > -7.5:
+                    plt.plot(velcorr, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label, lw=4)
+                elif gallat < 15. and gallat > -15.:
+                    plt.plot(velcorr, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label, lw=2)
+                else:
+                    plt.plot(velcorr, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label)
             nplot = nplot + 1
             # this code computes and subtracts a baseline so that source intensities can be compared.
 
-            gf.saveTsysValues( saveFile, cold, cpuIndex, tSourcemax, velSource, tSumKmSec, dTSum)
+            gf.saveTsysValues( saveFile, cold, cpuIndex, tSourcemax, velSource, dV, tVSum, tVSumRms, tSumKmSec, dTSumKmSec)
             if writeTsys:
                 cold.ydataA = tsky
                 outname = radioastronomy.utcToName( aveutc)
@@ -719,6 +761,8 @@ if minel == maxel:
 else:
     myTitle = myTitle + " El=%6.1f to %6.1f" % (minel, maxel)
 
+if (maxPlot < 1) or (nplot < 1):
+    exit()
 fig.canvas.set_window_title(myTitle)
 for tick in ax1.xaxis.get_major_ticks():
     tick.label.set_fontsize(14) 

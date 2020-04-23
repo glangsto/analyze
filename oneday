@@ -1,0 +1,37 @@
+#!/bin/bash
+# Script to run through a day's observations and save integrated intensities
+# HISTORY
+# 20APR23 GIL initial version
+
+export archivehome=~/archive
+
+if [ -z "$1" ]
+then
+    echo "oneday: Calibrate and log integrated intensities for one day of observation"
+    echo "usage: oneday <day> <YearMonth>"
+    echo "where <day> 	Daynumber matching directory name ie the 9th is 09"
+    echo "where <YearMonth> is optional year month, if not the current default"
+    echo "for example:"
+    echo "ondday 09 20Apr"
+    echo ""
+    echo "To process all data from the 9th of April 2020"
+    echo ""
+    exit -1
+else
+# ie export DAY=08
+    export DAY=$1
+fi
+
+if [ -z "$2" ]
+then
+    export YearMonth="20Apr"
+else
+    export YearMonth=$2
+fi    
+
+export ADATE=$YearMonth$DAY
+echo "Summarizing all observations from day $ADATE"
+export PI=2; cd pi$PI-data-$ADATE;  T -N 0 -B -F 1 -MINEL 40. -I $PI 3600. *.hot *.ast; cd ..
+export PI=3; cd pi$PI-data-$ADATE;  T -N 0 -B -F 1 -MINEL 40. -I $PI 3600. *.hot *.ast; cd ..
+export PI=4; cd pi$PI-data-$ADATE;  T -N 0 -B -F 1 -MINEL 40. -I $PI 3600. *.hot *.ast; cd ..
+export PI=5; cd pi$PI-data-$ADATE;  T -N 0 -B -F 1 -MINEL 40. -I $PI 3600. *.hot *.ast; cd ..

@@ -1,5 +1,8 @@
 #Python function to compute gain factor for different processor indicies, dates and elevations
 #HISTORY
+#20APR22 GIL clean up save labels
+#20APR21 GIL add intensity weighted velocity error 
+#20APR20 GIL add intensity weighted velocity moment
 #20APR17 GIL add peak source in velocity range to log
 #20APR16 GIL add reading and writing of gain factor logs
 #20APR06 GIL initial version based on holdcold.py
@@ -8,6 +11,7 @@ import sys
 import datetime
 import numpy as np
 import radioastronomy
+import os.path
 
 try:
     from PyAstronomy import pyasl
@@ -143,7 +147,7 @@ def velocity_to_indicies( vel, minvel, maxvel):
         imax = temp
     return imin, imax
 
-def saveTsysValues( saveFile, cSpec, cpuIndex, tSourcemax, velSource, integratedK, rmsIntegratedK):
+def saveTsysValues( saveFile, cSpec, cpuIndex, tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec):
     """ 
     saveTsysValues - saves the calibration values for this calibrated observation
     where
@@ -174,12 +178,23 @@ def saveTsysValues( saveFile, cSpec, cpuIndex, tSourcemax, velSource, integrated
     if saveFile == "":
         saveFile = "../" + date + ".sav"
 
+    # determine if the file exists already
+    oldFile = os.path.isfile(saveFile)
+
     f = open(saveFile, "a+")
-    #          1 2   3   4     5     6    7      8      9     10       11    12    13
-    #         Date   cpu  az    el  tSys  tRx   tRms tSource vSource tint   K/C   factor
-    f.write( "%s %s %2d %6.1f %6.1f %7.2f %7.2f %6.2f %7.3f %6.1f %6.0f, %7.2f %9.1f %7.1f %6.3f\r\n" % 
-             (date, time, cpuIndex, cSpec.telaz, cSpec.telel, cSpec.tSys, cSpec.tRx, cSpec.tRms, tSourcemax, velSource,
-              cSpec.tint, cSpec.KperC, integratedK, rmsIntegratedK, cSpec.gainFactor))
+
+    # if a new file, then need to add the header
+    if not oldFile:
+        f.write( "#  Date    Time   Tel  Az     El     Tsys    Trx    Trms     Time  K/Count    Peak    Peak  Vel.     Sum Vel.   ")
+        f.write( "Sum Intensity   Scale \r\n")
+        f.write( "#                  #   (d)    (d)     (K)     (K)    (K)     (s)              (K)     (km/s) +/-    (km/s) +/-  ")
+        f.write( " (K km/s) +/-   Factor\r\n")
+        
+    #          1 2   3   4     5     6    7      8       9    10     11    11    12     13    14      15    16     17
+    #         Date   cpu  az    el  tSys  tRx   tRms   tint   K/C   tPeak, vel    dv   VSum   Vrms,  KInt  dKInt factor
+    f.write( "%s %s %2d %6.1f %6.1f %7.2f %7.2f %6.2f %7.0f %6.1f %7.3f %7.1f %5.1f %7.1f %5.1f %7.0f %7.0f %7.3f\r\n" % 
+             (date, time, cpuIndex, cSpec.telaz, cSpec.telel, cSpec.tSys, cSpec.tRx, cSpec.tRms, cSpec.tint, cSpec.KperC, 
+              tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec, cSpec.gainFactor))
     f.close()
     # end of saveTsysValues()
 
