@@ -1,6 +1,8 @@
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#20APR25 GIL use average_spec() and normalize_spec() for hot+cold
+#20APR24 GIL optionally save raw hot and cold load obs
 #20APR22 GIL improve estimate of integrated intensity
 #20APR21 GIL fix up integrated intensities and velocities
 #20APR17 GIL add option to plot baseline-subtracted obs
@@ -86,6 +88,8 @@ fitOrder = int(1)
 doDebug = False
 myTitle = ""      # Default no input title
 saveFile = ""     # Default no saveFileName
+hotLoadFile = ""
+coldLoadFile = ""
 
 iarg = 1
 if nargs < 3:
@@ -113,8 +117,11 @@ while iarg < nargs:
     # if folding data
     if sys.argv[iarg].upper() == '-B':
         doBaseline = True
-    elif sys.argv[iarg].upper() == '-Z':
-        doFold = True
+    elif sys.argv[iarg].upper() == '-C':
+        flagCenter = True
+    elif sys.argv[iarg].upper() == '-D':
+        print( 'Adding Debug Printing')
+        doDebug = True
     elif sys.argv[iarg].upper() == '-F':
         iarg = iarg+1
         fitOrder = int( sys.argv[iarg])
@@ -129,12 +136,12 @@ while iarg < nargs:
             print("Fitting a linear baseline")
         else:
             print("Fitting a %d-nd order polynomical baseline" % (fitOrder))
-    elif sys.argv[iarg].upper() == '-R':
-        flagRfi = True
-    elif sys.argv[iarg].upper() == '-C':
-        flagCenter = True
-    elif sys.argv[iarg].upper() == '-W':
-        writeTsys = True
+    elif sys.argv[iarg].upper() == '-G':
+        iarg = iarg+1
+        hotLoadFile = sys.argv[iarg]
+        iarg = iarg+1
+        coldLoadFile = sys.argv[iarg]
+        print("Gain calibration Using Hot Load Obs: %s and Cold Obs: %s" % (hotLoadFile, coldLoadFile))
     elif sys.argv[iarg].upper() == '-H':
         iarg = iarg+1
         maxvel = np.float( sys.argv[iarg])
@@ -147,10 +154,6 @@ while iarg < nargs:
         iarg = iarg+1
         minvel = np.float( sys.argv[iarg])
         print('Minium (low)  velocity for sum: %7.2f km/sec' % (minvel))
-    elif sys.argv[iarg].upper() == '-T':   # if plot title provided
-        iarg = iarg+1
-        myTitle = sys.argv[iarg]
-        print( 'Plot Title : ', myTitle)
     elif sys.argv[iarg].upper() == '-N':   # if number of spectra to plot
         iarg = iarg+1
         maxPlot = int(sys.argv[iarg])
@@ -158,6 +161,12 @@ while iarg < nargs:
             print("Not Plotting")
         else:
             print("Plot will have a maximum of %d spectra" % (maxPlot))
+    elif sys.argv[iarg].upper() == '-R':
+        flagRfi = True
+    elif sys.argv[iarg].upper() == '-T':   # if plot title provided
+        iarg = iarg+1
+        myTitle = sys.argv[iarg]
+        print( 'Plot Title : ', myTitle)
     elif sys.argv[iarg].upper() == '-S':   # if save file name provided
         iarg = iarg+1
         saveFile = sys.argv[iarg]
@@ -166,9 +175,10 @@ while iarg < nargs:
         iarg = iarg + 1
         lowel = float( sys.argv[iarg])
         print( "Using elevations > %7.2f (d) for Cold load calculation" % (lowel))
-    elif sys.argv[iarg].upper() == '-D':
-        print( 'Adding Debug Printing')
-        doDebug = True
+    elif sys.argv[iarg].upper() == '-W':
+        writeTsys = True
+    elif sys.argv[iarg].upper() == '-Z':
+        doFold = True
     else:
         break
     iarg = iarg + 1
@@ -228,7 +238,81 @@ names = sorted(names)
 nFiles = len(names)
 # create the spectrum class/structure to receive spectra
 rs = radioastronomy.Spectrum()
-    
+ave_hot  = radioastronomy.Spectrum()
+ave_cold = radioastronomy.Spectrum()
+
+def average_spec( ave_spec, in_spec, nave, firstutc, lastutc):
+    """
+    Averages spectra and deal with issues of weighting functions by observing duration
+    input/output
+    ave_spec   spectrum structure containing weighted average
+    input:
+    in_spec    spectrum to be added to the average
+    in/out:
+    nave       Count of number of spectra averaged so far.
+               nave = 0 implies initializing the sum.
+    firstutc   date of first observation averaged
+    lastutc    date of current last date of spectrum to be averaged
+    """
+
+    if doDebug:
+        medianData = np.median( in_spec.ydataA[n6:n56])
+    # remove number of spectra averaged scaling.
+    in_spec.ydataA = (in_spec.ydataA/in_spec.count) 
+    if doDebug:
+        medianScale = np.median( in_spec.ydataA[n6:n56])
+        print( "Input: %8.3f, count: %6d; Scale: %8.3f" % (medianData, in_spec.count, medianScale))
+
+    # if restarting the sum
+    if nave == 0:
+        ave_spec = copy.deepcopy(in_spec)  # initial spectrum is one just read
+        firstutc = in_spec.utc
+        lastutc = in_spec.utc
+        nave = 1
+        # print( 'Xmin: ', min(ave_spec.xdata)/1e6, 'Xmax: ', max(ave_spec.xdata),' MHz')
+        # sums are weighted by durations
+        ave_spec.ydataA = in_spec.ydataA * in_spec.durationSec  # replace with duration scaleing
+        # keep track of observing time for weighted sum
+        ave_spec.durationSec = in_spec.durationSec
+    else: # else not enough time yet, average ave_spec data
+        if in_spec.utc < firstutc:
+            firstutc = in_spec.utc
+        elif in_spec.utc > lastutc:
+            lastutc = in_spec.utc
+        ave_spec.count = ave_spec.count + in_spec.count
+        nave = nave + 1
+        ave_spec.ydataA = ave_spec.ydataA + (in_spec.ydataA * in_spec.durationSec)
+        # keep track of observing time for weighted sum
+        ave_spec.durationSec = ave_spec.durationSec + in_spec.durationSec
+    return ave_spec, in_spec, nave, firstutc, lastutc
+
+def normalize_spec( ave_spec, nave, firstutc, lastutc):
+    """
+    Normaize the average after completing sum
+    input/output
+    ave_spec   input raw sum of observation 
+               output normalized sum of observations
+    nave       input number of spectra averaged, output zero
+    input      first and last utcs in observation
+    Note:  The count of observations is not used, rather the integration
+    is weighted by durations.  This corrects for observations with 
+    different integration times.
+    """
+    # now renormalize for total integration time
+    ave_spec.ydataA = ave_spec.ydataA/float(ave_spec.durationSec)
+    # compute average time from first and last utcs
+    aveutc, duration = radioastronomy.aveutcs( firstutc, lastutc)
+    ave_spec.utc = aveutc
+    #need to re-calculate representative RA,Dec for average time
+    ave_spec.azel2radec()
+    nave = 0
+    return ave_spec, nave
+
+# record the time range of hot load observations and count of observations
+firstutc = 0
+lastutc = 0    
+nhot = 0
+
 # now run through and find hot and cold loads obs
 for filename in names:
 
@@ -252,20 +336,15 @@ for filename in names:
 
     rs.read_spec_ast(filename)
     rs.azel2radec()    # compute ra,dec from az,el
-    if doFold:
-        rs.foldfrequency()
 
+    # if a hot load observation
     if rs.telel < 0:
-        if nhot == 0:
-            hot = copy.deepcopy( rs)
-            hot.ydataA = (rs.ydataA/rs.count) * rs.durationSec
-            hot.durationSec = rs.durationSec
-            nhot = 1
-        else:
-            hot.ydataA = hot.ydataA + ((rs.ydataA/rs.count) * rs.durationSec)
-            hot.durationSec = hot.durationSec + rs.durationSec
-            hot.count = hot.count + rs.count
-            nhot = nhot + 1
+        if doFold:
+            rs.foldfrequency()
+            
+        # accumulate spectra
+        ave_hot, rs, nhot, firstutc, lastutc = \
+            average_spec( ave_hot, rs, nhot, firstutc, lastutc)
     else: # else above horizon, find min, max galactic latitudes
         if rs.gallat > maxGlat:
             maxGlat = rs.gallat
@@ -275,26 +354,31 @@ for filename in names:
             minel = rs.telel
         if maxel < rs.telel:
             maxel = rs.telel
+        # track if multiple azimuths
         if firstaz < 0:
             firstaz = rs.telaz
             otheraz = firstaz
         if firstaz != rs.telaz:
             otheraz = rs.telaz
-            
+
+    # end for all files
+
 if nhot > 0:
-    hot.ydataA = hot.ydataA / float(hot.durationSec)
-    print( "Found %3d Hot load observations" % nhot)
+    print( "Found %3d Hot load observations" % (nhot))
+    ave_hot, nhot = normalize_spec( ave_hot, nhot, firstutc, lastutc)
 else:
     print( "No Hot load data, can not calibrate")
     exit()
 
 # convert to MHz
-xv = hot.xdata * 1.E-6
-hv = copy.deepcopy(hot.ydataA)
+xv = ave_hot.xdata * 1.E-6
+hv = copy.deepcopy(ave_hot.ydataA)
+
 #previously just copy
 if flagRfi:
     yv = copy.deepcopy(hv)
     hv = interpolate.lines( linelist, linewidth, xv, yv) # interpolate rfi
+    ave_hot.ydataA = hv
 
 nData = len( xv)        # get data length and indicies for middle of spectra 
 n6 = int(nData/6)
@@ -398,40 +482,6 @@ gainA = np.median(gain[n6:n26])
 gainB = np.median(gain[n46:n56])
 gainAve = 2.0/(gainA + gainB)  # Report gain in K per Count 
 
-# if this was a new obs; restart the sums
-
-def average_spec( ave_spec, in_spec, nave, firstutc, lastutc):
-    """
-    Averages spectra and deal with issues of weighting functions by observing duration
-    """
-
-    if doDebug:
-        medianData = np.median( in_spec.ydataA[n6:n56])
-    in_spec.ydataA = (in_spec.ydataA/in_spec.count) # remove number of spectra averaged scaling.
-    if doDebug:
-        medianScale = np.median( in_spec.ydataA[n6:n56])
-        print( "Input: %8.3f, count: %6d; Scale: %8.3f" % (medianData, in_spec.count, medianScale))
-
-    # if restarting the sum
-    if nave == 0:
-        ave_spec = copy.deepcopy(in_spec)  # initial spectrum is one just read
-        firstutc = in_spec.utc
-        lastutc = in_spec.utc
-        nave = 1
-        # print( 'Xmin: ', min(ave_spec.xdata)/1e6, 'Xmax: ', max(ave_spec.xdata),' MHz')
-        # sums are weighted by durations
-        ave_spec.ydataA = in_spec.ydataA * in_spec.durationSec  # replace with duration scaleing
-        # keep track of observing time for weighted sum
-        ave_spec.durationSec = in_spec.durationSec
-    else: # else not enough time yet, average ave_spec data
-        lastutc = in_spec.utc
-        ave_spec.count = ave_spec.count + in_spec.count
-        nave = nave + 1
-        ave_spec.ydataA = ave_spec.ydataA + (in_spec.ydataA * in_spec.durationSec)
-        # keep track of observing time for weighted sum
-        ave_spec.durationSec = ave_spec.durationSec + in_spec.durationSec
-    return ave_spec, in_spec, nave, firstutc, lastutc
-
 def compute_tsky_hotcold( xv, yv, hv, cv, thot, tcold):
     """
     Compute TSky based on hot and coold load observations
@@ -460,12 +510,6 @@ def compute_tsky_hotcold( xv, yv, hv, cv, thot, tcold):
 if maxPlot > 0:
     fig, ax1 = plt.subplots(figsize=(10, 6))
 
-#plt.hold(True)
-az = hot.telaz
-el = hot.telel
-count = hot.count
-ncold = 0
-
 # compute the reciever temperature
 trx = np.zeros(nData)
 zeros = np.zeros(nData)
@@ -473,6 +517,7 @@ zeros = np.zeros(nData)
 avetime = datetime.timedelta(seconds=avetimesec)
 
 nRead = 0        
+nave = 0
 
 # now read through all data and average cold sky obs
 for filename in names:
@@ -524,14 +569,14 @@ for filename in names:
         lastgain = rs.gains[0]
         lastaz = rs.telaz
         lastel = rs.telel
-        cold = copy.deepcopy( rs)
+        ave_spec = copy.deepcopy( rs)
         firstutc = rs.utc
         lastutc = rs.utc
-        ncold = 0
+        nave = 0
 
-    if ncold > 0:
+    if nave > 0:
         # time difference is between mid-points of integrations
-        dt = rs.utc - cold.utc 
+        dt = rs.utc - ave_spec.utc 
         # add the time since midpoint of latests
         dt = dt + datetime.timedelta(seconds=rs.durationSec)
         lastdate = date
@@ -540,27 +585,25 @@ for filename in names:
         newObs = (lastfreq != rs.centerFreqHz) or (lastbw != rs.bandwidthHz) or (lastgain != rs.gains[0]) or newAzEl
         # if this is the last file and there was not a change in observing setup 
         if allFiles and (not newObs):
-            if rs.nChan != cold.nChan:
-                print("File Size Error: %d != %d for file %s; Skipping ..." % (rs.nChan, cold.nChan, filename))
+            if rs.nChan != ave_spec.nChan:
+                print("File Size Error: %d != %d for file %s; Skipping ..." % (rs.nChan, ave_spec.nChan, filename))
             else:
-                cold, rs, ncold, firstutc, lastutc = average_spec( cold, rs, ncold, firstutc, lastutc)
+                cold, rs, nave, firstutc, lastutc = average_spec( cold, rs, nave, firstutc, lastutc)
 
         # if time to average (or end of all files)
         if (dt > avetime) or newObs or allFiles:
-            # now renormalize for total integration time
-            cold.ydataA = cold.ydataA/float(cold.durationSec)
             if doDebug:
-                medianData = np.median( cold.ydataA[n6:n56])
-                print( "Average duration: %7.1f, Median:  %8.3f" % (cold.durationSec, medianData))
+                medianData = np.median( ave_spec.ydataA[n6:n56])
+                print( "Average duration: %7.1f, Median:  %8.3f" % (ave_spec.durationSec, medianData))
 
             # not calibrating hot load observations.
-            if cold.telel < 0.:
+            if ave_spec.telel < 0.:
                 # Reset the ncold count and restart sum
-                ncold = 0
+                nave = 0
                 continue
-
-            xv = cold.xdata * 1.E-6  # covert to MHz
-            yv = cold.ydataA 
+            ave_spec, nave = normalize_spec( ave_spec, nave, firstutc, lastutc)
+            xv = ave_spec.xdata * 1.E-6  # covert to MHz
+            yv = ave_spec.ydataA 
             if flagRfi:
                 yv = interpolate.lines( linelist, linewidth, xv, yv) # interpolate rfi
 
@@ -568,8 +611,8 @@ for filename in names:
             xmax = max(xv)
             xallmin = min(xmin, xallmin)
             xallmax = max(xmax, xallmax)
-            count = cold.count
-            note = cold.noteA
+            count = ave_spec.count
+            note = ave_spec.noteA
                     #print('%s' % note)
             ncolor = min(nmax-1, nplot) 
 
@@ -582,12 +625,12 @@ for filename in names:
             cB = np.median(cv[n46:n56])
             counts = (cA+cB)/2.
             tStd = (tStdA+tStdB)/2.
-            cold.tSys = tSys
-            cold.tRx = tRxMiddle
-            cold.tRms = tStd
-            cold.tint = cold.durationSec
-            cold.bunit = 'Kelvins'
-            cold.KperC = gainAve
+            ave_spec.tSys = tSys
+            ave_spec.tRx = tRxMiddle
+            ave_spec.tRms = tStd
+            ave_spec.tint = ave_spec.durationSec
+            ave_spec.bunit = 'Kelvins'
+            ave_spec.KperC = gainAve
             
             # compute velocity correction for this direction and date
             corr = gf.compute_vbarycenter( cold)
@@ -599,17 +642,14 @@ for filename in names:
             # compute indicies for min and max velocity to integrate
             iVmin, iVmax = gf.velocity_to_indicies( velcorr, minSVel, maxSVel)
 
-            # compute average time from first and last utcs
-            aveutc,duration = radioastronomy.aveutcs( firstutc, lastutc)
 
             # keep the average time, but use the duration from the integration times.
-            cold.utc = aveutc 
             # pull out coordinates for labeling
-            az = cold.telaz
-            el = cold.telel
-            cold.azel2radec()    # compute ra,dec from az,el and average utc
-            gallon = cold.gallon
-            gallat = cold.gallat
+            az = ave_spec.telaz
+            el = ave_spec.telel
+            ave_spec.azel2radec()    # compute ra,dec from az,el and average utc
+            gallon = ave_spec.gallon
+            gallat = ave_spec.gallat
             label = 'L,L=%5.1f,%6.1f' % (gallon, gallat)
             
             # this code computes and subtracts a baseline so that source intensities can be compared.
@@ -658,7 +698,7 @@ for filename in names:
             else:
                 tVSum=0.
 
-            nChan2 = int(cold.nChan/2)
+            nChan2 = int(ave_spec.nChan/2)
             dV = (velcorr[nChan2] - velcorr[nChan2 - 4])*.25
             if dV < 0:
                 dV = - dV
@@ -671,17 +711,17 @@ for filename in names:
                 print("Peak    Velocity    : %7.1f +/- %6.1f km/sec (%d)" % (velSource,  dV, iSourcemax))
                 print("Integrated Velocity : %7.1f +/- %6.1f km/sec" % (tVSum,  tVSumRms))
 
-            avedatetime = cold.utc.isoformat()
+            avedatetime = ave_spec.utc.isoformat()
             datestr = avedatetime.split('T')
             atime = datestr[1]
             timeparts = atime.split('.')
             labeltime = timeparts[0]
             label = '%s, A,E: %5s,%5s, L,L: %5.1f,%6.1f' % (labeltime, az, el, gallon, gallat)
             if minel == maxel:
-                label = '%s L,L=%5.1f,%5.1f (%d)' % (labeltime, gallon, gallat, ncold)
+                label = '%s L,L=%5.1f,%5.1f (%d)' % (labeltime, gallon, gallat, nave)
             else:
                 label = '%s L,L=%5.1f,%5.1f A,E=%4.0f,%4.0f' % (labeltime, gallon, gallat, az, el)
-            print( ' Max: %9.1f  Median: %8.2f +/- %5.2f %3d %s' % (tSourcemax, tSys, tStd, ncold, label))
+            print( ' Max: %9.1f  Median: %8.2f +/- %5.2f %3d %s' % (tSourcemax, tSys, tStd, nave, label))
             if int(nplot) < int(maxPlot):
                 yallmin = min(ymin,yallmin)
                 yallmax = max(ymax,yallmax)
@@ -696,12 +736,13 @@ for filename in names:
 
             gf.saveTsysValues( saveFile, cold, cpuIndex, tSourcemax, velSource, dV, tVSum, tVSumRms, tSumKmSec, dTSumKmSec)
             if writeTsys:
-                cold.ydataA = tsky
+                ave_spec.ydataA = tsky
                 outname = radioastronomy.utcToName( aveutc)
                 outname = outname + ".kel"  # output in Kelvins
-                cold.count = 1
-                cold.write_ascii_file("../", outname)                
-            ncold = 0
+                ave_spec.count = 1
+                ave_spec.write_ascii_file("../", outname)                
+# flag restarting the sum
+            nave = 0
 
         if newObs:
             if lastfreq != rs.centerFreqHz:
@@ -725,10 +766,10 @@ for filename in names:
 
     if rs.telel > 0:
     # Average in most recently read spectrum
-        if rs.nChan != cold.nChan:
-            print("File Size Error: %d != %d for file %s; Skipping ..." % (rs.nChan, cold.nChan, filename))
+        if rs.nChan != ave_spec.nChan:
+            print("File Size Error: %d != %d for file %s; Skipping ..." % (rs.nChan, ave_spec.nChan, filename))
         else:
-            cold, rs, ncold, firstutc, lastutc = average_spec( cold, rs, ncold, firstutc, lastutc)
+            ave_spec, rs, nave, firstutc, lastutc = average_spec( ave_spec, rs, nave, firstutc, lastutc)
 
     #end for all files to sum
 # end of all files to read
