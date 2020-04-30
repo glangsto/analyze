@@ -92,6 +92,7 @@ linestyles = ['-','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','-
 colors = ['-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g']
 
 scalefactor = 1e8
+scalefactor = 1.0
 xallmax = -9.e9
 xallmin =  9.e9
 yallmax = -9.e9
@@ -143,8 +144,8 @@ for iii in range(namearg, min(nargs,20)):
     nData = len( xv)
     n6 = int(nData/6)
     n56 = 5*n6
-    # normize for different integration times
 
+    # normize for different integration times
     rs.ydataA = rs.ydataA/rs.count
     yv = rs.ydataA
 

@@ -1,6 +1,7 @@
 #!/bin/bash
 # Script to run through a day's observations and save integrated intensities
 # HISTORY
+# 20APR30 GIL special version for partial calibration
 # 20APR23 GIL initial version
 
 export archivehome=~/archive
@@ -31,7 +32,6 @@ fi
 
 export ADATE=$YearMonth$DAY
 echo "Summarizing all observations from day $ADATE"
-export PI=2; cd pi$PI-data-$ADATE;  T -K -N 0 -B -F 1 -MINEL 40. -I $PI 3600. *.hot *.ast; cd ..
-export PI=3; cd pi$PI-data-$ADATE;  T -K -N 0 -B -F 1 -MINEL 40. -I $PI 3600. *.hot *.ast; cd ..
-export PI=4; cd pi$PI-data-$ADATE;  T -K -N 0 -B -F 1 -MINEL 40. -I $PI 3600. *.hot *.ast; cd ..
-export PI=5; cd pi$PI-data-$ADATE;  T -K -N 0 -B -F 1 -MINEL 40. -I $PI 3600. *.hot *.ast; cd ..
+export PI=3; cd pi$PI-data-$ADATE;  T -K -N 0 -B -F 1 -MINEL 40. -I $PI 3600. *T203*.hot *T2[123]*.ast *28T*; cd ..
+export PI=4; cd pi$PI-data-$ADATE;  T -K -N 0 -B -F 1 -MINEL 40. -I $PI 3600. *T203*.hot *T2[0123]*.ast *28T*; cd ..
+export PI=5; cd pi$PI-data-$ADATE;  T -K -N 0 -B -F 1 -MINEL 40. -I $PI 3600. *T20[12]*.hot *T2[0123]*.ast *28T*; cd ..

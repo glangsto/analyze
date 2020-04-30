@@ -31,7 +31,15 @@ fi
 
 export ADATE=$YearMonth$DAY
 echo "Summarizing all observations from day $ADATE"
-export PI=2; cd pi$PI-data-$ADATE;  T -K -N 0 -B -F 1 -MINEL 40. -I $PI 3600. *.hot *.ast; cd ..
-export PI=3; cd pi$PI-data-$ADATE;  T -K -N 0 -B -F 1 -MINEL 40. -I $PI 3600. *.hot *.ast; cd ..
-export PI=4; cd pi$PI-data-$ADATE;  T -K -N 0 -B -F 1 -MINEL 40. -I $PI 3600. *.hot *.ast; cd ..
-export PI=5; cd pi$PI-data-$ADATE;  T -K -N 0 -B -F 1 -MINEL 40. -I $PI 3600. *.hot *.ast; cd ..
+export HOT=../T2-20-04-09T071901.hot 
+export COLD=../T2-20-04-09T053503.cld
+export PI=2; cd pi$PI-data-$ADATE;  T -A $HOT $COLD -K -N 0 -B -F 1 -I $PI 600. *.ast; cd ..
+export HOT=../T3-20-04-12T091240.hot
+export COLD=../T3-20-04-15T162151.cld
+export PI=3; cd pi$PI-data-$ADATE;  T -A $HOT $COLD -K -N 0 -B -F 1 -I $PI 600. *.ast; cd ..
+export HOT=../T4-20-04-12T091258.hot
+export COLD=../T4-20-04-15T162217.cld
+export PI=4; cd pi$PI-data-$ADATE;  T -A $HOT $COLD -K -N 0 -B -F 1 -I $PI 600. *.ast; cd ..
+export HOT=../T5-20-04-12T090254.hot
+export COLD=../T5-20-04-11T163028.cld
+export PI=5; cd pi$PI-data-$ADATE;  T -A $HOT $COLD -K -N 0 -B -F 1 -I $PI 600. *.ast; cd ..
