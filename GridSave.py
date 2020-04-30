@@ -4,18 +4,17 @@ Model to use the GridClass to make an image of radio astronomical observations
 # Functions to create a grid and place astronomical data on that
 # grid with a convolving function
 # HISTORY
-# 19SEP23 GIL slightly bigger map in declination
-# 18FEB19 GIL possibly grid max
-# 17FEB03 GIL add comments and cleanup
-# 17JAN28 GIL finish initial version
-# 17JAN09 GIL initial version based on mandelbrot() python example
+# 20APR30 GIL initial version based on GridObs.py
 
 import sys
 import numpy as np
 #from numba import jit
 from matplotlib import pyplot as plt
 #from matplotlib import colors
+import datetime
 import GridClass
+import radioastronomy
+import gainfactor
 
 def main():
     """
@@ -29,7 +28,7 @@ def main():
     myheight = int(height*dpi)
     FWHM = 7.5  # degrees
     FWHM = 10.0  # degrees
-    FWHM = 1.0  # degrees
+    FWHM = 5.0  # degrees
     weight = 1.
 
     nargs = len(sys.argv)
@@ -82,56 +81,63 @@ def main():
         print('1st argument should be either RA, -RA or GAL')
         exit()
 
+    rs = radioastronomy.Spectrum()
 
     #create the grid with map parameters
     mygrid = GridClass.Grid(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, width=width, \
                                 height=height, dpi=dpi, FWHM=FWHM, \
                                 projection="Mercator", gridtype=gridtype)
 
+# coldfile 
+    coldfile = sys.argv[2]
+# get telescope geographic location etc
+    print("Reading Observing parameters from: %s" % (coldfile))
+    rs.read_spec_ast(coldfile)
+    print("Observer: %s " % (rs.observer))
+
 # first read through all data and find hot load
-    names = sys.argv[2:]
+    names = sys.argv[3:]
     names = sorted(names)
 
     firsttime = ""
     lasttime = ""
     count = 0
+    # for all save Files to Grid
     for filename in names:
+        print("File: %s" % (filename))
         f = open(filename)
-        lines = f.readlines()
-        f.close()
 
-        for line in lines:
-            line = line.strip()
+        date = "Unknown"
+        while date != "":
+            date, time, cpuIndex, telaz, telel, tSys, tRx, tRms, tint, KperC, tSourcemax, velSource, dV, tVSum, tVSumRms, tSumKmSec, dTSumKmSec, gainFactor = gainfactor.readSaveValues( f)
+            dlen = len(date)
+            if dlen < 1:
+                break
+            if date[0] == "#":
+                continue
+            # else not a comment process the line
             count = count + 1
-            if len(line) < 10:
-                continue
-            if line[0] == '#':
-                continue
-            parts = line.split()
-            if len(parts) < 5:
-                continue
-            try:
-                float(parts[0])
-            except ValueError:
-                print("Not a float")
-                print('Parts: ', parts)
-                continue
-            ra = float(parts[0])
-            dec = float(parts[1])
-            lon = float(parts[2])
-            lat = float(parts[3])
-            tsum = float(parts[4])
-            tsdv = float(parts[5])
-            tmax = float(parts[6])
-            vave = float(parts[7])
-            vsdv = float(parts[8])
-            el = float(parts[9])
-            n = float(parts[10])
-            time = parts[11]
+            isodate = "20"+date+"T"+time
+#            print("DateTime: %s" % (isodate))
+            rs.utc = datetime.datetime.strptime(isodate,"%Y-%m-%dT%H:%M:%S")
+#            print("Utc: %s" % (rs.utc))
+            rs.telaz = telaz
+            rs.telel = telel
+            rs.azel2radec()
+
+            ra = rs.ra
+            dec = rs.dec
+            lon = rs.gallon
+            lat = rs.gallat
+            tsum = tSumKmSec
+            tsdv = dTSumKmSec
+            tmax = tSourcemax
+            vave = tVSum
+            vsdv = tVSumRms
             if firsttime == "":
-                firsttime = time
+                firsttime = date
             else:
-                lasttime = time
+                lasttime = date
 
 #            if vave > -100. and vave < 100:
 #                mygrid.convolve( lon, lat, vave, 1.)
@@ -154,15 +160,17 @@ def main():
                 print('Convolving Intensities: ', tsum, tsdv, vave, vsdv)
                 print('Convolvign Parameters : ', n, time)
             count = count + 1
+        # end reading all lines in save file
+        f.close()
 
     mygrid.normalize()
 #    mygrid.check()
-    zmin = -1000.
-    zmax = 3000.
+#    zmin = -1000.
+#    zmax = 3000.
 # limit grid intensities for plotting
-    mygrid.set_ij( 0, 0, zmax, 1.)
-    mygrid.set_ij( 1, 1, zmin, 1.)
-    mygrid.limit(zmin, zmax)
+#    mygrid.set_ij( 0, 0, zmax, 1.)
+#    mygrid.set_ij( 1, 1, zmin, 1.)
+#    mygrid.limit(zmin, zmax)
 
     subplots = False
 

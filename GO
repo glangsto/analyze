@@ -1,1 +1,1 @@
-python ~/bin/GridObs.py "$@"
+python ~/Research/analyze/GridObs.py "$@"

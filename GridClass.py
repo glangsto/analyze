@@ -85,7 +85,7 @@ class Grid(object):
         Save the gridded image as picture. Work still in progress!
         """
         filename = "grid_%dx%d.png" % (self.width, self.height)
-        print fig
+        print(fig)
         f = open(filename, 'w')
         f.close()
 #        fig.savefig(filename)
@@ -137,11 +137,11 @@ class Grid(object):
         convolutionweight = float(self.weightfunction(r))
         totalweight = float(inweight * convolutionweight)
         if self.printcount == 0:
-            print '  i    j    T (K km/s)   R (d)    Weight '
+            print('  i    j    T (K km/s)   R (d)    Weight ')
         if self.printcount < 1 or (not np.isfinite(totalweight)) \
                 or (50000*int(self.printcount/50000) == self.printcount) \
                 or ((50000*int(self.printcount/50000)+1) == self.printcount):
-            print '%4d,%4d: %8.1f %9.2f   %8.3e' % (ix, iy, z, r, totalweight)
+            print('%4d,%4d: %8.1f %9.2f   %8.3e' % (ix, iy, z, r, totalweight))
 
         self.printcount = self.printcount + 1
 
@@ -196,7 +196,8 @@ class Grid(object):
 
                 # finally get angular separation in degrees
                 r = angles.r2d(angles.sep(x0, y0, rx, ry))
-                if r > 4.*self.FWHM:  # round convolving function
+#                if r > 4.*self.FWHM:  # round convolving function
+                if r > 3.*self.FWHM:  # round convolving function
                     continue
 
                 # add the colvolved measurement to the grid.
@@ -214,7 +215,7 @@ class Grid(object):
                     self.image[jjj, iii] = \
                         self.image[jjj, iii]/self.weights[jjj, iii]
                     nonzero = nonzero + 1
-        print 'Normalize: ', nonzero, ' Values in the grid'
+        print('Normalize: ', nonzero, ' Values in the grid')
 
     def check(self):
         """
@@ -225,14 +226,14 @@ class Grid(object):
         for iii in range(self.img_width):
             for jjj in range(self.img_height):
                 if not np.isfinite(self.image[jjj, iii]):
-                    print 'Non-finite value at: ', iii, jjj, self.image[jjj, iii]
+                    print('Non-finite value at: ', iii, jjj, self.image[jjj, iii])
                     self.image[jjj, iii] = 0
                     nonzero = nonzero + 1
                 if not np.isfinite(self.weights[jjj, iii]):
-                    print 'Non-finite weight at: ', iii, jjj, self.weights[jjj, iii]
+                    print('Non-finite weight at: ', iii, jjj, self.weights[jjj, iii])
                     self.weights[jjj, iii] = 0
                     nonzero = nonzero + 1
-        print 'Check: ', nonzero, ' Illegal Values in the grid'
+        print('Check: ', nonzero, ' Illegal Values in the grid')
 
         return
 
@@ -255,8 +256,8 @@ class Grid(object):
                 elif self.image[jjj, iii] > ymax:
                     self.image[jjj, iii] = ymax
 
-        print 'Limit: Data Min: ', datamin, ', Data Max: ', datamax
-        print 'Limited to  Min: ', ymin, ', Max: ', ymax
+        print('Limit: Data Min: ', datamin, ', Data Max: ', datamax)
+        print('Limited to  Min: ', ymin, ', Max: ', ymax)
 
         return
 

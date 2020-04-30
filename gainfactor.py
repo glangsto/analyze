@@ -1,5 +1,7 @@
 #Python function to compute gain factor for different processor indicies, dates and elevations
 #HISTORY
+#20APR30 GIL add pointing offset model
+#20APR29 GIL add read savefile function
 #20APR22 GIL clean up save labels
 #20APR21 GIL add intensity weighted velocity error 
 #20APR20 GIL add intensity weighted velocity moment
@@ -168,6 +170,7 @@ def saveTsysValues( saveFile, cSpec, cpuIndex, tSourcemax, velSource, dV, tVSum,
 
     autc = str(cSpec.utc) # ascii version of UTC
     parts = autc.split(' ')
+    nparts = len(parts)
     date = parts[0]
     nd = len(date)
     date = date[2:nd]                  # trim off 2019 to 19
@@ -192,11 +195,110 @@ def saveTsysValues( saveFile, cSpec, cpuIndex, tSourcemax, velSource, dV, tVSum,
         
     #          1 2   3   4     5     6    7      8       9    10     11    11    12     13    14      15    16     17
     #         Date   cpu  az    el  tSys  tRx   tRms   tint   K/C   tPeak, vel    dv   VSum   Vrms,  KInt  dKInt factor
-    f.write( "%s %s %2d %6.1f %6.1f %7.2f %7.2f %6.2f %7.0f %6.1f %7.3f %7.1f %5.1f %7.1f %5.1f %7.0f %7.0f %7.3f\r\n" % 
+    f.write( "%s %s %2d %6.1f %6.1f %7.2f %7.2f %6.2f %7.0f %7.1f %7.3f %7.1f %5.1f %7.1f %5.1f %7.0f %7.0f %7.3f\r\n" % 
              (date, time, cpuIndex, cSpec.telaz, cSpec.telel, cSpec.tSys, cSpec.tRx, cSpec.tRms, cSpec.tint, cSpec.KperC, 
               tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec, cSpec.gainFactor))
     f.close()
     # end of saveTsysValues()
+
+def readSaveValues( f):
+    """ 
+    saveTsysValues - saves the calibration values for this calibrated observation
+    where
+    f - Open file
+    outputs:
+
+    The Tsys values are logged in 3 parts,  
+    1. Tsys value for the observation.
+    2. The Counts per Kevin Value for the observation
+    3. The normalization factor to put all horns on the same scale.
+    The first 2 values are determined by hot and cold load observations. 
+    That the hot ground and empty sky.
+    The normaization factor (3) is measured by comparison of simultaneous astronomical observations 
+    of the same region of the sky.   This can be done by a 24 hour drift scan with all horns.
+    """
+    
+#    f = open(saveFile, "r")
+
+#    print("Entering Read Save Values")
+    date = ""
+    time = ""
+    cpuIndex = int(0)
+    telaz = float(0.)
+    telel = float(90.)
+    tSys = float(100.)
+    tRx = float(50.)
+    tRms = float(1.)
+    tint = float(1.)
+    KperC = float(100.)
+    tSourcemax = float(10.)
+    velSource = float(0.)
+    dV = float(1.)
+    tVSum = float(0.0)
+    tVsumRms = float( 1.)
+    tSumKmSec = float( 1000.)
+    dTSumKmSec = float( 10.)
+    gainFactor = float( 1.)
+
+    # if a new file, then need to add the header
+    #   f.write( "#  Date    Time   Tel  Az     El     Tsys    Trx    Trms     Time  K/Count    Peak    Peak  Vel.     Sum Vel.   ")
+    #   f.write( "Sum Intensity   Scale \r\n")
+    #   f.write( "#                  #   (d)    (d)     (K)     (K)    (K)     (s)              (K)     (km/s) +/-    (km/s) +/-  ")
+    #   f.write( " (K km/s) +/-   Factor\r\n")
+        
+    #          1 2   3   4     5     6    7      8       9    10     11    11    12     13    14      15    16     17
+    #         Date   cpu  az    el  tSys  tRx   tRms   tint   K/C   tPeak, vel    dv   VSum   Vrms,  KInt  dKInt factor
+    aline = f.readline()
+    aline = aline.strip()
+    alen = len(aline)
+    if alen < 1:
+        date = ""
+        return date, time, cpuIndex, telaz, telel, tSys, tRx, tRms, tint, KperC, tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec, gainFactor        
+    if aline[0] == "#":
+        #print("%d %s" % (alen, aline))
+        date = "#"
+    else:
+        parts = aline.split()
+        nparts = len(parts)
+        date = parts[0]
+        time = parts[1]
+        cpuIndex = int( parts[2])
+        telaz = float( parts[3])
+        telel = float( parts[4])
+        tSys = float( parts[5])
+        tRx = float( parts[6])
+        tRms = float( parts[7])
+        tint = float( parts[8])
+        Kperc = float( parts[9])
+        tSourcemax = float( parts[10])
+        velSource = float( parts[11])
+        dV = float( parts[12])
+        tVSum = float( parts[13])
+        tVSumRms = float( parts[14])
+        tSumKmSec = float( parts[15])
+        dTSumKmSec = float( parts[16])
+        gainFactor = float( parts[17])
+# rudimentary pointing offset correction:
+        if cpuIndex == 2:
+            dEl = -4.
+        elif cpuIndex == 3:
+            dEl = -3.
+        elif cpuIndex == 4:
+            dEl = -2.
+        elif cpuIndex == 5:
+            dEl = -1.
+        else:
+            dEl = -0.5
+
+        # all telescopes sag a bit, some more than others.
+        telel = telel + dEl
+
+#        sd( "%s %s %2d %6.1f %6.1f %7.2f %7.2f %6.2f %7.0f %6.1f %7.3f %7.1f %5.1f %7.1f %5.1f %7.0f %7.0f %7.3f\r\n" % 
+#             (date, time, cpuIndex, telaz, telel, tSys, tRx, tRms, tint, KperC, 
+#              tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec, gainFactor))
+
+    return date, time, cpuIndex, telaz, telel, tSys, tRx, tRms, tint, KperC, tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec, gainFactor
+    # end of readSaveValues()
 
 def readTsysValues( saveFile, utc, cpuIndex, az, el):
     """ 
@@ -312,3 +414,25 @@ def gainfactor( aveutc, pIndex, az, el):
 
 # end of def gainfactor()
 
+def listSave( savefile):
+    """
+    listSave lists all entries in a provided savefile
+    Inputs
+    savefile - name of the file containing the saved observating summaries
+    """
+
+    f = open(savefile, "r")
+
+    date = "Unknown"
+    count = 0
+    while date != "":
+        date, time, cpuIndex, telaz, telel, tSys, tRx, tRms, tint, KperC, tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec, gainFactor = readSaveValues( f)
+        dlen = len(date)
+        if dlen < 1:
+            break
+        if date[0] != "#":
+            print( "%3d: %s %d %8.2f %7.2f %5.2f %7.0f" % (count, date, cpuIndex, tSys, tRx, tRms, tint))
+        count = count + 1
+    
+    f.close()
+    return count
