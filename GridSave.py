@@ -4,6 +4,7 @@ Model to use the GridClass to make an image of radio astronomical observations
 # Functions to create a grid and place astronomical data on that
 # grid with a convolving function
 # HISTORY
+# 20MAY01 GIL grid different telescopes to different images for gain and offset merging.
 # 20APR30 GIL initial version based on GridObs.py
 
 import sys
