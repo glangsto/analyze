@@ -1,4 +1,4 @@
-"""
+a"""
 Model to use the GridClass to make an image of radio astronomical observations
 """
 # Functions to create a grid and place astronomical data on that
@@ -8,14 +8,49 @@ Model to use the GridClass to make an image of radio astronomical observations
 # 20APR30 GIL initial version based on GridObs.py
 
 import sys
+import os
+import copy
 import numpy as np
-#from numba import jit
 from matplotlib import pyplot as plt
-#from matplotlib import colors
 import datetime
 import GridClass
+from astropy.io import fits
 import radioastronomy
 import gainfactor
+
+def writeFitsImage( rs, cpuIndex, crval1, crval2, cdelt1, cdelt2, imageData):
+    """
+    writeFitsImage() takes a spectrum for describing the observation and a 2 dimensinoal
+    array of image data and writes a FITS image
+    """
+
+#    print("Image: ", imageData)
+    
+    size = imageData.shape
+    print("Data size: ", size)
+    nx = size[0]
+    ny = size[1]
+
+    hdu = fits.PrimaryHDU(imageData)
+
+    header = hdu.header
+    while len(header) < (36 * 4 - 1):
+        header.append()  # Adds a blank card to the end
+
+    header['NAXIS1'] = int(size[0])
+    header['NAXIS2'] = int(size[1])
+    header['CRPIX1'] = size[0]/2.
+    header['CRPIX2'] = size[1]/2.
+    header['CRVAL1'] = crval1
+    header['CRVAL2'] = crval2
+    header['CDELT1'] = cdelt1
+    header['CDELT2'] = cdelt2
+    header['OBSERVER'] = 'Science Aficionado'
+    header['OBJECT'] = 'Milky Way'
+    
+    outname = ("AficionadoMap_T%d" % (cpuIndex)) + ".fit"
+    hdu.writeto(outname)
+    return
 
 def main():
     """
@@ -30,6 +65,7 @@ def main():
     FWHM = 7.5  # degrees
     FWHM = 10.0  # degrees
     FWHM = 5.0  # degrees
+    FWHM = 1.0  # degrees
     weight = 1.
 
     nargs = len(sys.argv)
@@ -85,9 +121,21 @@ def main():
     rs = radioastronomy.Spectrum()
 
     #create the grid with map parameters
-    mygrid = GridClass.Grid(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, width=width, \
+    grid1 = GridClass.Grid(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, width=width, \
                                 height=height, dpi=dpi, FWHM=FWHM, \
                                 projection="Mercator", gridtype=gridtype)
+    grid2 = GridClass.Grid(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, width=width, \
+                                height=height, dpi=dpi, FWHM=FWHM, \
+                                projection="Mercator", gridtype=gridtype)
+    grid3 = GridClass.Grid(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, width=width, \
+                                height=height, dpi=dpi, FWHM=FWHM, \
+                                projection="Mercator", gridtype=gridtype)
+    grid4 = GridClass.Grid(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, width=width, \
+                                height=height, dpi=dpi, FWHM=FWHM, \
+                                projection="Mercator", gridtype=gridtype)
+    
+    # put each telescope in a different grid
+    grids = [grid1, grid2, grid3, grid4]
 
 # coldfile 
     coldfile = sys.argv[2]
@@ -103,6 +151,9 @@ def main():
     firsttime = ""
     lasttime = ""
     count = 0
+    # setup grid indicies so that cpuIndex goes to the correct grid
+    # This assumes telescopes 2,3,4,5 are being used] 
+    gridIndex = [0,0,0,1,2,3]
     # for all save Files to Grid
     for filename in names:
         print("File: %s" % (filename))
@@ -142,20 +193,22 @@ def main():
 
 #            if vave > -100. and vave < 100:
 #                mygrid.convolve( lon, lat, vave, 1.)
+            iGrid = gridIndex[cpuIndex]
             if gridtype == 'RA':
-                mygrid.convolve(ra, dec, tsum, weight)
+                grids[iGrid].convolve(ra, dec, tsum, weight)
             elif gridtype == '-RA':
                 x = (ra*xsign) + xoffset
-                mygrid.convolve(x, dec, tsum, weight)
+                grids[iGrid].convolve(x, dec, tsum, weight)
             elif gridtype == 'RA0':
                 x = (ra*xsign) + xoffset
                 if x < 0:
                     x = x + xmax
                 elif x > xmax:
                     x = x - xmax
-                mygrid.convolve(x, dec, tsum, weight)
+                grids[iGrid].convolve(x, dec, tsum, weight)
             else:
-                mygrid.convolve(lon, lat, tsum, weight)
+                grids[iGrid].convolve(lon, lat, tsum, weight)
+
             if count == 0:
                 print('Convolving Coordinates: ', ra, dec, lon, lat)
                 print('Convolving Intensities: ', tsum, tsdv, vave, vsdv)
@@ -164,7 +217,11 @@ def main():
         # end reading all lines in save file
         f.close()
 
-    mygrid.normalize()
+    # normalize each of the gridded images
+    grids[0].normalize()
+    grids[1].normalize()
+    grids[2].normalize()
+    grids[3].normalize()
 #    mygrid.check()
 #    zmin = -1000.
 #    zmax = 3000.
@@ -183,7 +240,6 @@ def main():
         else:
             cax = fig.add_axes([0, 24], [-90, 90])
 
-#        im = ax.imshow(mygrid.image, interpolation='nearest')
         cbar = fig.colorbar(cax, ticks=[zmin, zmax], orientation='horizontal')
         cbar.ax.set_yticklabels([str(zmin), str(zmax)])
 
@@ -194,7 +250,7 @@ def main():
         ticks = np.arange(0, mywidth, 30*dpi)
         x_ticks = xmin + ((xmax-xmin)*ticks/mywidth)
 
-        plt.imshow(mygrid.image, interpolation='nearest', cmap=plt.get_cmap('jet'))
+        plt.imshow(grids[0].image, interpolation='nearest', cmap=plt.get_cmap('jet'))
 
         if firsttime != lasttime:
             plt.title("Citizen Science: Observing our Galaxy: %s to %s" % (firsttime, lasttime))
@@ -245,6 +301,20 @@ def main():
         plt.xticks(ticks, labels, rotation='horizontal')
         plt.colorbar()
 
+
+    crval1 = (xmin + xmax)/2.
+    crval2 = (ymin + ymax)/2.
+    cdelt1 = 1./float(dpi)
+    cdelt2 = 1./float(dpi)
+    for iGrid in range(4):
+        imagetemp = copy.deepcopy(grids[iGrid].image)
+        imagetemp2 = copy.deepcopy(grids[iGrid].image)
+        kkk = myheight - 1
+        for jjj in range(myheight):
+            imagetemp[:][kkk] = imagetemp2[:][jjj]
+            kkk = kkk - 1
+        grids[iGrid].image = imagetemp
+        writeFitsImage( rs, iGrid+2, crval1, crval2, cdelt1, cdelt2, grids[iGrid].image)
     plt.show()
 
 if __name__ == "__main__":
