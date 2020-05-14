@@ -6,6 +6,7 @@ Glen Langston
 # Functions to create a grid and place astronomical data on that
 # grid with a convolving function
 # HISTORY
+# 20MAY13 GIL Add DATE-OBS
 # 19OCT03 GIL make grid pattern circular
 # 17FEB03 GIL add comments and cleanup
 # 17JAN28 GIL finish initial version
@@ -56,7 +57,7 @@ class Grid(object):
         self.dy = (self.ymax - self.ymin)
         self.idx = float(self.img_width) / self.dx
         self.idy = float(self.img_height) / self.dy
-        self.image = np.empty((self.img_height, self.img_width))
+        self.image = np.empty((self.img_height, self.img_width), dtype=np.float32)
         self.weights = np.empty((self.img_height, self.img_width))
         self.FWHM = FWHM # degrees
 #        self.sigma = self.FWHM/(2*np.sqrt(2*np.log(2.)))

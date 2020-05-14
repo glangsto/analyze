@@ -1,6 +1,7 @@
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#20MAY06 GIL update help
 #20APR30 GIL update help
 #20APR28 GIL write hot and cold obs 
 #20APR25 GIL use average_spec() and normalize_spec() for hot+cold
@@ -121,6 +122,8 @@ if nargs < 3:
     print("-L optionally set the low velocity region for baseline fit")
     print("-R optionally flag known RFI lines")
     print("-S <filename> optionally set summary file name")
+    print("-U optionally update reference frequency for a different line")
+    print("   ie -U 1612.231, 1665.402, 1667.349, 1720.530 or 1420.40575")
     print("-W optionally write the calibrated Tsys files")
     print("-MINEL optionally set the lowest elevation allowed for calibration obs (default 60d)")
     print("Observation file list must include at least one hot load file")
@@ -198,6 +201,10 @@ while iarg < nargs:
         myTitle = sys.argv[iarg]
         print( 'Plot Title : ', myTitle)
     elif sys.argv[iarg].upper() == '-U':   # if nU ref is provided (in MHz)n
+        iarg = iarg+1
+        nuRefFreq = float(sys.argv[iarg])
+        print( 'Reference Frequency : %9.3f MHz' % (nuRefFreq))
+    elif sys.argv[iarg].upper() == '-CEN':   # if nU ref is provided (in MHz)n
         iarg = iarg+1
         nuRefFreq = float(sys.argv[iarg])
         print( 'Reference Frequency : %9.3f MHz' % (nuRefFreq))
