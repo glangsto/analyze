@@ -34,7 +34,7 @@ class Grid(object):
     """
     def __init__(self, xmin=0., xmax=360., ymin=-90., ymax=90., \
                  width=360, height=180, dpi=1, FWHM=13.0, \
-                     projection="Mercator", gridtype="RA"):
+                     projection="-CAR", gridtype="RA"):
         """
         initialize all Grid class values
         many will be overwritten later
@@ -43,11 +43,19 @@ class Grid(object):
         self.img_height = int(height*dpi)
         self.width = int(width)
         self.height = int(height)
-        self.dpi = dpi # pixels per unit: eg 10 = 10 pixels per degree or 0.5
+        self.dpi = dpi # pixels per unit: eg 10 = 10 pixels per degree == 0.1 degree per pixel
         self.xmin = xmin
         self.xmax = xmax
         self.ymin = ymin
         self.ymax = ymax
+        # FITS coordinate info
+        self.crval2 = (xmin + xmax)/2.
+        self.crval1 = (ymin + ymax)/2.
+        self.cdelt1 = (-1./float(dpi)) - .001
+        self.cdelt2 = (1./float(dpi)) + .001
+        self.crpix1 = width/2.
+        self.crpix2 = height/2.
+        
         self.xminrad = xmin*np.pi/180.  # convert to radians
         self.xmaxrad = xmax*np.pi/180.
         self.yminrad = ymin*np.pi/180.
@@ -303,7 +311,7 @@ def main():
     gridtype = 'GAL'
     mygrid = Grid(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, \
                       width=width, height=height, dpi=dpi, FWHM=FWHM,\
-                      projection="Mercator", gridtype=gridtype)
+                      projection="-CAR", gridtype=gridtype)
 
     for iii in np.arange(xmin, xmax, 30):
         x = iii 
