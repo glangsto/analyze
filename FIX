@@ -8,5 +8,10 @@ else
     if [ -e ~/bin/fix.py ]
     then
        python ~/bin/fix.py "$@"
+    else
+	if [ -e ~/Research/analyze/fix.py ]
+	then
+	    python ~/Research/analyze/fix.py "$@"
+	fi
     fi     
 fi
