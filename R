@@ -4,16 +4,6 @@
 #18MAR25 GIL Clean up documentation
 #18DEC10 GIL 1st version with comments
 
-if [ "$1" == "" ]
-then
-	echo "R: Plot Raw spectral line observation"
-	echo "Usage: R <files>"
-	echo "Where <files> are Horn Observation files"
-	echo "      <files> must include both data pointed up (.ast) and down (.hot) observations"
-	echo "      All .hot files are assumed to have a system temperature of 290 K"
-	exit
-fi
-
 # find the plotting program
 if [ -e r.py ]
 then
@@ -23,11 +13,11 @@ else
     then
        python ~/bin/r.py "$@"
     else  
-       if [ -e ../r.py ]
+       if [ -e ~/Research/analyze/r.py ]
        then
-       	  python ../r.py "$@"
+       	  python ~/Research/analyze/r.py "$@"
        else  
-           print "Can not file Raw plotting python program: r.py" 
+          echo "Can not file Raw plotting python program: r.py"
        fi
     fi
 fi  # end else not in current directory

@@ -13,9 +13,9 @@ else
     then
 	python ~/bin/s.py "$@"
     else
-	if [ -e ../s.py ]
+	if [ -e ~/Research/analyze/s.py ]
 	then
-       	    python ../s.py "$@"
+       	    python ~/Research/analyze/s.py "$@"
 	else
 	    print "Can not find the Summary python program: s.py" 
 	fi
