@@ -14,11 +14,11 @@ else
     then
 	python ~/bin/m.py "$@"
     else
-	if [ -e ../m.py ]
+	if [ -e ~/Research/analyze/m.py ]
 	then
-       	    python ../m.py "$@"
+       	    python ~/Research/analyze/m.py "$@"
 	else  
-	    print "Can not find Median baseline plotting python program: m.py" 
+	    echo "Can not find Median baseline plotting python program: m.py" 
 	fi
     fi
 fi  # end else not in current directory

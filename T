@@ -3,19 +3,6 @@
 #HISTORY
 #18DEC10 GIL 1st version with comments
 
-# if no arguments, print help
-if [ "$3" == "" ]
-then
-	echo "T: Temperaturecalibrated horn observations"
-	echo "Usage: T <average_seconds> <files>"
-	echo "Where <average_seconds>: Number of seconds of observations to average."
-	echo "      Note this is clock time, not observing time, so 3600. means a plot for each hour"
-	echo "      <files> are Horn Observation files"
-	echo "      <files> must include both data pointed up (.ast) and down (.hot) observations"
-	echo "      All .hot files are assumed to have a system temperature of 290 K"
-	exit
-fi
-
 # find the plotting program
 if [ -e t.py ]
 then
@@ -25,11 +12,11 @@ else
     then
        python ~/bin/t.py "$@"
     else  
-       if [ -e ../t.py ]
+       if [ -e ~/Research/analyze/t.py ]
        then
-       	  python ../t.py "$@"
+       	  python ~/Research/analyze/t.py "$@"
        else  
-           print "Can not find Temperature plotting python program: t.py" 
+          echo "Can not find Temperature plotting python program: t.py" 
        fi
     fi
 fi  # end else not in current directory
