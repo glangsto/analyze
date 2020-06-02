@@ -1,6 +1,7 @@
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#20JUN02 GIL plot frequency if velocity out of range
 #20MAY06 GIL update help
 #20APR30 GIL update help
 #20APR28 GIL write hot and cold obs 
@@ -96,6 +97,7 @@ myTitle = ""      # Default no input title
 saveFile = ""     # Default no saveFileName
 hotFileName = ""
 coldFileName = ""
+plotFrequency = False
 
 # define reference frequency for velocities (MHz)
 nuh1 = 1420.40575 # neutral hydrogen frequency (MHz)
@@ -120,6 +122,8 @@ if nargs < 3:
     print("-H optionall set the high velocity region for baseline fit")
     print("-K optionall save average hot and cold load calibration observations")
     print("-L optionally set the low velocity region for baseline fit")
+    print("-N <number> optionally set the number of spectra to plot")
+    print("-Q optionally plot intensity versus freQuency, instead of velocity")
     print("-R optionally flag known RFI lines")
     print("-S <filename> optionally set summary file name")
     print("-U optionally update reference frequency for a different line")
@@ -128,7 +132,7 @@ if nargs < 3:
     print("-MINEL optionally set the lowest elevation allowed for calibration obs (default 60d)")
     print("Observation file list must include at least one hot load file")
     print("")
-    print("Glen Langston - NSF   November 22, 2019")
+    print("Glen Langston - NSF   June 2, 2020")
     exit()
 
 # for all arguments, read list and exit when no flag argument found
@@ -190,6 +194,8 @@ while iarg < nargs:
             print("Not Plotting")
         else:
             print("Plot will have a maximum of %d spectra" % (maxPlot))
+    elif sys.argv[iarg].upper() == '-Q':
+        plotFrequeny = True
     elif sys.argv[iarg].upper() == '-R':
         flagRfi = True
     elif sys.argv[iarg].upper() == '-S':   # if save file name provided
@@ -225,7 +231,10 @@ while iarg < nargs:
 
 #first argument is the averaging time in seconds
 avetimesec = float(sys.argv[timearg])
-print( "Average time: ", avetimesec, " (seconds)")
+if plotFrequency:
+    print( "Plotting Intensity vs Frequency,  Average time: ", avetimesec, " (seconds)")
+else:
+    print( "Plotting Intensity vs Velocity,  Average time: ", avetimesec, " (seconds)")
 newObs = False
 allFiles = False
 
@@ -727,11 +736,15 @@ for filename in names:
 
             # compute indicies for min and max velocity
             imin, imax = gf.velocity_to_indicies( velcorr, minvel, maxvel)
-
-            # compute indicies for min and max velocity to integrate
-            iVmin, iVmax = gf.velocity_to_indicies( velcorr, minSVel, maxSVel)
-
-
+            if imin < 20 or imin > (nData - 20):
+                plotFrequency = True
+                print("Min velocity index out of range: %d, plotting vs Frequency" % (imin))
+                imin = 20
+            if imax < 20 or imax > (nData - 20):
+                plotFrequency = True
+                print("Max velocity index out of range: %d, plotting vs Frequency" % (imax))
+                imax = nData - 20
+                
             # keep the average time, but use the duration from the integration times.
             # pull out coordinates for labeling
             az = ave_spec.telaz
@@ -741,55 +754,67 @@ for filename in names:
             gallat = ave_spec.gallat
             label = 'L,L=%5.1f,%6.1f' % (gallon, gallat)
             
-            # this code computes and subtracts a baseline so that source intensities can be compared.
-            # next compute the integrated intensities after baseline subtraction
-            baseline = gf.fit_baseline( velcorr[0:nData], tsky[0:nData], imin, imax, 10, fitOrder)
-
-            # remove baseline to get the source spectrum
-            tSource = tsky[0:nData] - baseline[0:nData]
-
-            # if plotting/keeping the baseline subtracted spectra, transfer to Sky
-            if doBaseline:
-                tsky = tSource
-
-            # set min and max y for plotting (only)
-            ymin = min(tsky[imin:imax])
-            ymax = max(tsky[imin:imax])
-
-            # now compute integrated intensity and noise estimates
-            nv = iVmax - iVmin
-            if nv < 0:
-                print("Velocity Index Error: %d > %d" % (iVmin, iVMax))
-                nv = -nv
-
-            # create sub-arrays of intensity and velocity
-            tSs = tSource[iVmin:iVmax]
-            vSs = velcorr[iVmin:iVmax]
-            tSourcemin = min(tSs)
-            tSourcemax = max(tSs)
-            # get index to maximum value; then get velocity
-            iSourcemax = np.argmax(tSs)
-            velSource = vSs[iSourcemax]
-
-
             nChan2 = int(ave_spec.nChan/2)
             dV = (velcorr[nChan2] - velcorr[nChan2 - 4])*.25
             if dV < 0:
                 dV = - dV
 
-            # integrate over spectrum for required velocity range
-            tSum = np.sum(tSs)
-#            tSumRms = np.std(tSs)*np.sqrt(nv)
-            tSumRms = np.std(tSs)
+            # this code computes and subtracts a baseline so that source intensities can be compared.
 
-            # computed the integrated velocity
-            tvs = tSs*vSs
-            tVSum = np.sum(tvs)
-            tVSumRms = np.std(tvs)
+            # if can not fit velocity
+            if not plotFrequency:
+                # compute indicies for min and max velocity to integrate
+                iVmin, iVmax = gf.velocity_to_indicies( velcorr, minSVel, maxSVel)
+                # next compute the integrated intensities after baseline subtraction
+                baseline = gf.fit_baseline( velcorr[0:nData], tsky[0:nData], imin, imax, 10, fitOrder)
 
-            # Integration is reported in Kelvin*Km/Sec;  Multiply by source velocity range
-            tSumKmSec = tSum * ( maxSVel - minSVel)/float(nv)
-            dTSumKmSec = tSumRms * dV * np.sqrt(float(nv))
+                # remove baseline to get the source spectrum
+                tSource = tsky[0:nData] - baseline[0:nData]
+
+                # if plotting/keeping the baseline subtracted spectra, transfer to Sky
+                if doBaseline:
+                    tsky = tSource
+
+                # now compute integrated intensity and noise estimates
+                nv = iVmax - iVmin
+                if nv < 0:
+                    print("Velocity Index Error: %d > %d" % (iVmin, iVMax))
+                    nv = -nv
+
+                # create sub-arrays of intensity and velocity
+                tSs = tSource[iVmin:iVmax]
+                vSs = velcorr[iVmin:iVmax]
+                tSourcemin = min(tSs)
+                tSourcemax = max(tSs)
+                # get index to maximum value; then get velocity
+                iSourcemax = np.argmax(tSs)
+                velSource = vSs[iSourcemax]
+                # integrate over spectrum for required velocity range
+                tSum = np.sum(tSs)
+                tSumRms = np.std(tSs)
+
+                # computed the integrated velocity
+                tvs = tSs*vSs
+                tVSum = np.sum(tvs)
+                tVSumRms = np.std(tvs)
+
+                # Integration is reported in Kelvin*Km/Sec;
+                # Multiply by source velocity range
+                tSumKmSec = tSum * ( maxSVel - minSVel)/float(nv)
+                dTSumKmSec = tSumRms * dV * np.sqrt(float(nv))
+            else:
+                tSourcemin = 0.
+                tSourcemax = 0.
+                velSource = 0.
+                tVSum = 0.
+                tVSumRms = 0.
+                tSumKmSec = 0.
+                dTSumKmSec = 0.
+                tSum = 0.
+                
+            # set min and max y for plotting (only)
+            ymin = min(tsky[imin:imax])
+            ymax = max(tsky[imin:imax])
 
             # now compute intensity weighted velocity
             if tSum > 0.:
@@ -819,6 +844,9 @@ for filename in names:
             else:
                 label = '%s L,L=%5.1f,%5.1f A,E=%4.0f,%4.0f' % (labeltime, gallon, gallat, az, el)
             print( ' Max: %9.1f  Median: %8.2f +/- %5.2f %3d %s' % (tSourcemax, tSys, tStd, nave, label))
+            # if plotting frequency overwrite the corrected velocities
+            if plotFrequency:
+                velcorr = xv
             if int(nplot) < int(maxPlot):
                 yallmin = min(ymin,yallmin)
                 yallmax = max(ymax,yallmax)
@@ -934,7 +962,8 @@ for tick in ax1.yaxis.get_major_ticks():
 #plt.xlim(-600., 300.)
 #plt.xlim(-350., 350.)
 #plt.xlim(-250., 250.)
-plt.xlim(minvel, maxvel)
+if not plotFrequency:
+    plt.xlim(minvel, maxvel)
 # keep the plot from becoming too narrow
 dy = yallmax - yallmin
 if dy < 8:
@@ -946,7 +975,11 @@ if doDebug:
 # set the y scale to go above and below all data
 plt.ylim((yallmin-(dy/8.)), (yallmax+(dy/4.)))
 plt.title(myTitle, fontsize=16)
-plt.xlabel('Velocity (km/sec)', fontsize=16)
+if plotFrequency:
+    plt.xlabel('Frequency (MHz)', fontsize=16)
+else:
+    plt.xlabel('Velocity (km/sec)', fontsize=16)
+
 plt.ylabel('Intensity (Kelvins)', fontsize=16)
 #plt.legend(loc='upper left')
 plt.legend(loc='upper right')
