@@ -1,3 +1,4 @@
+
 #!/bin/bash
 #Summarize a list of observations 
 #HISTORY
@@ -9,15 +10,20 @@ then
    python ./s.py "$@"
 else
 # if python is in the bin directory, execute that
-    if [ -e ~/bin/s.py ]
+    if [ -e ~/Research/analyze/s.py ]
     then
-	python ~/bin/s.py "$@"
+	python ~/Research/analyze/s.py "$@"
     else
-	if [ -e ~/Research/analyze/s.py ]
+	if [ -e ~/bin/s.py ]
 	then
-       	    python ~/Research/analyze/s.py "$@"
+	    python ~/bin/s.py "$@"
 	else
-	    print "Can not find the Summary python program: s.py" 
+	    if [ -e ../s.py ]
+	    then
+       		python ../s.py "$@"
+	    else
+		print "Can not find the Summary python program: s.py" 
+	    fi
 	fi
     fi
 fi  # end else not in current directory
