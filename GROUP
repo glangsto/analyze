@@ -5,8 +5,8 @@ if [ -e group.py ]
 then
     python group.py "$@"
 else
-    if [ -e ~/bin/group.py ]
+    if [ -e ~/Research/analyze/group.py ]
     then
-       python ~/bin/group.py "$@"
+       python ~/Research/analyze/group.py "$@"
     fi     
 fi
