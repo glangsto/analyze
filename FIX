@@ -5,13 +5,8 @@ if [ -e fix.py ]
 then
     python fix.py "$@"
 else
-    if [ -e ~/bin/fix.py ]
+    if [ -e ~/Research/analyze/fix.py ]
     then
-       python ~/bin/fix.py "$@"
-    else
-	if [ -e ~/Research/analyze/fix.py ]
-	then
-	    python ~/Research/analyze/fix.py "$@"
-	fi
+       python ~/Research/analyze/fix.py "$@"
     fi     
 fi

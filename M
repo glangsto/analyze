@@ -1,6 +1,7 @@
 #!/bin/bash
 #Median filter calibrate Horn Astronomy data
 #HISTORY
+#20MAR02 GIL 1st check for executable in ~/Research/analyze 
 #18DEC10 GIL 1st version with comments
 
 
@@ -9,16 +10,23 @@ if [ -e ./m.py ]
 then
    python ./m.py "$@"
 else
-# if python is in the bin directory, execute that
-    if [ -e ~/bin/m.py ]
+# if python is in the Research/analyze directory, execute that
+    if [ -e ~/Research/analyze/m.py ]
     then
-	python ~/bin/m.py "$@"
+	python ~/Research/analyze/m.py "$@"
     else
-	if [ -e ~/Research/analyze/m.py ]
+# if python is in the bin directory, execute that
+	if [ -e ~/bin/m.py ]
 	then
-       	    python ~/Research/analyze/m.py "$@"
-	else  
-	    echo "Can not find Median baseline plotting python program: m.py" 
+	    python ~/bin/m.py "$@"
+	else
+# if python is in one directory up
+	    if [ -e ../m.py ]
+	    then
+       		python ../m.py "$@"
+	    else  
+		print "Can not find Median baseline plotting python program: m.py" 
+	    fi
 	fi
     fi
 fi  # end else not in current directory
