@@ -1,6 +1,7 @@
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#20JUL27 GIL add options to set thot, tcold, fix writing Kelvins
 #20JUN02 GIL plot frequency if velocity out of range
 #20MAY06 GIL update help
 #20APR30 GIL update help
@@ -109,6 +110,11 @@ nuoh4= 1720.530   # OH Line
 # select the frequency for plotting velocities
 nuRefFreq = nuh1
 
+# define hot and cold load temperatures
+thot = 285.0  # define hot and cold load temperatures
+#thot = 272.0  # 30 Farenheit = 272 K
+tcold = 10.0
+
 iarg = 1
 if nargs < 3:
     print("T: Comput Tsys calibrated horn observations")
@@ -129,10 +135,12 @@ if nargs < 3:
     print("-U optionally update reference frequency for a different line")
     print("   ie -U 1612.231, 1665.402, 1667.349, 1720.530 or 1420.40575")
     print("-W optionally write the calibrated Tsys files")
+    print("-X optionally set Cold Load Temperature (Kelvins)")
+    print("-Y optionally set Hot  Load Temperature (Kelvins)")
     print("-MINEL optionally set the lowest elevation allowed for calibration obs (default 60d)")
     print("Observation file list must include at least one hot load file")
     print("")
-    print("Glen Langston - NSF   June 2, 2020")
+    print("Glen Langston - NSF   July 27, 2020")
     exit()
 
 # for all arguments, read list and exit when no flag argument found
@@ -210,6 +218,14 @@ while iarg < nargs:
         iarg = iarg+1
         nuRefFreq = float(sys.argv[iarg])
         print( 'Reference Frequency : %9.3f MHz' % (nuRefFreq))
+    elif sys.argv[iarg].upper() == '-X':   # if cold load
+        iarg = iarg+1
+        tcold = float(sys.argv[iarg])
+        print( 'Cold Load Reference Temperature: %9.3f Kelvins' % (tcold))
+    elif sys.argv[iarg].upper() == '-Y':   # if hot load
+        iarg = iarg+1
+        thot = float(sys.argv[iarg])
+        print( 'Hot  Load Reference Temperature: %9.3f Kelvins' % (thot))
     elif sys.argv[iarg].upper() == '-CEN':   # if nU ref is provided (in MHz)n
         iarg = iarg+1
         nuRefFreq = float(sys.argv[iarg])
@@ -250,9 +266,6 @@ yallmin = ymin
 # velocities for fitting baselines
 
 c = 299792.458  # (Speed of light  km/sec)
-thot = 285.0  # define hot and cold load temperatures
-#thot = 272.0  # 30 Farenheit = 272 K
-tcold = 10.0
 tmin = 20.0 
 tmax = 999.0 # define reasoanable value limits
 
@@ -470,9 +483,9 @@ if doDebug:
 use60Range = False
 
 # all galactic latitudes above +/-60d can be used
-if minGlat < -60. or maxGlat > 60.:
-    minGlat = -60.
-    maxGlat = 60.
+if minGlat < -30. or maxGlat > 30.:
+    minGlat = -30.
+    maxGlat = 30.
 else: # else no high galactic latitude data
     # use highest galactic latitudes - +/-5.degrees
     if -minGlat > maxGlat:  # if negative latitudes higher
@@ -862,6 +875,7 @@ for filename in names:
             gf.saveTsysValues( saveFile, ave_spec, cpuIndex, tSourcemax, velSource, dV, tVSum, tVSumRms, tSumKmSec, dTSumKmSec)
             if writeTsys:
                 ave_spec.ydataA = tsky
+                aveutc = ave_spec.utc
                 outname = radioastronomy.utcToName( aveutc)
                 outname = outname + ".kel"  # output in Kelvins
                 ave_spec.count = 1
