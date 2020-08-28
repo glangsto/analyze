@@ -1,13 +1,31 @@
 #!/bin/bash
 # find the latest note file
 # HISTORY
+# 20AUG28 GIL look in the usial location for the note file
 # 19MAY10 GIL initial version
 # find the most recent note file 
-#head -40 $1 | grep "# AZ" 
+
+export obshome=~/Research/gr-radio_astro/examples
 
 export files=`ls -t *.not 2> /dev/null`
 export latest=`echo $files | awk '{print $1}'` 2> /dev/null
-echo $latest
+
+if [ "$latest" = "" ];
+then
+    export files=`ls -t $obshome/*.not 2> /dev/null`
+    export latest=`echo $files | awk '{print $1}'` 2> /dev/null
+fi
+
+if [ "$latest" = "" ];
+then
+    echo "Can not find a Note File!" 
+    echo "Please change directory to where you started your observations"
+else
+    echo $latest
+fi
+
+
+
 
 #head -40 $latest | grep "# AZ" | awk '{ print $4}'
 
