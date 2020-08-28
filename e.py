@@ -2,6 +2,7 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#20Aug28 GIL optionally on plot to files
 #20Mar24 GIL increment color in plot order
 #20Feb08 GIL date to title
 #19NOV08 GIL add title option, switch to micro-seconds
@@ -22,7 +23,6 @@ nargs = len( sys.argv)
 linestyles = ['-','-.','--','-.','--','-','--','--','--','-.','-','--','-.','-','--','-.','-','--','-','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.']
 colors = ['-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g']
 
-scalefactor = 1e8
 xallmax = -9.e9
 xallmin =  9.e9
 yallmax = -9.e9
@@ -31,26 +31,31 @@ mytitle = ""      # define plot title
 doDebug = False
 doAzEl = False
 doMag = False
+fileTag = ""
 
-linelist = [1420.0, 1418.0]  # RFI lines in MHz
-linewidth = [7, 7]
+firstdate = ""
+xa = -1
+xb = -1
 
 if nargs < 2:
     print("E: Plot Events")
     print("Usage: ")
-    print(" E [-A] [-T 'My Plot Title'] fileNames ")
+    print(" E [-A] [-P] [-T 'My Plot Title'] fileNames ")
     print("where:")
-    print("  -T <plot title String> Enables user labeling of the plot")
+    print("  -T <plot title String> Add Title to the plot")
+    print("  -P write PNG and PDF files instead of showing plot")
+    print("  -A Show Az,El instead of Ra,Dec")
+    print("  -B <sample> Set first sample to plot (default is 1/4 of samples)")
+    print("  -E <sample> Set last sample to plot (default is end of samples)")
+    print("  -M Compute Magnitude")
+    print("  -Z <file tag> optionally add tag to PDF and PNG file names")
     print("")
-    print("Where many parameters are optional:")
-    print("-A Show Az,El instead of Ra,Dec")
-    print("-M Compute Magnitude")
-    print("")
-    print("Glen Langston - 2020 March 24")
+    print("Glen Langston - NSF    2020 August 28")
     exit()
 
 namearg = 1
 iarg = 1          # start searching for input flags
+doPlotFile = False
 
 # for all arguments, read list and exit when no flag argument found
 while iarg < nargs:
@@ -63,8 +68,20 @@ while iarg < nargs:
         print("-D Additional Debug printing.")
     elif sys.argv[iarg].upper() == '-A':   # if labeling AzEl
         doAzEl = True
+    elif sys.argv[iarg].upper() == '-B':   # if setting beginning sample
+        iarg = iarg + 1
+        xa = int( sys.argv[iarg])
+    elif sys.argv[iarg].upper() == '-E':   # if setting ending sample
+        iarg = iarg + 1
+        xb = int( sys.argv[iarg])
     elif sys.argv[iarg].upper() == '-M':   # if labeling AzEl
         doMag = True
+    elif sys.argv[iarg].upper() == '-P':
+        doPlotFile = True
+    elif sys.argv[iarg].upper() == '-Z':     # label written files
+        iarg = iarg+1
+        fileTag = str(sys.argv[iarg])
+        print( 'File tag: %s' % (fileTag))
     else:
         break
     iarg = iarg+1
@@ -94,6 +111,10 @@ for iii in range(namearg, min(nargs,25)):
     date  = parts[0]
     time  = parts[1]
 
+    if firstdate == "":
+        firstdate = date
+    lastdate = date
+    
     timestr = "%s" % (rs.utc)
     eMjd = rs.emjd
     iseconds = int(eMjd)
@@ -118,9 +139,16 @@ for iii in range(namearg, min(nargs,25)):
         label = '%s A,E: %5.1f,%5.1f' % ( time,rs.telaz,rs.telel)
     else:
         label = '%s R,D: %6.2f,%6.2f, Lon,Lat=%5.1f,%5.1f' % ( time,rs.ra,rs.dec,gallon,gallat)
-    xs = rs.xdata * 1.E6
-    ya = rs.ydataA
-    yb = rs.ydataB
+    if xa < 0:
+          xa = int(rs.nSamples/4)
+    if xb < 0:
+          xb = rs.nSamples-1
+          
+    xs = rs.xdata[xa:xb] * 1.E6
+
+    ya = rs.ydataA[xa:xb]
+    yb = rs.ydataB[xa:xb]
+    nData = xb-xa
     if rs.nTime < 1:
         print("Not an Event: ",filename)
         continue
@@ -128,21 +156,22 @@ for iii in range(namearg, min(nargs,25)):
     j = 0
     # convert time offsets to micro-seconds
     dt = 1.E6 * 0.5/rs.bandwidthHz
+    # compensate for starting earlier in plot
     if doMag:   # if plotting magnitude
-        xv = np.zeros(rs.nSamples)
-        yv = np.zeros(rs.nSamples)
-        t = -dt * rs.refSample
-        for i in range(rs.nSamples):
+        xv = np.zeros(nData)
+        yv = np.zeros(nData)
+        t = t + (2 * -dt * (rs.refSample-xa))
+        for i in range(nData):
             y  = (ya[i]*ya[i]) + (yb[i]*yb[i])
             yv[j] = np.sqrt(y)
             xv[j] = t
             j = j + 1
-            t = t + dt
+            t = t + (2.*dt)
     else:
-        xv = np.zeros(rs.nSamples*2)
-        yv = np.zeros(rs.nSamples*2)
-        t = -2. * dt * rs.refSample
-        for i in range(rs.nSamples):
+        xv = np.zeros(nData*2)
+        yv = np.zeros(nData*2)
+        t = (-2. * dt * (rs.refSample-xa))
+        for i in range(nData):
             yv[j] = ya[i]
             xv[j] = t
             j = j + 1
@@ -157,7 +186,7 @@ for iii in range(namearg, min(nargs,25)):
     xallmin = min(xmin,xallmin)
     xallmax = max(xmax,xallmax)
 
-    n2 = int( rs.nSamples/2.5)
+    n2 = int( nData/2.5)
     ymin = min(yv)
     ymax = max(yv)
     yrms = np.std( yv[0:n2])
@@ -182,13 +211,22 @@ for iii in range(namearg, min(nargs,25)):
     note = rs.noteA
     yallmin = min(ymin,yallmin)
     yallmax = max(ymax,yallmax)
-    plt.xlim(xallmin,xallmax)
-    plt.ylim(yallmin,1.25*yallmax)
-
 
     plt.plot(xv, yv, colors[nplot-1], linestyle=linestyles[nplot-1],label=label)
 plt.title(title)
 plt.xlabel('Time Offset From Event (micro-seconds)')
 plt.ylabel('Intensity (Counts)')
 plt.legend(loc='upper right')
-plt.show()
+plt.xlim(xallmin,xallmax)
+plt.ylim(yallmin,1.25*yallmax)
+if doPlotFile:
+    if fileTag == "":
+        fileTag = "E-" + firstdate
+    outpng = "../" + fileTag + ".png"
+    plt.savefig(outpng,bbox_inches='tight')
+    outpdf = "../" + fileTag + ".pdf"
+    plt.savefig(outpdf,bbox_inches='tight')
+    print( "Wrote files %s and %s" % (outpng, outpdf))
+else:
+    # else show the plots
+    plt.show()

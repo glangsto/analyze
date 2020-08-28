@@ -1,6 +1,7 @@
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#20AUG28 GIL add option to only write the plots
 #20JUL27 GIL add options to set thot, tcold, fix writing Kelvins
 #20JUN02 GIL plot frequency if velocity out of range
 #20MAY06 GIL update help
@@ -54,6 +55,8 @@ except:
 EPSILON = 1.E-10
 # Maximum number of Plots
 maxPlot = int(25)
+fileTag = ""
+
 # default values
 avetimesec = 3600.
 # put your list of known RFI features here.  Must have at least two.
@@ -77,7 +80,6 @@ namearg = 2
 
 # some SDRs put spike in center of spectrum; indicate spike flagging here
 flagCenter = False
-flagCenter = True
 # put list of RFI features here, for interpolation later
 flagRfi = False
 flagRfi = True
@@ -86,6 +88,7 @@ writeTsys = True
 writeTsys = False
 # to address an old problem, optionally allow folding spectra
 doFold = False
+doPlotFile = False
 doKeep = False
 # specify lowest  elevation for cold load averge
 lowel = 60.
@@ -129,6 +132,7 @@ if nargs < 3:
     print("-K optionall save average hot and cold load calibration observations")
     print("-L optionally set the low velocity region for baseline fit")
     print("-N <number> optionally set the number of spectra to plot")
+    print("-P write PNG and PDF files instead of showing plot")
     print("-Q optionally plot intensity versus freQuency, instead of velocity")
     print("-R optionally flag known RFI lines")
     print("-S <filename> optionally set summary file name")
@@ -137,10 +141,11 @@ if nargs < 3:
     print("-W optionally write the calibrated Tsys files")
     print("-X optionally set Cold Load Temperature (Kelvins)")
     print("-Y optionally set Hot  Load Temperature (Kelvins)")
+    print("-Z <file tag> optionally add tag to PDF and PNG file names")
     print("-MINEL optionally set the lowest elevation allowed for calibration obs (default 60d)")
     print("Observation file list must include at least one hot load file")
     print("")
-    print("Glen Langston - NSF   July 27, 2020")
+    print("Glen Langston - NSF   August 28, 2020")
     exit()
 
 # for all arguments, read list and exit when no flag argument found
@@ -202,6 +207,8 @@ while iarg < nargs:
             print("Not Plotting")
         else:
             print("Plot will have a maximum of %d spectra" % (maxPlot))
+    elif sys.argv[iarg].upper() == '-P':
+        doPlotFile = True
     elif sys.argv[iarg].upper() == '-Q':
         plotFrequeny = True
     elif sys.argv[iarg].upper() == '-R':
@@ -236,8 +243,10 @@ while iarg < nargs:
         print( "Using elevations > %7.2f (d) for Cold load calculation" % (lowel))
     elif sys.argv[iarg].upper() == '-W':
         writeTsys = True
-    elif sys.argv[iarg].upper() == '-Z':
-        doFold = True
+    elif sys.argv[iarg].upper() == '-Z':     # label written files
+        iarg = iarg+1
+        fileTag = str(sys.argv[iarg])
+        print( 'File tag: %s' % (fileTag))
     else:
         break
     iarg = iarg + 1
@@ -997,4 +1006,15 @@ else:
 plt.ylabel('Intensity (Kelvins)', fontsize=16)
 #plt.legend(loc='upper left')
 plt.legend(loc='upper right')
-plt.show()
+# if writing files
+if doPlotFile:
+    if fileTag == "":
+        fileTag = "T-" + firstdate
+    outpng = "../" + fileTag + ".png"
+    plt.savefig(outpng,bbox_inches='tight')
+    outpdf = "../" + fileTag + ".pdf"
+    plt.savefig(outpdf,bbox_inches='tight')
+    print( "Wrote files %s and %s" % (outpng, outpdf))
+else:
+    # else show the plots
+    plt.show()

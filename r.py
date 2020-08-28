@@ -1,7 +1,8 @@
 #Python Script to plot raw NSF record data.
-#import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#20Aug28 GIL update plotting to a file
+#20Jun16 GIL add plotting to a file
 #20Apr01 GIL update for new python environment
 #20FEB15 GIL normalize for different integration times
 #19DEC30 GIL add title option
@@ -16,6 +17,7 @@ import sys
 import numpy as np
 import radioastronomy
 import interpolate
+import gainfactor as gf
 
 dy = -1.
 
@@ -28,20 +30,66 @@ doDebug = False   # flag printing debug info
 doSave = False    # flag saving intermediate files
 flagRfi = True    # flag flagging RFI
 doFold = False    # fold spectra to address an old issue; not normally used.
+doPlotFile = False
 # put your list of known RFI features here.  Must have at least two, if flagRfi is true.
+linelist = [1400.00, 1420.0]  # RFI lines in MHz
+doFold = False
+# fold spectra to address an old issue; not normally used.
+
+# put your list of known RFI features here.  Must have at least two, if flagRfi is true.
+
+plotFrequency = True
+# define reference frequency for velocities (MHz)
+nuh1 = 1420.40575 # neutral hydrogen frequency (MHz)
+nuoh1= 1612.231   # OH line
+nuoh2= 1665.402   # OH line
+nuoh3= 1667.359   # OH Line
+nuoh4= 1720.530   # OH Line
+
+# select the frequency for plotting velocities
+nuRefFreq = nuh1
+
 linelist = [1400.00, 1420.0]  # RFI lines in MHz
 linewidth = [5, 5]   # integer number of channels to interpolate over
 outDir = "./"     # define output directory for saving files
 myTitle = ""      # Default no input title
+note = ""
 
-# currently used velocities for baseline fitting
+# currently used velocities for plotting range
 maxvel = 180.
-minvel = -550.
+minvel = -180.
+maxPlot = int(25)
+fileTag = ""
+firstdate = ""
 
 nargs = len(sys.argv)
 #first argument is the averaging time in seconds
 namearg = 1
 iarg = 1          # start searching for input flags
+if nargs < 3:
+    print("R: Plot Raw counts of telescope observations")
+    print("Usage: R <flags> <files>")
+    print("Where <flags> are:")
+    print("-B <sample> Set first sample to plot (default is 1/4 of samples)")
+    print("-C optionally flag the center of the band")
+    print("-E <sample> Set last sample to plot (default is end of samples)")
+    print("-I optionall set Processor Index")
+    print("-H optionall set the high velocity region for baseline fit")
+    print("-K optionall save average hot and cold load calibration observations")
+    print("-L optionally set the low velocity region for baseline fit")
+    print("-N <number> optionally set the number of spectra to plot")
+    print("-P write PNG and PDF files instead of showing plot")
+    print("-Q optionally plot intensity versus freQuency, instead of velocity")
+    print("-S <filename> optionally set summary file name")
+    print("-U optionally update reference frequency for a different line")
+    print("   ie -U 1612.231, 1665.402, 1667.349, 1720.530 or 1420.40575")
+    print("-V optionally plot velocity")
+    print("-Z <file tag> optionally add tag to PDF and PNG file names")
+    print("-F optionally fold spectra (obsolete)")
+    print("")
+    print("Glen Langston - NSF   August 28, 2020")
+    exit()
+
 # for all arguments, read list and exit when no flag argument found
 while iarg < nargs:
 
@@ -49,29 +97,40 @@ while iarg < nargs:
     if sys.argv[iarg].upper() == '-F':
         print('Folding specectra')
         doFold = True
-    elif sys.argv[iarg].upper() == '-R':
-        flagRfi = True
+    elif sys.argv[iarg].upper() == '-B':   # if setting beginning sample
+        iarg = iarg + 1
+        xa = int( sys.argv[iarg])
     elif sys.argv[iarg].upper() == '-C':
         flagCenter = True
-    elif sys.argv[iarg].upper() == '-D':
-        print('Adding Debug Printing')
-        doDebug = True
-    elif sys.argv[iarg].upper() == '-S':
-        print('Saving Average Spectra in -ave files')
-        doSave = True
-    elif sys.argv[iarg].upper() == '-B':
-        print('Baseline subtraction')
-        doSub = True
-    elif sys.argv[iarg].upper() == '-O':   # now look for flags with arguments
+    elif sys.argv[iarg].upper() == '-E':   # if setting ending sample
+        iarg = iarg + 1
+        xb = int( sys.argv[iarg])
+    elif sys.argv[iarg].upper() == '-H':
         iarg = iarg+1
-        namearg = namearg+1
-        outDir = sys.argv[iarg]
-        print('Output directory: ', outDir)
+        maxvel = np.float( sys.argv[iarg])
+        print('Maximum (high) velocity for sum: %7.2f km/sec' % (maxvel))
+    elif sys.argv[iarg].upper() == '-L':
+        iarg = iarg+1
+        minvel = np.float( sys.argv[iarg])
+        print('Minium (low)  velocity for sum: %7.2f km/sec' % (minvel))
+    elif sys.argv[iarg].upper() == '-N':   # if number of spectra to plot
+        iarg = iarg+1
+        maxPlot = int(sys.argv[iarg])
+        if maxPlot < 1:
+            print("Not Plotting")
+        else:
+            print("Plot will have a maximum of %d spectra" % (maxPlot))
+    elif sys.argv[iarg].upper() == '-P':
+        doPlotFile = True
+    elif sys.argv[iarg].upper() == '-R':
+        flagRfi = True
     elif sys.argv[iarg].upper() == '-T':   # if plot title provided
         iarg = iarg+1
         namearg = namearg+1
         myTitle = sys.argv[iarg]
         print('Plot Title : ', myTitle)
+    elif sys.argv[iarg].upper() == '-V':   # default is plotting Frequency
+        plotFrequency = False              # plot velocity
     elif sys.argv[iarg].upper() == '-VA':   # now look for flags with arguments
         iarg = iarg+1
         namearg = namearg+1
@@ -82,6 +141,14 @@ while iarg < nargs:
         namearg = namearg+1
         maxvel = float(sys.argv[iarg])
         print('Maximum velocity for baseline fit: %7.2f km/sec ' % (maxvel))
+    elif sys.argv[iarg].upper() == '-CEN':   # if nU ref is provided (in MHz)n
+        iarg = iarg+1
+        nuRefFreq = float(sys.argv[iarg])
+        print( 'Reference Frequency : %9.3f MHz' % (nuRefFreq))
+    elif sys.argv[iarg].upper() == '-Z':     # label written files
+        iarg = iarg+1
+        fileTag = str(sys.argv[iarg])
+        print( 'File tag: %s' % (fileTag))
     else:
         break
     iarg = iarg + 1
@@ -97,6 +164,8 @@ xallmax = -9.e9
 xallmin =  9.e9
 yallmax = -9.e9
 yallmin =  9.e9
+xa = -1
+xb = -1
 
 linelist = [1420.0, 1418.0]  # RFI lines in MHz
 linewidth = [7, 7]
@@ -106,6 +175,7 @@ linewidth = [7, 7]
 # initialize spectrum for reading and plotting
 rs = radioastronomy.Spectrum()
 
+c = 299792.458  # (Speed of light  km/sec)
 nplot = 0
 
 # plot no more than N spectra
@@ -145,6 +215,22 @@ for iii in range(namearg, min(nargs,20)):
     n6 = int(nData/6)
     n56 = 5*n6
 
+    if xa < 0:
+        xa = 0
+    if xb < 0:
+        xb = nData
+        
+    if firstdate == "":
+        firstdate = date
+    lastdate = date
+    
+    vel = np.zeros(nData)
+    for jjj in range (0, nData):
+        vel[jjj] = c * (nuRefFreq - xv[jjj])/nuRefFreq
+
+    if not plotFrequency:
+        xa, xb = gf.velocity_to_indicies( vel, minvel, maxvel)
+    
     # normize for different integration times
     rs.ydataA = rs.ydataA/rs.count
     yv = rs.ydataA
@@ -156,12 +242,22 @@ for iii in range(namearg, min(nargs,20)):
         scalefactor = 1.0
 
     yv = rs.ydataA * scalefactor
+    if not plotFrequency:
+        xv = vel
     xmin = min(xv)
     xmax = max(xv)
     xallmin = min(xmin,xallmin)
     xallmax = max(xmax,xallmax)
 
-    yv = interpolate.lines( linelist, linewidth, xv, yv) # interpolate rfi
+    if flagRfi:
+        yv = interpolate.lines( linelist, linewidth, xv, yv) # interpolate rfi
+
+    if flagCenter:             # if flagging spike in center of plot
+    # remove spike in center of the plot
+        icenter = int(nData/2)
+        yv[icenter] = (yv[icenter-2] + yv[icenter+2])*.5
+        yv[icenter-1] = (3.*yv[icenter-2] + yv[icenter+2])*.25
+        yv[icenter+1] = (yv[icenter-2] + 3.*yv[icenter+2])*.25
 
     ymin = min(yv)
     ymax = max(yv)
@@ -169,7 +265,7 @@ for iii in range(namearg, min(nargs,20)):
     count = rs.count
 
     print(' Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ymax, ymed, ymax/ymed, count, label))
-    if nplot <= 0:
+    if nplot <= 0 and maxPlot > 0:
         fig,ax1 = plt.subplots(figsize=(10,6))
 #        plt.hold(True)
         fig.canvas.set_window_title(date)
@@ -179,6 +275,8 @@ for iii in range(namearg, min(nargs,20)):
             tick.label.set_fontsize(14) 
 
         nplot = nplot + 1
+        if nplot > maxPlot:
+            break
 #    note = rs.noteA
     note = rs.site
 #    print('%s' % note)
@@ -188,12 +286,30 @@ for iii in range(namearg, min(nargs,20)):
 # scale min and max intensities for nice plotting
     plt.ylim(0.9*yallmin,1.25*yallmax)
 
-    plt.plot(xv, yv, colors[iii-1], linestyle=linestyles[iii-1],label=label, lw=2)
+    if plotFrequency:
+        plt.plot(xv, yv, colors[iii-1], linestyle=linestyles[iii-1],label=label, lw=2)
+    else:
+        plt.plot(xv[xa:xb], yv[xa:xb], colors[iii-1], linestyle=linestyles[iii-1],label=label, lw=2)
+if (maxPlot < 1) or (nplot < 1):
+    exit()
+
 if myTitle == "":
     myTitle = note
+    
 plt.title(myTitle, fontsize=16)
 plt.xlabel('Frequency (MHz)',fontsize=16)
 ylabel = 'Intensity (%s)' % rs.bunit
 plt.ylabel(ylabel, fontsize=16)
 plt.legend(loc='upper right')
-plt.show()
+# if writing files
+if doPlotFile:
+    if fileTag == "":
+        fileTag = "R-" + firstdate
+    outpng = "../" + fileTag + ".png"
+    plt.savefig(outpng,bbox_inches='tight')
+    outpdf = "../" + fileTag + ".pdf"
+    plt.savefig(outpdf,bbox_inches='tight')
+    print( "Wrote files %s and %s" % (outpng, outpdf))
+else:
+    # else show the plots
+    plt.show()
