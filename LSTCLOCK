@@ -7,8 +7,13 @@ if [ -f lstClock.py ]
 then
     python lstClock.py
 else
-    if [ -f ~/bin/lstClock.py ]
+    if [ -f ~/Research/analyze/lstClock.py ]
     then
-       python ~/bin/lstClock.py
-    fi     
+       python ~/Research/analyze/lstClock.py
+    else
+	if [ -f ~/bin/lstClock.py ]
+	then
+	    python ~/bin/lstClock.py
+	fi
+    fi
 fi
