@@ -1,0 +1,15 @@
+#!/bin/bash
+# find the latest observation in standard directory
+# HISTORY
+# 20Jun16 GIL initial version that finds the latest observation
+# find the most recent note file 
+
+export datadir=/home/pi/Research/gr-radio_astro/data
+
+cd $datadir
+export files=`ls -t *.ast 2> /dev/null`
+export latestobs=`echo $files | awk '{print $1}'` 2> /dev/null
+echo $latestobs
+
+#head -40 $latest | grep "# AZ" | awk '{ print $4}'
+
