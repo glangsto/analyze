@@ -1,0 +1,15 @@
+#!/bin/bash
+# Print the last digits of the 4 part ip address
+# Ie.: if IP address is 192.168.1.203  this script echos 203
+# HISTORY
+# 20Aug28 GIL Initial version
+#ifconfig | awk '$1 == "inet"{print$2}'
+
+export iplist=`ifconfig | awk '$1 == "inet"{print$2}' | head -1`
+
+#check the ip address list first, if this is not working
+#echo $iplist
+
+export lastdigits=`echo $iplist | awk -F'.' '{ print $4 }'`
+echo $lastdigits
+
