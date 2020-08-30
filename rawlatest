@@ -1,0 +1,14 @@
+#!/bin/bash
+# plot the latest observation compared to latest hot
+# HISTORY
+# 20Jun16 GIL initial version that finds the latest observation
+# find the most recent note file 
+
+export datadir=/home/pi/Research/gr-radio_astro/data
+
+export latesthot=`getlatesthot`
+export latestobs=`getlatestobs`
+
+cd $datadir
+R $latestobs $latesthot
+
