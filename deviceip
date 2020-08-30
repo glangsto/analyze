@@ -1,0 +1,25 @@
+#!/bin/bash
+#Check for devices on nearest router
+#HISTORY
+#20AUG31 GIL check for nmap function
+#20Jan01 GIL initial version
+
+# if a router ip argument 
+if [ ! -z $1 ] 
+then 
+    export routerip=$1
+else
+    export routerip=`routerip`
+fi
+
+
+echo "Checking for devices on router: " $routerip
+
+if [ -e /usr/bin/nmap ]
+then
+#sudo nmap -sn $routerip/24 | grep 'scan report'
+    nmap -sn $routerip/24 | grep 'scan report'
+else
+    arp -a
+fi
+
