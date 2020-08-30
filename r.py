@@ -61,6 +61,7 @@ minvel = -180.
 maxPlot = int(25)
 fileTag = ""
 firstdate = ""
+doScaleAve = False
 
 nargs = len(sys.argv)
 #first argument is the averaging time in seconds
@@ -70,11 +71,11 @@ if nargs < 3:
     print("R: Plot Raw counts of telescope observations")
     print("Usage: R <flags> <files>")
     print("Where <flags> are:")
+    print("-A optionally scale intensities by count of spectra averaged")
     print("-B <sample> Set first sample to plot (default is 1/4 of samples)")
     print("-C optionally flag the center of the band")
     print("-E <sample> Set last sample to plot (default is end of samples)")
-    print("-I optionall set Processor Index")
-    print("-H optionall set the high velocity region for baseline fit")
+    print("-H optionally set the high velocity region for baseline fit")
     print("-K optionall save average hot and cold load calibration observations")
     print("-L optionally set the low velocity region for baseline fit")
     print("-N <number> optionally set the number of spectra to plot")
@@ -90,6 +91,10 @@ if nargs < 3:
     print("Glen Langston - NSF   August 28, 2020")
     exit()
 
+xa = -1
+xb = -1
+
+namearg = 1    
 # for all arguments, read list and exit when no flag argument found
 while iarg < nargs:
 
@@ -97,9 +102,12 @@ while iarg < nargs:
     if sys.argv[iarg].upper() == '-F':
         print('Folding specectra')
         doFold = True
+    elif sys.argv[iarg].upper() == '-A':
+        toScalAve = True
     elif sys.argv[iarg].upper() == '-B':   # if setting beginning sample
         iarg = iarg + 1
         xa = int( sys.argv[iarg])
+        print('Plotting starting at channel: %4d' % (xa))
     elif sys.argv[iarg].upper() == '-C':
         flagCenter = True
     elif sys.argv[iarg].upper() == '-E':   # if setting ending sample
@@ -122,23 +130,22 @@ while iarg < nargs:
             print("Plot will have a maximum of %d spectra" % (maxPlot))
     elif sys.argv[iarg].upper() == '-P':
         doPlotFile = True
+    elif sys.argv[iarg].upper() == '-Q':
+        plotFrequency = True
     elif sys.argv[iarg].upper() == '-R':
         flagRfi = True
     elif sys.argv[iarg].upper() == '-T':   # if plot title provided
         iarg = iarg+1
-        namearg = namearg+1
         myTitle = sys.argv[iarg]
         print('Plot Title : ', myTitle)
     elif sys.argv[iarg].upper() == '-V':   # default is plotting Frequency
         plotFrequency = False              # plot velocity
     elif sys.argv[iarg].upper() == '-VA':   # now look for flags with arguments
         iarg = iarg+1
-        namearg = namearg+1
         minvel = float(sys.argv[iarg])
         print('Minimum velocity for baseline fit: %7.2f km/sec ' % (minvel))
     elif sys.argv[iarg].upper() == '-VB':   # now look for flags with arguments
         iarg = iarg+1
-        namearg = namearg+1
         maxvel = float(sys.argv[iarg])
         print('Maximum velocity for baseline fit: %7.2f km/sec ' % (maxvel))
     elif sys.argv[iarg].upper() == '-CEN':   # if nU ref is provided (in MHz)n
@@ -152,20 +159,22 @@ while iarg < nargs:
     else:
         break
     iarg = iarg + 1
-    namearg = namearg+1
+    namearg = iarg + 1
 # end of while not reading file names
+
+if plotFrequency:
+    print( "Ploting Intensity versus Frequency")
+else:
+    print( "Ploting Intensity versus Velocity")
 
 linestyles = ['-','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.']
 colors = ['-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g']
 
-scalefactor = 1e8
 scalefactor = 1.0
 xallmax = -9.e9
 xallmin =  9.e9
 yallmax = -9.e9
 yallmin =  9.e9
-xa = -1
-xb = -1
 
 linelist = [1420.0, 1418.0]  # RFI lines in MHz
 linewidth = [7, 7]
@@ -179,18 +188,15 @@ c = 299792.458  # (Speed of light  km/sec)
 nplot = 0
 
 # plot no more than N spectra
-for iii in range(namearg, min(nargs,20)):
+for iii in range(namearg, min(nargs,30)):
 
     filename = sys.argv[iii]
     if verbose:
         print('%5d: %s' % (iii, filename))
 
-#    print(filename)
     rs.read_spec_ast( filename)
 # for averages can not use az,el to get ra,dec and glat, glon
 #    rs.azel2radec()    # compute ra,dec from az,el 
-
-#    print("GAL Lon,Lat: %8.3f, %8.3f"  % (rs.gallon, rs.gallat))
 
 
     parts = filename.split('/')
@@ -232,7 +238,10 @@ for iii in range(namearg, min(nargs,20)):
         xa, xb = gf.velocity_to_indicies( vel, minvel, maxvel)
     
     # normize for different integration times
-    rs.ydataA = rs.ydataA/rs.count
+    if doScaleAve:
+        rs.ydataA = rs.ydataA/rs.count
+    else:
+        rs.ydataA = rs.ydataA/rs.nave
     yv = rs.ydataA
 
     # The latest versions of the software had a different normalization
@@ -244,8 +253,8 @@ for iii in range(namearg, min(nargs,20)):
     yv = rs.ydataA * scalefactor
     if not plotFrequency:
         xv = vel
-    xmin = min(xv)
-    xmax = max(xv)
+    xmin = min(xv[xa:xb])
+    xmax = max(xv[xa:xb])
     xallmin = min(xmin,xallmin)
     xallmax = max(xmax,xallmax)
 
@@ -287,7 +296,7 @@ for iii in range(namearg, min(nargs,20)):
     plt.ylim(0.9*yallmin,1.25*yallmax)
 
     if plotFrequency:
-        plt.plot(xv, yv, colors[iii-1], linestyle=linestyles[iii-1],label=label, lw=2)
+        plt.plot(xv[xa:xb], yv[xa:xb], colors[iii-1], linestyle=linestyles[iii-1],label=label, lw=2)
     else:
         plt.plot(xv[xa:xb], yv[xa:xb], colors[iii-1], linestyle=linestyles[iii-1],label=label, lw=2)
 if (maxPlot < 1) or (nplot < 1):
