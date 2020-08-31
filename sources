@@ -1,5 +1,6 @@
 #!/bin/bash
 #List chronyc timing sources
 
-chronyc sources | grep -v ?
+chronyc sources | grep -v "?"
+
 
