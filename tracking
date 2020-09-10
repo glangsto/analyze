@@ -1,0 +1,8 @@
+#!/bin/bash
+#Abreviation for chronyc tracking time command
+#HISTORY
+#20Sep10 GIL Initial version
+
+chronyc tracking
+
+
