@@ -67,7 +67,7 @@ nargs = len(sys.argv)
 #first argument is the averaging time in seconds
 namearg = 1
 iarg = 1          # start searching for input flags
-if nargs < 3:
+if nargs < 2:
     print("R: Plot Raw counts of telescope observations")
     print("Usage: R <flags> <files>")
     print("Where <flags> are:")

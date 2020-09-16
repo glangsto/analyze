@@ -1,0 +1,7 @@
+#!/bin/bash
+#Script to print the Latitude and Longitude of your
+#Internet service provider.  Hopefully this is close to your telescope
+
+# print only the angle of the TELLAT= line
+python ~/Research/analyze/iplatlon.py
+

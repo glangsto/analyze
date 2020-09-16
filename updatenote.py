@@ -17,9 +17,10 @@ locs = loc.split(',')
 flat = float( locs[0])
 flon = float( locs[1])
 
-print 'Your IP detail\n '
+print 'Your IP details\n '
 print 'IP : {4} \nRegion : {1} \nCountry : {2} \nCity : {3} \nOrg : {0}'.format(org,region,country,city,IP)
 
+# keep latitude and longitude in float format
 lat = flat
 lon = flon
 
@@ -53,6 +54,7 @@ mlon = int(lon)
 slat = (lat - mlat)*60.
 slon = (lon - mlon)*60.
 
+# show results
 print('Latitude : %9.5f' % (flat))
 print('Latitude : %s%02d:%02d:%05.2f' % (pmlat,dlat,mlat,slat))
 print('Longitude: %9.5f' % (flon))
