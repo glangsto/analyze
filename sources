@@ -1,6 +1,11 @@
 #!/bin/bash
 #List chronyc timing sources
 
-chronyc sources | grep -v "?"
+if [ -f /usr/bin/ntpq ]
+then
+    ntpq -p
+else
+    chronyc sources | grep -v "?"
+fi
 
 

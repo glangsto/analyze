@@ -1,8 +1,16 @@
 #!/bin/bash
 #Abreviation for chronyc tracking time command
 #HISTORY
+#20Sep17 GIL use ntpq if available
 #20Sep10 GIL Initial version
 
-chronyc tracking
+if [ -f /usr/bin/ntpstat ]
+then
+    date
+    ntpstat
+else
+    chronyc tracking
+fi
+
 
 
