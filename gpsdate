@@ -1,0 +1,8 @@
+#!/bin/bash
+#Return Date from GPS device, if it is running
+#HISTORY
+#20SEP28 GIL get date from gps
+GPSDATE=`gpspipe -w | head -10 | grep TPV | sed -r 's/.*"time":"([^"]*)".*/\1/' | head -1` 
+
+echo $GPSDATE
+
