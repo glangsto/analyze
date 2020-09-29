@@ -11,8 +11,8 @@ USBAUTO="false"
 # They need to be read/writeable, either by user gpsd or the group dialout.
 #DEVICES="/dev/ttyACM0"  = use this for a USB GPS unit
 #DEVICES="/dev/serial0"
-#DEVICES="/dev/ttyS0"
-DEVICES="/dev/ttyAMA0"
+#DEVICES="/dev/ttyAMA0 /dev/pps1"
+DEVICES="/dev/ttyAMA0 /dev/pps0 /dev/pps1"
 
 # Other options you want to pass to gpsd
 GPSD_OPTIONS="-n"

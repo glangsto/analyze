@@ -40,6 +40,7 @@ hdmi_force_hotplug=1
 #sdtv_mode=2
 
 #uncomment to overclock the arm. 700 MHz is the default.
+#reduce RFI internal spurs by reducing number of clock multiples
 arm_freq=1460
 arm_min_freq=730
 
@@ -51,6 +52,19 @@ arm_min_freq=730
 # Uncomment this to enable the lirc-rpi module
 #dtoverlay=lirc-rpi
 
+# turn off hardware direct bluetooh, Then enable via UART
+# Use the /dev/ttyAMA0 UART for user applications (GPS), not Bluetooth
+dtoverlay=pi3-disable-bt
+# Use software UART for Bluetooth
+enable_uart=1
+dtoverlay=pi3-miniuart-bt
+
+# this is also maybe needed to use GPS efficiently.
+systemctl disable hciuart
+
+# enable GPS PPS;  The WaveShare MAX-M8Q uses pin 18 
+dtoverlay=pps-gpio,gpiopin=18
+
 # Additional overlays and parameters are documented /boot/overlays/README
 
 # Enable audio (loads snd_bcm2835)
@@ -58,15 +72,5 @@ dtparam=audio=on
 
 lcd_rotate=2
 
-[pi4]
-# Enable DRM VC4 V3D driver on top of the dispmanx display stack
-dtoverlay=vc4-fkms-v3d
-max_framebuffers=2
-
-# GPS changes
-enable_uart=1
-#Disable Bluetooth so serial-tty speed is no longer tied to CPU speed
-dtoverlay=pi3-disable-bt
-
-#WaveShare GPS max-M8Q 1 PPS is on pin 18
+#Get 1PPS from HAT pin
 dtoverlay=pps-gpio,gpiopin=18
