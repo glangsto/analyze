@@ -34,10 +34,12 @@ os.system( "echo 'Log of Pis booting up: %s' >> %s" % (myip, mailtemp))
 
 # read all the user-suppied horn info into the mail log
 os.system( "cat /boot/horn.txt >> %s" % (mailtemp))
+# read all the last IP this pi had
+os.system( "cat /boot/lastip.txt >> %s" % (mailtemp))
 # seem to need to wait for network to get working, before getting ip
-os.system( "/bin/sleep 15")
+#os.system( "/bin/sleep 15")
 # now get the location of the ip address
 os.system( "/home/pi/Research/analyze/iplatlon | cat >> %s" % (mailtemp))
 
-os.system( "cat %s | /usr/bin/sendmail -t" % (mailtemp))
+os.system( "cat %s | /usr/sbin/sendmail -t" % (mailtemp))
 

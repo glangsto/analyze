@@ -7,9 +7,15 @@
 
 cat /tmp/lastip.txt
 
+lastip=`cat /tmp/lastip.txt`
+
+# if the last ip was saved
 if [ -f /boot/lastip.txt ]
 then
-    sudo cp /tmp/lastip.txt /boot/lastip.txt
+    # if the last ip was not the default, then save it
+    if [ "$lastip" != "127.0.0.1" ] ; then 
+	sudo cp /tmp/lastip.txt /boot/lastip.txt
+    fi
 fi
 
 rm -f /tmp/lastip.txt
