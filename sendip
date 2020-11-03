@@ -1,0 +1,5 @@
+#!/bin/bash
+
+python /home/pi/bin/sendip.py
+
+
