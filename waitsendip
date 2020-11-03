@@ -1,0 +1,8 @@
+#!/bin/bash
+#Wait a while for network, then send an IP address email.
+
+/bin/sleep 180
+
+/usr/bin/python /home/pi/bin/sendip.py
+
+

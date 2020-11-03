@@ -1,0 +1,6 @@
+#!/bin/bash
+#Wait a while for network, then send an IP address email.
+
+/home/pi/bin/waitsendip &
+
+

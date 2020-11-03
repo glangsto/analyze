@@ -5,7 +5,7 @@
 import os
 
 myiptemp = "/tmp/myip"
-os.system( '/home/pi/bin/myip | head -1 > /tmp/myip')
+os.system( "/home/pi/bin/myip | head -1 > %s" % (myiptemp))
 
 # prepare for failure to read parts of ip
 ipparts = [ "1", "2"]
@@ -43,3 +43,6 @@ os.system( "/home/pi/Research/analyze/iplatlon | cat >> %s" % (mailtemp))
 
 os.system( "cat %s | /usr/sbin/sendmail -t" % (mailtemp))
 
+# now clean up for next go
+os.system( "sudo rm -f %s" % (myiptemp))
+os.system( "sudo rm -f %s" % (mailtemp))
