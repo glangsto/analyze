@@ -7,36 +7,27 @@ import re
 import json
 from urllib2 import urlopen
 
-checkok = True   # assume reading the ip goes well
 try:
-    data = str(urlopen('http://checkip.dyndns.com/',timeout=10).read())
+    data = str(urlopen('http://checkip.dyndns.com/',timeout=20).read())
 except:
     # this next line will not work when the IP address changes.
-    try:
-        data = str(urlopen('http://216.146.43.71/',timeout=10).read())
-    except:
-        checkok = False
+    data = str(urlopen('http://216.146.43.71/',timeout=20).read())
+IP = re.compile(r'(\d+.\d+.\d+.\d+)').search(data).group(1)
+url = 'http://ipinfo.io/' + IP + '/json'
+response = urlopen(url)
+data = json.load(response)
 
-if not checkok :
-    flat = 0.0
-    flon = 0.0
-else:
-    IP = re.compile(r'(\d+.\d+.\d+.\d+)').search(data).group(1)
-    url = 'http://ipinfo.io/' + IP + '/json'
-    response = urlopen(url)
-    data = json.load(response)
+org=data['org']
+city = data['city']
+country=data['country']
+region=data['region']
+loc = data['loc']
+locs = loc.split(',')
+flat = float( locs[0])
+flon = float( locs[1])
 
-    org=data['org']
-    city = data['city']
-    country=data['country']
-    region=data['region']
-    loc = data['loc']
-    locs = loc.split(',')
-    flat = float( locs[0])
-    flon = float( locs[1])
-    
-    print 'Your IP details\n '
-    print 'IP : {4} \nRegion : {1} \nCountry : {2} \nCity : {3} \nOrg : {0}'.format(org,region,country,city,IP)
+print 'Your IP details\n '
+print 'IP : {4} \nRegion : {1} \nCountry : {2} \nCity : {3} \nOrg : {0}'.format(org,region,country,city,IP)
 
 # keep latitude and longitude in float format
 lat = flat
@@ -44,14 +35,14 @@ lon = flon
 
 # convert to degrees minutes seconds
 # get sign of latitude
-if lat >= 0.:
+if lat > 0:
     pmlat = '+'
 else:
     pmlat = '-'
     lat = - lat
 
 # get sign of longitude
-if lon >= 0.:
+if lon > 0:
     pmlon = '+'
 else:
     pmlon = '-'
