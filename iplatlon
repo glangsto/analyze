@@ -3,5 +3,9 @@
 #Internet service provider.  Hopefully this is close to your telescope
 
 # print only the angle of the TELLAT= line
-python ~/Research/analyze/iplatlon.py
+if [ -f /usr/bin/python3 ]; then
+    /usr/bin/python3 /home/pi/Research/analyze/iplatlon.py
+else
+    python /home/pi/Research/analyze/iplatlon.py
+fi
 

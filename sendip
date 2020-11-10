@@ -1,5 +1,11 @@
 #!/bin/bash
+# use the version in analyze
 
-python /home/pi/bin/sendip.py
+if [ -f /usr/bin/python3 ]; then
+    /usr/bin/python3 /home/pi/Research/analyze/sendip.py
+else
+    python /home/pi/Research/analyze/sendip.py
+fi
+
 
 

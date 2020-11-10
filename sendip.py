@@ -38,7 +38,7 @@ try:
 except:
     webip = myip
     
-print ("My IP: %s, Web IP: %s" % (myip, webip))
+print(("My IP: %s, Web IP: %s" % (myip, webip)))
 
 #now write ip to a temp file
 mailtemp = "/tmp/myemail"
