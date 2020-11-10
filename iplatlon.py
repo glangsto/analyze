@@ -34,7 +34,8 @@ except:
     IP = "127.0.0.1"
     
 webiptemp = "/tmp/webip"
-os.system( "sudo echo %s > %s" % (IP, webiptemp))
+os.system( "sudo rm %s" % (webiptemp))
+os.system( "echo %s > %s" % (IP, webiptemp))
 
 # keep latitude and longitude in float format
 lat = flat
