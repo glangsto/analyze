@@ -1,0 +1,15 @@
+#!/bin/bash
+# script to setup the web page for the latest spectra
+# HISTORY
+#20NOV12 GIL initial version
+
+if [ -f /var/www/html/latest ] ; then
+   exit
+fi
+
+export $latesthome=/var/www/html/latest
+sudo mkdir $latesthome
+
+cd $latesthome
+chmod 777 .
+

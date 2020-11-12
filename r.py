@@ -172,7 +172,7 @@ else:
     print( "Ploting Intensity versus Velocity")
 
 linestyles = ['-','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.']
-colors = ['-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g']
+colors = ['g', 'b', 'r', '-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g']
 
 scalefactor = 1.0
 xallmax = -9.e9
@@ -296,9 +296,9 @@ for iii in range(namearg, min(nargs,30)):
     plt.ylim(0.9*yallmin,1.25*yallmax)
 
     if plotFrequency:
-        plt.plot(xv[xa:xb], yv[xa:xb], colors[iii-1], linestyle=linestyles[iii-1],label=label, lw=2)
+        plt.plot(xv[xa:xb], yv[xa:xb], colors[nplot], linestyle=linestyles[iii-1],label=label, lw=2)
     else:
-        plt.plot(xv[xa:xb], yv[xa:xb], colors[iii-1], linestyle=linestyles[iii-1],label=label, lw=2)
+        plt.plot(xv[xa:xb], yv[xa:xb], colors[nplot], linestyle=linestyles[iii-1],label=label, lw=2)
 if (maxPlot < 1) or (nplot < 1):
     print("No Plots, exiting")
     exit()

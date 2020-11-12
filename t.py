@@ -1,6 +1,7 @@
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#20NOV12 GIL fix plotting to files
 #20AUG28 GIL add option to only write the plots
 #20JUL27 GIL add options to set thot, tcold, fix writing Kelvins
 #20JUN02 GIL plot frequency if velocity out of range
@@ -253,9 +254,9 @@ while iarg < nargs:
         print( 'File tag: %s' % (fileTag))
     else:
         break
+    iarg = iarg + 1
     timearg = iarg
     namearg = iarg+1
-    iarg = iarg + 1
 # end of while not reading file names
 
 #first argument is the averaging time in seconds
@@ -305,6 +306,9 @@ dt = datetime.timedelta(seconds=0.)
 names = sys.argv[namearg:]
 names = sorted(names)
 nFiles = len(names)
+if nFiles < 2:
+    print("Not enough names to calibrate: %n" % (nFiles))
+    
 # create the spectrum class/structure to receive spectra
 rs = radioastronomy.Spectrum()
 ave_hot  = radioastronomy.Spectrum()
@@ -521,6 +525,7 @@ def read_cold( names, ave_cold, minel, minGLat, maxGlat):
     # flag starting a new sum of cold (high elevation and galactic latitude) obs
     ncold = 0
     rs = radioastronomy.Spectrum()
+    nName = len(names)
     # now average coldest data for calibration
     for filename in names:
 
@@ -531,7 +536,7 @@ def read_cold( names, ave_cold, minel, minGLat, maxGlat):
             continue
 
         # note this test excludes low galactic latitude ranges
-        if rs.gallat > maxGlat or rs.gallat < minGlat:
+        if rs.gallat > maxGlat or rs.gallat < minGlat or (nName < 4):
             if ncold == 0:
                 firstutc = rs.utc
                 lastutc = rs.utc
@@ -705,212 +710,209 @@ for filename in names:
         dt = dt + datetime.timedelta(seconds=rs.durationSec)
         lastdate = date
 
-        newAzEl = (lastaz != rs.telaz) or (lastel != rs.telel)
-        newObs = (lastfreq != rs.centerFreqHz) or (lastbw != rs.bandwidthHz) or (lastgain != rs.gains[0]) or newAzEl
-        # if this is the last file and there was not a change in observing setup 
-        if allFiles and (not newObs):
-            if rs.nChan != ave_spec.nChan:
-                print("File Size Error: %d != %d for file %s; Skipping ..." % (rs.nChan, ave_spec.nChan, filename))
-            else:
-                ave_spec, rs, nave, firstutc, lastutc = average_spec( ave_spec, rs, nave, firstutc, lastutc)
+    newAzEl = (lastaz != rs.telaz) or (lastel != rs.telel)
+    newObs = (lastfreq != rs.centerFreqHz) or (lastbw != rs.bandwidthHz) or (lastgain != rs.gains[0]) or newAzEl
+    # if this is the last file and there was not a change in observing setup 
+    if allFiles and (not newObs):
+        if rs.nChan != ave_spec.nChan:
+            print("File Size Error: %d != %d for file %s; Skipping ..." % (rs.nChan, ave_spec.nChan, filename))
+        else:
+            ave_spec, rs, nave, firstutc, lastutc = average_spec( ave_spec, rs, nave, firstutc, lastutc)
 
-        # if time to average (or end of all files)
-        if (dt > avetime) or newObs or allFiles:
-            if doDebug:
-                medianData = np.median( ave_spec.ydataA[n6:n56])
-                print( "Average duration: %7.1f, Median:  %8.3f" % (ave_spec.durationSec, medianData))
+    # if time to average (or end of all files)
+    if (dt > avetime) or newObs or allFiles:
+        if doDebug:
+            medianData = np.median( ave_spec.ydataA[n6:n56])
+            print( "Average duration: %7.1f, Median:  %8.3f" % (ave_spec.durationSec, medianData))
 
-            # not calibrating hot load observations.
-            if ave_spec.telel < 0.:
-                # Reset the ncold count and restart sum
-                nave = 0
-                continue
-            ave_spec, nave = normalize_spec( ave_spec, nave, firstutc, lastutc)
-            xv = ave_spec.xdata * 1.E-6  # covert to MHz
-            yv = ave_spec.ydataA 
-            if flagRfi:
-                yv = interpolate.lines( linelist, linewidth, xv, yv) # interpolate rfi
-
-            xmin = min(xv)
-            xmax = max(xv)
-            xallmin = min(xmin, xallmin)
-            xallmax = max(xmax, xallmax)
-            count = ave_spec.count
-            note = ave_spec.noteA
-                    #print('%s' % note)
-            ncolor = min(nmax-1, nplot) 
-
-            tsky, vel = compute_tsky_hotcold( xv, yv, hv, cv, thot, tcold)
-            # get tsys from averages of ends of spectra
-            tSys = np.median(tsky[n6:n56])
-            tStdA = np.std(tsky[n6:n26])
-            tStdB = np.std(tsky[n46:n56])
-            cA = np.median(cv[n6:n26])
-            cB = np.median(cv[n46:n56])
-            counts = (cA+cB)/2.
-            tStd = (tStdA+tStdB)/2.
-            ave_spec.tSys = tSys
-            ave_spec.tRx = tRxMiddle
-            ave_spec.tRms = tStd
-            ave_spec.tint = ave_spec.durationSec
-            ave_spec.bunit = 'Kelvins'
-            ave_spec.KperC = gainAve
-            
-            # compute velocity correction for this direction and date
-            corr = gf.compute_vbarycenter( ave_spec)
-            velcorr = vel + corr
-
-            # compute indicies for min and max velocity
-            imin, imax = gf.velocity_to_indicies( velcorr, minvel, maxvel)
-            if imin < 20 or imin > (nData - 20):
-                plotFrequency = True
-                print("Min velocity index out of range: %d, plotting vs Frequency" % (imin))
-                imin = 20
-            if imax < 20 or imax > (nData - 20):
-                plotFrequency = True
-                print("Max velocity index out of range: %d, plotting vs Frequency" % (imax))
-                imax = nData - 20
-                
-            # keep the average time, but use the duration from the integration times.
-            # pull out coordinates for labeling
-            az = ave_spec.telaz
-            el = ave_spec.telel
-            ave_spec.azel2radec()    # compute ra,dec from az,el and average utc
-            gallon = ave_spec.gallon
-            gallat = ave_spec.gallat
-            label = 'L,L=%5.1f,%6.1f' % (gallon, gallat)
-            
-            nChan2 = int(ave_spec.nChan/2)
-            dV = (velcorr[nChan2] - velcorr[nChan2 - 4])*.25
-            if dV < 0:
-                dV = - dV
-
-            # this code computes and subtracts a baseline so that source intensities can be compared.
-
-            # if can not fit velocity
-            if not plotFrequency:
-                # compute indicies for min and max velocity to integrate
-                iVmin, iVmax = gf.velocity_to_indicies( velcorr, minSVel, maxSVel)
-                # next compute the integrated intensities after baseline subtraction
-                baseline = gf.fit_baseline( velcorr[0:nData], tsky[0:nData], imin, imax, 10, fitOrder)
-
-                # remove baseline to get the source spectrum
-                tSource = tsky[0:nData] - baseline[0:nData]
-
-                # if plotting/keeping the baseline subtracted spectra, transfer to Sky
-                if doBaseline:
-                    tsky = tSource
-
-                # now compute integrated intensity and noise estimates
-                nv = iVmax - iVmin
-                if nv < 0:
-                    print("Velocity Index Error: %d > %d" % (iVmin, iVMax))
-                    nv = -nv
-
-                # create sub-arrays of intensity and velocity
-                tSs = tSource[iVmin:iVmax]
-                vSs = velcorr[iVmin:iVmax]
-                tSourcemin = min(tSs)
-                tSourcemax = max(tSs)
-                # get index to maximum value; then get velocity
-                iSourcemax = np.argmax(tSs)
-                velSource = vSs[iSourcemax]
-                # integrate over spectrum for required velocity range
-                tSum = np.sum(tSs)
-                tSumRms = np.std(tSs)
-
-                # computed the integrated velocity
-                tvs = tSs*vSs
-                tVSum = np.sum(tvs)
-                tVSumRms = np.std(tvs)
-
-                # Integration is reported in Kelvin*Km/Sec;
-                # Multiply by source velocity range
-                tSumKmSec = tSum * ( maxSVel - minSVel)/float(nv)
-                dTSumKmSec = tSumRms * dV * np.sqrt(float(nv))
-            else:
-                tSourcemin = 0.
-                tSourcemax = 0.
-                velSource = 0.
-                tVSum = 0.
-                tVSumRms = 0.
-                tSumKmSec = 0.
-                dTSumKmSec = 0.
-                tSum = 0.
-                
-            # set min and max y for plotting (only)
-            ymin = min(tsky[imin:imax])
-            ymax = max(tsky[imin:imax])
-
-            # now compute intensity weighted velocity
-            if tSum > 0.:
-                tVSum = tVSum/tSum
-                tVSumRms = tVSumRms*np.sqrt(float(nv))/tSum
-            else:
-                tVSumRms = 0.
-                tVSum=0.
-
-            # print diagnostic of integration
-            if (doDebug):
-                print("Min, max Velocity   : %7.1f  to %6.1f; %d,%d" % (minvel,maxvel, imin, imax))
-                print("Min, max Velocity I : %7.1f  to %6.1f; %d,%d" % (minSVel,maxSVel, iVmin, iVmax))
-                print("Average Intensity(K): %7.3f +/- %6.3f K (%d)" % (tSum/nv, tSumRms/nv, nv))
-                print("Int.  Vel.  K km/s  : %7.0f +/- %6.0f K*km/sec" % (tSumKmSec,  dTSumKmSec))
-                print("Peak    Velocity    : %7.1f +/- %6.1f km/sec (%d)" % (velSource,  dV, iSourcemax))
-                print("Integrated Velocity : %7.1f +/- %6.1f km/sec" % (tVSum,  tVSumRms))
-
-            avedatetime = ave_spec.utc.isoformat()
-            datestr = avedatetime.split('T')
-            atime = datestr[1]
-            timeparts = atime.split('.')
-            labeltime = timeparts[0]
-            label = '%s, A,E: %5s,%5s, L,L: %5.1f,%6.1f' % (labeltime, az, el, gallon, gallat)
-            if minel == maxel:
-                label = '%s L,L=%5.1f,%5.1f (%d)' % (labeltime, gallon, gallat, nave)
-            else:
-                label = '%s L,L=%5.1f,%5.1f A,E=%4.0f,%4.0f' % (labeltime, gallon, gallat, az, el)
-            print( ' Max: %9.1f  Median: %8.2f +/- %5.2f %3d %s' % (tSourcemax, tSys, tStd, nave, label))
-            # if plotting frequency overwrite the corrected velocities
-            if plotFrequency:
-                velcorr = xv
-            if int(nplot) < int(maxPlot):
-                yallmin = min(ymin,yallmin)
-                yallmax = max(ymax,yallmax)
-                if gallat < 7.5 and gallat > -7.5:
-                    plt.plot(velcorr, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label, lw=4)
-                elif gallat < 15. and gallat > -15.:
-                    plt.plot(velcorr, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label, lw=2)
-                else:
-                    plt.plot(velcorr, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label)
-            nplot = nplot + 1
-            # this code computes and subtracts a baseline so that source intensities can be compared.
-
-            gf.saveTsysValues( saveFile, ave_spec, cpuIndex, tSourcemax, velSource, dV, tVSum, tVSumRms, tSumKmSec, dTSumKmSec)
-            if writeTsys:
-                ave_spec.ydataA = tsky
-                aveutc = ave_spec.utc
-                outname = radioastronomy.utcToName( aveutc)
-                outname = outname + ".kel"  # output in Kelvins
-                ave_spec.count = 1
-                ave_spec.write_ascii_file("../", outname)                
-# flag restarting the sum
+        # not calibrating hot load observations.
+        if ave_spec.telel < 0.:
+            # Reset the ncold count and restart sum
             nave = 0
+            continue
+        ave_spec, nave = normalize_spec( ave_spec, nave, firstutc, lastutc)
+        xv = ave_spec.xdata * 1.E-6  # covert to MHz
+        yv = ave_spec.ydataA 
+        if flagRfi:
+            yv = interpolate.lines( linelist, linewidth, xv, yv) # interpolate rfi
+        xmin = min(xv)
+        xmax = max(xv)
+        xallmin = min(xmin, xallmin)
+        xallmax = max(xmax, xallmax)
+        count = ave_spec.count
+        note = ave_spec.noteA
+        ncolor = min(nmax-1, nplot) 
 
-        if newObs:
-            if lastfreq != rs.centerFreqHz:
-                print( "Change: LastFreq: ", lastfreq/1e6, "New: ", rs.centerFreqHz/1e6, " MHz")
-                lastfreq = rs.centerFreqHz
-            if lastbw != rs.bandwidthHz:
-                print( "Change: LastBandwidth: ", lastbw/1e6, "New: ", rs.bandwidthHz/1e6, " MHz")
-                lastbw = rs.bandwidthHz
-            if lastgain != rs.gains[0]:
-                print( "Change: LastGain: ", lastgain, "New: ", rs.gains[0], " dB")
-                lastgain = rs.gains[0]
-            if newAzEl:
-                print( "Change: LastAzEl: ", lastaz,lastel, "New: ", rs.telaz,rs.telel, " degrees")
-                lastaz = rs.telaz
-                lastel = rs.telel
+        tsky, vel = compute_tsky_hotcold( xv, yv, hv, cv, thot, tcold)
+        # get tsys from averages of ends of spectra
+        tSys = np.median(tsky[n6:n56])
+        tStdA = np.std(tsky[n6:n26])
+        tStdB = np.std(tsky[n46:n56])
+        cA = np.median(cv[n6:n26])
+        cB = np.median(cv[n46:n56])
+        counts = (cA+cB)/2.
+        tStd = (tStdA+tStdB)/2.
+        ave_spec.tSys = tSys
+        ave_spec.tRx = tRxMiddle
+        ave_spec.tRms = tStd
+        ave_spec.tint = ave_spec.durationSec
+        ave_spec.bunit = 'Kelvins'
+        ave_spec.KperC = gainAve
+            
+        # compute velocity correction for this direction and date
+        corr = gf.compute_vbarycenter( ave_spec)
+        velcorr = vel + corr
 
+        # compute indicies for min and max velocity
+        imin, imax = gf.velocity_to_indicies( velcorr, minvel, maxvel)
+        if imin < 20 or imin > (nData - 20):
+            plotFrequency = True
+            print("Min velocity index out of range: %d, plotting vs Frequency" % (imin))
+            imin = 20
+        if imax < 20 or imax > (nData - 20):
+            plotFrequency = True
+            print("Max velocity index out of range: %d, plotting vs Frequency" % (imax))
+            imax = nData - 20
+                
+        # keep the average time, but use the duration from the integration times.
+        # pull out coordinates for labeling
+        az = ave_spec.telaz
+        el = ave_spec.telel
+        ave_spec.azel2radec()    # compute ra,dec from az,el and average utc
+        gallon = ave_spec.gallon
+        gallat = ave_spec.gallat
+        label = 'L,L=%5.1f,%6.1f' % (gallon, gallat)
+            
+        nChan2 = int(ave_spec.nChan/2)
+        dV = (velcorr[nChan2] - velcorr[nChan2 - 4])*.25
+        if dV < 0:
+            dV = - dV
+
+            # this code computes and subtracts a baseline so that source intensities can be compared.
+
+        # if can not fit velocity
+        if not plotFrequency:
+            # compute indicies for min and max velocity to integrate
+            iVmin, iVmax = gf.velocity_to_indicies( velcorr, minSVel, maxSVel)
+            # next compute the integrated intensities after baseline subtraction
+            baseline = gf.fit_baseline( velcorr[0:nData], tsky[0:nData], imin, imax, 10, fitOrder)
+
+            # remove baseline to get the source spectrum
+            tSource = tsky[0:nData] - baseline[0:nData]
+
+            # if plotting/keeping the baseline subtracted spectra, transfer to Sky
+            if doBaseline:
+                tsky = tSource
+
+            # now compute integrated intensity and noise estimates
+            nv = iVmax - iVmin
+            if nv < 0:
+                print("Velocity Index Error: %d > %d" % (iVmin, iVMax))
+                nv = -nv
+
+            # create sub-arrays of intensity and velocity
+            tSs = tSource[iVmin:iVmax]
+            vSs = velcorr[iVmin:iVmax]
+            tSourcemin = min(tSs)
+            tSourcemax = max(tSs)
+            # get index to maximum value; then get velocity
+            iSourcemax = np.argmax(tSs)
+            velSource = vSs[iSourcemax]
+            # integrate over spectrum for required velocity range
+            tSum = np.sum(tSs)
+            tSumRms = np.std(tSs)
+
+            # computed the integrated velocity
+            tvs = tSs*vSs
+            tVSum = np.sum(tvs)
+            tVSumRms = np.std(tvs)
+
+            # Integration is reported in Kelvin*Km/Sec;
+            # Multiply by source velocity range
+            tSumKmSec = tSum * ( maxSVel - minSVel)/float(nv)
+            dTSumKmSec = tSumRms * dV * np.sqrt(float(nv))
+        else:
+            tSourcemin = 0.
+            tSourcemax = 0.
+            velSource = 0.
+            tVSum = 0.
+            tVSumRms = 0.
+            tSumKmSec = 0.
+            dTSumKmSec = 0.
+            tSum = 0.
+                
+        # set min and max y for plotting (only)
+        ymin = min(tsky[imin:imax])
+        ymax = max(tsky[imin:imax])
+
+        # now compute intensity weighted velocity
+        if tSum > 0.:
+            tVSum = tVSum/tSum
+            tVSumRms = tVSumRms*np.sqrt(float(nv))/tSum
+        else:
+            tVSumRms = 0.
+            tVSum=0.
+
+        # print diagnostic of integration
+        if (doDebug):
+            print("Min, max Velocity   : %7.1f  to %6.1f; %d,%d" % (minvel,maxvel, imin, imax))
+            print("Min, max Velocity I : %7.1f  to %6.1f; %d,%d" % (minSVel,maxSVel, iVmin, iVmax))
+            print("Average Intensity(K): %7.3f +/- %6.3f K (%d)" % (tSum/nv, tSumRms/nv, nv))
+            print("Int.  Vel.  K km/s  : %7.0f +/- %6.0f K*km/sec" % (tSumKmSec,  dTSumKmSec))
+            print("Peak    Velocity    : %7.1f +/- %6.1f km/sec (%d)" % (velSource,  dV, iSourcemax))
+            print("Integrated Velocity : %7.1f +/- %6.1f km/sec" % (tVSum,  tVSumRms))
+
+        avedatetime = ave_spec.utc.isoformat()
+        datestr = avedatetime.split('T')
+        atime = datestr[1]
+        timeparts = atime.split('.')
+        labeltime = timeparts[0]
+        label = '%s, A,E: %5s,%5s, L,L: %5.1f,%6.1f' % (labeltime, az, el, gallon, gallat)
+        if minel == maxel:
+            label = '%s L,L=%5.1f,%5.1f (%d)' % (labeltime, gallon, gallat, nave)
+        else:
+            label = '%s L,L=%5.1f,%5.1f A,E=%4.0f,%4.0f' % (labeltime, gallon, gallat, az, el)
+        print( ' Max: %9.1f  Median: %8.2f +/- %5.2f %3d %s' % (tSourcemax, tSys, tStd, nave, label))
+        # if plotting frequency overwrite the corrected velocities
+        if plotFrequency:
+            velcorr = xv
+        if int(nplot) < int(maxPlot):
+            yallmin = min(ymin,yallmin)
+            yallmax = max(ymax,yallmax)
+            if gallat < 7.5 and gallat > -7.5:
+                plt.plot(velcorr, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label, lw=4)
+            elif gallat < 15. and gallat > -15.:
+                plt.plot(velcorr, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label, lw=2)
+            else:
+                plt.plot(velcorr, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label)
+        nplot = nplot + 1
+        # this code computes and subtracts a baseline so that source intensities can be compared.
+
+        gf.saveTsysValues( saveFile, ave_spec, cpuIndex, tSourcemax, velSource, dV, tVSum, tVSumRms, tSumKmSec, dTSumKmSec)
+        if writeTsys:
+            ave_spec.ydataA = tsky
+            aveutc = ave_spec.utc
+            outname = radioastronomy.utcToName( aveutc)
+            outname = outname + ".kel"  # output in Kelvins
+            ave_spec.count = 1
+            ave_spec.write_ascii_file("../", outname)                
+# flag restarting the sum
+        nave = 0
+
+    if newObs:
+        if lastfreq != rs.centerFreqHz:
+            print( "Change: LastFreq: ", lastfreq/1e6, "New: ", rs.centerFreqHz/1e6, " MHz")
+            lastfreq = rs.centerFreqHz
+        if lastbw != rs.bandwidthHz:
+            print( "Change: LastBandwidth: ", lastbw/1e6, "New: ", rs.bandwidthHz/1e6, " MHz")
+            lastbw = rs.bandwidthHz
+        if lastgain != rs.gains[0]:
+            print( "Change: LastGain: ", lastgain, "New: ", rs.gains[0], " dB")
+            lastgain = rs.gains[0]
+        if newAzEl:
+            print( "Change: LastAzEl: ", lastaz,lastel, "New: ", rs.telaz,rs.telel, " degrees")
+            lastaz = rs.telaz
+            lastel = rs.telel
 
     # end if a cold file
     if allFiles:
@@ -973,6 +975,7 @@ else:
     myTitle = myTitle + " El=%6.1f to %6.1f" % (minel, maxel)
 
 if (maxPlot < 1) or (nplot < 1):
+    print("No Plots, exiting")
     exit()
 fig.canvas.set_window_title(myTitle)
 for tick in ax1.xaxis.get_major_ticks():
