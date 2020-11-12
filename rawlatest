@@ -1,6 +1,7 @@
 #!/bin/bash
 # plot the latest observation compared to latest hot
 # HISTORY
+# 20Nov12 GIL create latest file in html directory
 # 20Jun16 GIL initial version that finds the latest observation
 # find the most recent note file 
 
@@ -8,7 +9,27 @@ export datadir=/home/pi/Research/gr-radio_astro/data
 
 export latesthot=`getlatesthot`
 export latestobs=`getlatestobs`
-
+export latestdir="/var/www/html/latest"
 cd $datadir
-R $latestobs $latesthot
+R -P $latestdir/ $latestobs $latesthot
 
+# link the latest png for easy access to web page
+export latestpng=$latestdir/R-latest.png
+# now relink to the last latest plot
+if [ -f  $latestpng ] ; then
+    sudo rm $latestpng
+fi
+
+export newestpng=`ls -t $latestdir/*.png | head -1`
+#echo "Newest: " $newestpng
+sudo ln -s $newestpng $latestpng
+
+# link the latest png for easy access to web page
+export latestpdf=$latestdir/R-latest.pdf
+if [ -f  $latestpdf ] ; then
+    sudo rm $latestpdf
+fi    
+
+export newestpdf=`ls -t $latestdir/*.pdf | head -1`
+echo "Newest: " $newestpdf
+sudo ln -s $newestpdf $latestpdf

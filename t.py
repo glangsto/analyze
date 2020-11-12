@@ -88,7 +88,9 @@ writeTsys = True
 writeTsys = False
 # to address an old problem, optionally allow folding spectra
 doFold = False
+# if plotting to a file, specify the directory
 doPlotFile = False
+plotFileDir = "~/"
 doKeep = False
 # specify lowest  elevation for cold load averge
 lowel = 60.
@@ -209,6 +211,8 @@ while iarg < nargs:
             print("Plot will have a maximum of %d spectra" % (maxPlot))
     elif sys.argv[iarg].upper() == '-P':
         doPlotFile = True
+        iarg = iarg+1
+        plotFileDir = sys.argv[iarg]
     elif sys.argv[iarg].upper() == '-Q':
         plotFrequeny = True
     elif sys.argv[iarg].upper() == '-R':
@@ -249,9 +253,9 @@ while iarg < nargs:
         print( 'File tag: %s' % (fileTag))
     else:
         break
-    iarg = iarg + 1
     timearg = iarg
     namearg = iarg+1
+    iarg = iarg + 1
 # end of while not reading file names
 
 #first argument is the averaging time in seconds
@@ -1010,9 +1014,9 @@ plt.legend(loc='upper right')
 if doPlotFile:
     if fileTag == "":
         fileTag = "T-" + firstdate
-    outpng = "../" + fileTag + ".png"
+    outpng = plotFileDir + fileTag + ".png"
     plt.savefig(outpng,bbox_inches='tight')
-    outpdf = "../" + fileTag + ".pdf"
+    outpdf = plotFileDir + fileTag + ".pdf"
     plt.savefig(outpdf,bbox_inches='tight')
     print( "Wrote files %s and %s" % (outpng, outpdf))
 else:

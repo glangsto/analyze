@@ -31,6 +31,7 @@ doSave = False    # flag saving intermediate files
 flagRfi = True    # flag flagging RFI
 doFold = False    # fold spectra to address an old issue; not normally used.
 doPlotFile = False
+plotFileDir = "~/"
 # put your list of known RFI features here.  Must have at least two, if flagRfi is true.
 linelist = [1400.00, 1420.0]  # RFI lines in MHz
 doFold = False
@@ -130,6 +131,8 @@ while iarg < nargs:
             print("Plot will have a maximum of %d spectra" % (maxPlot))
     elif sys.argv[iarg].upper() == '-P':
         doPlotFile = True
+        iarg = iarg+1
+        plotFileDir = sys.argv[iarg]
     elif sys.argv[iarg].upper() == '-Q':
         plotFrequency = True
     elif sys.argv[iarg].upper() == '-R':
@@ -158,8 +161,9 @@ while iarg < nargs:
         print( 'File tag: %s' % (fileTag))
     else:
         break
-    iarg = iarg + 1
+#    namearg = iarg + 1
     namearg = iarg + 1
+    iarg = iarg + 1
 # end of while not reading file names
 
 if plotFrequency:
@@ -197,7 +201,6 @@ for iii in range(namearg, min(nargs,30)):
     rs.read_spec_ast( filename)
 # for averages can not use az,el to get ra,dec and glat, glon
 #    rs.azel2radec()    # compute ra,dec from az,el 
-
 
     parts = filename.split('/')
     nparts = len(parts)
@@ -276,19 +279,16 @@ for iii in range(namearg, min(nargs,30)):
     print(' Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ymax, ymed, ymax/ymed, count, label))
     if nplot <= 0 and maxPlot > 0:
         fig,ax1 = plt.subplots(figsize=(10,6))
-#        plt.hold(True)
         fig.canvas.set_window_title(date)
         for tick in ax1.xaxis.get_major_ticks():
             tick.label.set_fontsize(14) 
         for tick in ax1.yaxis.get_major_ticks():
             tick.label.set_fontsize(14) 
 
-        nplot = nplot + 1
-        if nplot > maxPlot:
-            break
-#    note = rs.noteA
+    nplot = nplot + 1
+    if nplot > maxPlot:
+        break
     note = rs.site
-#    print('%s' % note)
     yallmin = min(ymin,yallmin)
     yallmax = max(ymax,yallmax)
     plt.xlim(xallmin,xallmax)
@@ -300,6 +300,7 @@ for iii in range(namearg, min(nargs,30)):
     else:
         plt.plot(xv[xa:xb], yv[xa:xb], colors[iii-1], linestyle=linestyles[iii-1],label=label, lw=2)
 if (maxPlot < 1) or (nplot < 1):
+    print("No Plots, exiting")
     exit()
 
 if myTitle == "":
@@ -314,9 +315,9 @@ plt.legend(loc='upper right')
 if doPlotFile:
     if fileTag == "":
         fileTag = "R-" + firstdate
-    outpng = "../" + fileTag + ".png"
+    outpng = plotFileDir + fileTag + ".png"
     plt.savefig(outpng,bbox_inches='tight')
-    outpdf = "../" + fileTag + ".pdf"
+    outpdf = plotFileDir + fileTag + ".pdf"
     plt.savefig(outpdf,bbox_inches='tight')
     print( "Wrote files %s and %s" % (outpng, outpdf))
 else:
