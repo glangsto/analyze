@@ -10,32 +10,43 @@ export datadir=/home/pi/Research/gr-radio_astro/data
 export binhome=/home/pi/Research/analyze
 export latesthot=`$binhome/getlatesthot`
 export latestobs=`$binhome/getlatestobs`
+
+if [ "$latesthot" == "" ] ; then
+    echo "No Hot File, can not calibrate"
+    exit
+fi
+
+if [ "$latestobs" == "" ] ; then
+    echo "No Observation File, can not calibrate"
+    exit
+fi
+
 export latestdir="/var/www/html/latest"
 cd $datadir
-$binhome/R -P $latestdir/ $latestobs $latesthot
+$binhome/T -P $latestdir/ 3600. $latesthot $latestobs
 
 # link the latest png for easy access to web page
-export latestpng=$latestdir/R-latest.png
+export latestpng=$latestdir/T-latest.png
 # now relink to the last latest plot
 if [ -f  $latestpng ] ; then
     sudo rm $latestpng
 fi
 
-export newestpng=`ls -t $latestdir/R*.png | head -1`
+export newestpng=`ls -t $latestdir/T*.png | head -1`
 #echo "Newest: " $newestpng
-if [ "$newestpng" != "$latestpng" ] ; then 
+if [ "$newestpng" != "$latestpng" ] ; then
     sudo ln -s $newestpng $latestpng
 fi
 
 # link the latest png for easy access to web page
-export latestpdf=$latestdir/R-latest.pdf
+export latestpdf=$latestdir/T-latest.pdf
 if [ -f  $latestpdf ] ; then
     sudo rm $latestpdf
 fi    
 
-export newestpdf=`ls -t $latestdir/R*.pdf | head -1`
+export newestpdf=`ls -t $latestdir/T*.pdf | head -1`
 #echo "Newest: " $newestpdf
-if [ "$newestpdf" != "$latestpdf" ] ; then 
+if [ "$newestpdf" != "$latestpdf" ] ; then
     sudo ln -s $newestpdf $latestpdf
 fi
 

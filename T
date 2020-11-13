@@ -10,9 +10,9 @@ then
     python t.py "$@"
 else
 # if python is in the Research/analyze directory, execute that
-    if [ -e ~/Research/analyze/t.py ]
+    if [ -e /home/pi/Research/analyze/t.py ]
     then
-	python ~/Research/analyze/t.py "$@"
+	python /home/pi/Research/analyze/t.py "$@"
     else
 # if python is in the bin directory, execute that
 	if [ -e ~/bin/t.py ]

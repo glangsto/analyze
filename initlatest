@@ -1,0 +1,26 @@
+#!/bin/bash
+# script to setup the web page for the latest spectra
+# HISTORY
+#20NOV12 GIL initial version
+
+export latesthome=/var/www/html/latest
+
+# if directory does not exist, create it
+if [ ! -d $latesthome ] ; then
+    sudo mkdir $latesthome
+fi
+
+cd $latesthome
+# make the directory writable
+sudo chmod 777 .
+
+# if html file does not exist, copy
+if [ ! -f latest.html ] ; then 
+   cp /home/pi/analyze/docs/latest.html .
+fi
+
+# if default files does not exist, link it
+if [ ! -f index.html ] ; then 
+   ln -s latest.html index.html
+fi
+

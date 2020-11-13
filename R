@@ -9,9 +9,9 @@ if [ -e r.py ]
 then
     python r.py "$@"
 else
-    if [ -e ~/Research/analyze/r.py ]
+    if [ -e /home/pi/Research/analyze/r.py ]
     then
-       python ~/Research/analyze/r.py "$@"
+       python /home/pi/Research/analyze/r.py "$@"
     else  
        if [ -e ~/bin/r.py ]
        then
