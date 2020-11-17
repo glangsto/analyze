@@ -745,6 +745,26 @@ def phmsdms(hmsdms):
 
     return dict(sign=sign, units=units, vals=vals, parts=parts)
 
+def str2deci( hmsdms):
+    """
+    Convert an arbitrary string into floating point string (degrees)
+    Added by Glen Langston for a generic parser for input angle strings
+    """
+    # Convert the string into a dictionary of parts
+    angleparts = phmsdms(hmsdms)
+    sign = angleparts['sign']
+    values = angleparts['vals']
+    hd = values[0]
+    mm = values[1]
+    ss = values[2]
+    units = angleparts['units']
+    todeg = False  # assume input is already in degrees
+    # if this happens to be input in hours
+    if units == "hours":
+        todeg = True
+    # now use utility fully convert to a floating point value
+    anglefloat = sexa2deci(sign, hd, mm, ss, todeg=todeg)
+    return anglefloat
 
 def pposition(hd, details=False):
     """Parse string into angular position.
