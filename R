@@ -1,18 +1,25 @@
 #!/bin/bash
 #Plot Raw Horn Astronomy data
 #HISTORY
+#20NOV17 GIL look for analyze directory
 #18MAR25 GIL Clean up documentation
 #18DEC10 GIL 1st version with comments
+
+export analyze=/home/pi/Research/analyze
+# if not on a PI, look elsewhere for the analyze directory
+if [ ! -d $analyze ] ; then
+    export analyze=~/Research/analyze
+fi
 
 # find the plotting program
 if [ -e r.py ]
 then
     python r.py "$@"
 else
-    if [ -e /home/pi/Research/analyze/r.py ]
+    if [ -f $analyze/r.py ]
     then
-       python /home/pi/Research/analyze/r.py "$@"
-    else  
+	python $analyze/r.py "$@"
+    else
        if [ -e ~/bin/r.py ]
        then
        	  python ~/bin/r.py "$@"

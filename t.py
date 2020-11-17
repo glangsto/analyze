@@ -262,9 +262,9 @@ while iarg < nargs:
 #first argument is the averaging time in seconds
 avetimesec = float(sys.argv[timearg])
 if plotFrequency:
-    print( "Plotting Intensity vs Frequency,  Average time: ", avetimesec, " (seconds)")
+    print( "Plotting Intensity vs Frequency, Average time: %d (seconds)" % (avetimesec))
 else:
-    print( "Plotting Intensity vs Velocity,  Average time: ", avetimesec, " (seconds)")
+    print( "Plotting Intensity vs Velocity, Average time: %d (seconds)" % (avetimesec))
 newObs = False
 allFiles = False
 
@@ -929,7 +929,7 @@ for filename in names:
 # end of all files to read
 
 if doDebug:
-    print( 'Number of remaining observations not plotted: ', ncold)
+    print( 'Number of remaining observations not plotted: %d' % ( ncold))
 
 # if keeping hot and cold files
 if doKeep:
