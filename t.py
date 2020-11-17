@@ -83,7 +83,6 @@ namearg = 2
 flagCenter = False
 # put list of RFI features here, for interpolation later
 flagRfi = False
-flagRfi = True
 # writeTsys files
 writeTsys = True
 writeTsys = False
@@ -93,8 +92,8 @@ doFold = False
 doPlotFile = False
 plotFileDir = "~/"
 doKeep = False
-# specify lowest  elevation for cold load averge
-lowel = 60.
+# specify lowest elevation for cold load averge
+lowel = 10.
 # define fitOrder for intensity measurement
 fitOrder = int(1)
 
@@ -499,19 +498,47 @@ if doDebug:
 # not range about +/-60.
 use60Range = False
 
-# all galactic latitudes above +/-60d can be used
+# if any high galactic latitude data,
+# then all galactic latitudes above +/-30d can be used
 if minGlat < -30. or maxGlat > 30.:
     minGlat = -30.
     maxGlat = 30.
-else: # else no high galactic latitude data
-    # use highest galactic latitudes - +/-5.degrees
-    if -minGlat > maxGlat:  # if negative latitudes higher
-        minGlat = minGlat + 5.
-        maxGlat = 90.
-    else: # else positive latitudes higher
-        maxGlat = maxGlat - 5.
-        minGlat = -90.
 
+def read_angles( names, minel, minGLat, maxGlat):
+    """
+    read_angles() reads all files and counts number of files with 
+    high elevation and high galactic latitude
+    Inputs:
+       minel   minimum elevation to accept for cold load 
+       minGLat minimum galactic latitude
+       maxGlat maximum galactic latitude
+    """
+
+    # flag starting a new sum of cold (high elevation and galactic latitude) obs
+    ncold = 0
+    ngalactic = 0
+    rs = radioastronomy.Spectrum()
+    nName = len(names)
+    # now average coldest data for calibration
+    for filename in names:
+
+        rs.read_spec_ast(filename)
+        rs.azel2radec()    # compute ra,dec from az,el
+
+        if rs.telel < lowel:  #if elevation too low for a cold load obs
+            continue
+
+        # count number of high elevation files
+        if rs.telel > minel:
+            ncold = ncold + 1
+
+        # note this test excludes low galactic latitude ranges
+        if rs.gallat > maxGlat or rs.gallat < minGlat:
+            ngalactic = ngalactic + 1
+            
+    print( "Found %3d High Galactic Latitude spectra and %d high elevation spectra in %d files" % (ngalactic, ncold, nName))
+    return ncold, ngalactic
+    
 def read_cold( names, ave_cold, minel, minGLat, maxGlat):
     """
     read_cold() reads all files and averages selected files with high elevation and 
@@ -536,7 +563,7 @@ def read_cold( names, ave_cold, minel, minGLat, maxGlat):
             continue
 
         # note this test excludes low galactic latitude ranges
-        if rs.gallat > maxGlat or rs.gallat < minGlat or (nName < 4):
+        if rs.gallat > maxGlat or rs.gallat < minGlat:
             if ncold == 0:
                 firstutc = rs.utc
                 lastutc = rs.utc
@@ -559,14 +586,23 @@ def read_cold( names, ave_cold, minel, minGLat, maxGlat):
     if doFold:
         ave_cold.foldfrequency()
 
-    print( "Found %3d High Galactic Latitude spectra" % (ncold))
+#    print( "Found %3d High Galactic Latitude spectra" % (ncold))
     return ave_cold, ncold 
 
 if coldFileName != "":
     ave_cold.read_spec_ast( coldFileName)
     ave_cold.ydataA = ave_cold.ydataA/ave_cold.count
 else:
-    ave_cold, ncold = read_cold( names, ave_cold, minel, minGlat, maxGlat)
+    ncold, ngalactic = read_angles( names, minel, minGlat, maxGlat)
+    # if no high galactic latitude data, use all latitudes
+    if ngalactic < 1:
+        minGlat = -0.5
+        maxGlat = 0.5
+    # if no high elevation data, use all
+    lowel = minel
+    if ncold < 1:
+        lowel = 0.5
+    ave_cold, ncold = read_cold( names, ave_cold, lowel, minGlat, maxGlat)
 
 cv = copy.deepcopy(ave_cold.ydataA)
 
