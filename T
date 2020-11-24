@@ -1,33 +1,26 @@
 #!/bin/bash
 #Temperature calibrated Horn Astronomy data plots
 #HISTORY
-#20NOV17 GIL look for analyze directory
 #20MAR02 GIL 1st check for executable in ~/Research/analyze 
 #18DEC10 GIL 1st version with comments
 
-export analyze=/home/pi/Research/analyze
-# if not on a PI, look elsewhere for the analyze directory
-if [ ! -d $analyze ] ; then
-    export analyze=~/Research/analyze
-fi
-
 # find the plotting program
-if [ -f t.py ]
+if [ -e t.py ]
 then
     python t.py "$@"
 else
 # if python is in the Research/analyze directory, execute that
-    if [ -f $analyze/t.py ]
+    if [ -e /home/pi/Research/analyze/t.py ]
     then
-	python $analyze/t.py "$@"
+	python /home/pi/Research/analyze/t.py "$@"
     else
 # if python is in the bin directory, execute that
-	if [ -f ~/bin/t.py ]
+	if [ -e ~/bin/t.py ]
 	then
 	    python ~/bin/t.py "$@"
 	else
 # if python is in one directory up
-	    if [ -f ../t.py ]
+	    if [ -e ../t.py ]
 	    then
        		python ../t.py "$@"
 	    else  

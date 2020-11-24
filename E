@@ -5,8 +5,13 @@ if [ -e e.py ]
 then
     python e.py "$@"
 else
-    if [ -e ~/bin/e.py ]
+    if [ -e ~/Research/analyze/e.py ]
     then
-       python ~/bin/e.py "$@"
-    fi     
+       python ~/Research/analyze/e.py "$@"
+    else
+	if [ -e ~/bin/e.py ]
+	then
+	    python ~/bin/e.py "$@"
+	fi
+    fi
 fi
