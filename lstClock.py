@@ -37,6 +37,12 @@ except:
     print "Must include angles.py in your python search path"
     exit()
 
+try: 
+    import radioastronomy
+except:
+    print "Must include radioastronomy.py in your python search path"
+    exit()
+
 
 from threading import Thread
 try:
@@ -123,6 +129,62 @@ class makeThread (Thread):
           if ( self.debug ): print ("Thread begin")
           self.__action()
 
+# define paramters for reading a spectrum
+printOnce = True
+rs = radioastronomy.Spectrum()
+
+def getlatestcoords():
+    """ 
+    Find and read the latest notes files
+    Returns the telaz,telel,tellon,tellat as strings
+    """
+    global printOnce
+    
+    latestnote = os.popen("getlatest").read()
+    if printOnce:
+        print 'Reading telescope parameters for the latest notes file.'
+    latestnote = latestnote.strip()
+    if latestnote == "":
+        if printOnce:
+            print "No Note File found in Current Directory"
+            print "Using default values"
+        tellon = '-79.8397'
+        tellat = '38.4331' 
+        telaz = '180'
+        telel = '90'
+        latestnote = "~/bin/Simple.not"
+    else:
+#try:
+        if True:
+            latestnote = latestnote.strip()
+            if printOnce:
+                print("About to read %s" % (latestnote))
+                
+            rs.read_spec_ast(latestnote)
+            if printOnce:
+                print("Successfully read %s" % (latestnote))
+            tellon = str(rs.tellon)
+            tellat = str(rs.tellat)
+            telaz = str(rs.telaz)
+            telel = str(rs.telel)
+#        except: # if this does not work out, use green bank coordinates
+#            if printOnce:
+#                print("Failed to read the latest note file %s " % (latestnote))
+#            tellon = '-79.8397'
+#            tellat = '38.4331' 
+#           telaz = '180'
+#            telel = '90'
+           
+# strip out decimal point to simplify printing
+    parts = telaz.split(".")
+    telaz = parts[0]
+    parts = telel.split(".")
+    telel = parts[0]
+    # don't print again
+    printOnce = False
+    
+    return telaz, telel, tellon, tellat
+
 ## Class for drawing a simple analog clock.
 #  The backgroung image may be changed by pressing key 'i'.
 #  The image path is hardcoded. It should be available in directory 'images'.
@@ -144,6 +206,7 @@ class clock:
         else:
            self.showImage = False
 
+        # prepare to read the radio astornomy spectrum (note file)
         self.setColors()
         self.circlesize  = 0.15
         self._ALL        = 'handles'
@@ -151,45 +214,9 @@ class clock:
         width, height    = w, h
         self.pad         = width/16
         self.me = ephem.Observer()
+
+        telaz,telel,tellon,tellat = getlatestcoords()
         
-        latestnote = os.popen("getlatest").read()
-        print 'Reading telescope parameters for the latest notes file.'
-        latestnote = latestnote.strip()
-        if latestnote == "":
-            print "No Note File found in Current Directory"
-            print "Using default values"
-            tellon = '-79.8397'
-            tellat = '38.4331' 
-            telaz = '180'
-            telel = '90'
-            latestnote = "~/bin/Simple.not"
-        else:
-            print 'The Latest file: ', latestnote
-            print ''
-            try:
-                tellonlat = os.popen("gettellonlat "+latestnote).read()
-                parts = tellonlat.split(" ")
-                tellon = parts[0]
-                tellat = parts[1]
-            except: # if this does not work out, use green bank coordinates
-                tellon = '-79.8397'
-                tellat = '38.4331' 
-
-            try:
-                telazel = os.popen("gettelazel "+latestnote).read()
-                parts = telazel.split(" ")
-                telaz = parts[0]
-                telel = parts[1]
-                # remove decimals
-                parts = telaz.split(".")
-                telaz = parts[0]
-                parts = telel.split(".")
-                telel = parts[0]
-            except:
-                telaz = '180'
-                telel = '90'
-
-                
         print "Check Telescope Lon, Lat are correct!: ", tellon, tellat
         self.me.lon = tellon
         self.me.lat = tellat
@@ -348,40 +375,7 @@ class clock:
         dates = strnow.split('T')
         datestr = dates[0] + ' ' + dates[1]
 
-        try:
-            latestnote = os.popen("getlatest").read()
-        except:
-            latestnote == ""
-        latestnote = latestnote.strip()
-        if latestnote == "":
-            tellon = '-79.8397'
-            tellat = '38.4331' 
-            telaz = '180'
-            telel = '90'
-            latestnote = "~/bin/Simple.not"
-        else:
-            try:
-                tellonlat = os.popen("gettellonlat "+latestnote).read()
-                parts = tellonlat.split(" ")
-                tellon = parts[0]
-                tellat = parts[1]
-            except: # if this does not work out, use green bank coordinates
-                tellon = '-79.8397'
-                tellat = '38.4331' 
-
-            try:
-                telazel = os.popen("gettelazel "+latestnote).read()
-                parts = telazel.split(" ")
-                telaz = parts[0]
-                telel = parts[1]
-                # remove decimals
-                parts = telaz.split(".")
-                telaz = parts[0]
-                parts = telel.split(".")
-                telel = parts[0]
-            except:
-                telaz = '180'
-                telel = '90'
+        telaz,telel,tellon,tellat = getlatestcoords()
 
         self.az = telaz
         self.el = telel

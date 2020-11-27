@@ -2,6 +2,7 @@
 Class defining a Radio Frequency Spectrum
 Includes reading and writing ascii files
 HISTORY
+20NOV27 GIL separate the reading of the file header from the data
 20NOV17 GIL use angles.str2deci() for parsing string angles
 20NOV16 GIL fix reading Longitude outside of +/-90 degrees
 20AUG26 GIL fix errors when trying to read a .not file
@@ -724,45 +725,25 @@ class Spectrum(object):
         outname = yymmdd + extension
         self.write_ascii_file(dirname, outname)
 
-    def read_spec_ast(self, fullname):
+    def parse_spec_header(self, inlines):
+        """ 
+        Take input lines read and parse the header lines until reaching
+        The data.
         """
-        Read an ascii radio Spectrum file or an event in radio samples and
-        fill a Spectrum object
-        """
-        # turn on/off printing
-        verbose = True
-        verbose = False
-        # Read the file.
-        try:
-            if os.path.isfile(fullname):
-                f2 = open(fullname, 'r')
-        except:
-            print("Can Not open File: %s" % (fullname))
-            self.nChan = 0
-            self.nSamples = 0
-            return
-        
-# read the whole file into a single variable, which is a list of every row of the file.
-        inlines = f2.readlines()
-        f2.close()
-
-# initialize some variable to be lists:
-        x1 = []
-        y1 = []
-        y2 = []
-        datacount = 0
         linecount = 0
-
-# scan the rows of the file stored in lines, and put the values into some variables:
+        verbose = False
+        #  scan the rows of the file stored in lines, and put the values into some variables:
         for line in inlines:
             parts = line.split()
+            # exit when reaching end of the header
             if linecount == 0:
                 parts[1] = parts[1].upper()
-                if parts[1] != 'FILE:':
+                if ((not parts[1] != 'FILE:') and (not parts[1] != "FILE")):
                     print("")
                     print("read_spec_ascii input error!")
                     print("")
-                    print("Input not an NSF Spectrum file:", fullname)
+                    print("First Line: %s" % ( parts[1]))
+                    print("Input not an NSF Spectrum file: %s" % (fullname))
                     exit()
             linecount = linecount + 1
 # if a very short or blank line
@@ -770,6 +751,8 @@ class Spectrum(object):
                 continue
             if linecount == 2:
                 self.noteA = line[2:].replace('\n', '')
+            if line[0] != "#":
+                return linecount
 # if a comment or parameter line, decode value
             if line[0] == '#':
 # parse keywords as upper case: ie Ra == RA
@@ -964,10 +947,46 @@ class Spectrum(object):
                     x = angles.sexa2deci(aparts['sign'], *aparts['vals'])
                     self.az_sun = x
 # this is the end of the if first character is a # IF statement
-                continue
+
 # sometimes there are user comments in the top few lines; ignore
             if linecount < 5:
                 continue
+        # should not return from here, as end of header is detected above
+        return linecount
+    
+    def read_spec_ast(self, fullname):
+        """
+        Read an ascii radio Spectrum file or an event in radio samples and
+        fill a Spectrum object
+        """
+        # turn on/off printing
+        verbose = True
+        verbose = False
+        # Read the file.
+        try:
+            if os.path.isfile(fullname):
+                f2 = open(fullname, 'r')
+        except:
+            print("Can Not open File: %s" % (fullname))
+            self.nChan = 0
+            self.nSamples = 0
+            return
+        
+# read the whole file into a single variable, which is a list of every row of the file.
+        inlines = f2.readlines()
+        f2.close()
+
+# initialize some variable to be lists:
+        x1 = []
+        y1 = []
+        y2 = []
+
+        linecount = self.parse_spec_header( inlines)
+        datastart = linecount+1
+        datacount = 0
+
+        # all remaining are data
+        for line in inlines[datastart:]:
 # start data processing
             datacount = datacount+1
             p = line.split()
