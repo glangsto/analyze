@@ -1,6 +1,7 @@
 #!/bin/bash
 #Temperature calibrated Horn Astronomy data plots
 #HISTORY
+#20DEC04 GIL make generic for all linux hosts
 #20MAR02 GIL 1st check for executable in ~/Research/analyze 
 #18DEC10 GIL 1st version with comments
 
@@ -10,9 +11,9 @@ then
     python t.py "$@"
 else
 # if python is in the Research/analyze directory, execute that
-    if [ -e /home/pi/Research/analyze/t.py ]
+    if [ -e ~/Research/analyze/t.py ]
     then
-	python /home/pi/Research/analyze/t.py "$@"
+	python ~/Research/analyze/t.py "$@"
     else
 # if python is in the bin directory, execute that
 	if [ -e ~/bin/t.py ]
@@ -24,7 +25,7 @@ else
 	    then
        		python ../t.py "$@"
 	    else  
-		print "Can not find Temperature calibration python program: t.py" 
+		echo "Can not find Temperature calibration python program: t.py" 
 	    fi
 	fi
     fi
