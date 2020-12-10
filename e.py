@@ -2,6 +2,7 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#20Dec10 GIL optionally shift plots in y 
 #20Aug28 GIL optionally on plot to files
 #20Mar24 GIL increment color in plot order
 #20Feb08 GIL date to title
@@ -20,8 +21,8 @@ dy = -1.
 
 nargs = len( sys.argv)
 
-linestyles = ['-','-.','--','-.','--','-','--','--','--','-.','-','--','-.','-','--','-.','-','--','-','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.']
-colors = ['-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g']
+linestyles = ['-','-.','-', '-', '--','-.','--','-','--','--','--','-.','-','--','-.','-','--','-.','-','--','-','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.']
+colors = ['-b','-r','-g','-c', '-m', '-b','-r','-g','-b','-c', '-m', '-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g']
 
 xallmax = -9.e9
 xallmin =  9.e9
@@ -32,6 +33,8 @@ doDebug = False
 doAzEl = False
 doMag = False
 fileTag = ""
+yoffset = 0
+y0 = 0
 
 firstdate = ""
 xa = -1
@@ -48,6 +51,7 @@ if nargs < 2:
     print("  -B <sample> Set first sample to plot (default is 1/4 of samples)")
     print("  -E <sample> Set last sample to plot (default is end of samples)")
     print("  -M Compute Magnitude")
+    print("  -Y <offset> optionally add an offset to each plot")
     print("  -Z <file tag> optionally add tag to PDF and PNG file names")
     print("")
     print("Glen Langston - NSF    2020 August 28")
@@ -78,6 +82,9 @@ while iarg < nargs:
         doMag = True
     elif sys.argv[iarg].upper() == '-P':
         doPlotFile = True
+    elif sys.argv[iarg].upper() == '-Y':   # if offsetting in Y
+        iarg = iarg + 1
+        yoffset = np.float( sys.argv[iarg])
     elif sys.argv[iarg].upper() == '-Z':     # label written files
         iarg = iarg+1
         fileTag = str(sys.argv[iarg])
@@ -212,13 +219,19 @@ for iii in range(namearg, min(nargs,25)):
     yallmin = min(ymin,yallmin)
     yallmax = max(ymax,yallmax)
 
-    plt.plot(xv, yv, colors[nplot-1], linestyle=linestyles[nplot-1],label=label)
+    plt.plot(xv, yv+y0, colors[nplot-1], linestyle=linestyles[nplot-1],label=label)
+    y0 = y0 + yoffset
 plt.title(title)
 plt.xlabel('Time Offset From Event (micro-seconds)')
 plt.ylabel('Intensity (Counts)')
 plt.legend(loc='upper right')
 plt.xlim(xallmin,xallmax)
-plt.ylim(yallmin,1.25*yallmax)
+if y0 > 0.:
+    plt.ylim(yallmin,yallmax+y0*.666)
+elif y0 < 0.:
+    plt.ylim(yallmin+y0*.666,yallmax)
+else:
+    plt.ylim(yallmin,(1.2*yallmax)+y0)
 if doPlotFile:
     if fileTag == "":
         fileTag = "E-" + firstdate
