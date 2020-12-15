@@ -5,13 +5,13 @@ if [ -e matchevent.py ]
 then
     python matchevent.py "$@"
 else
-    if [ -e ~/Research/analyze/matchevent.py ]
+    if [ -e ~/Research/analyze/matchevents.py ]
     then
-       python ~/Research/analyze/matchevent.py "$@"
+       python ~/Research/analyze/matchevents.py "$@"
     else 
-	if [ -e ~/bin/matchevent.py ]
+	if [ -e ~/bin/matchevents.py ]
 	then
-	    python ~/bin/matchevent.py "$@"
+	    python ~/bin/matchevents.py "$@"
 	fi
     fi     
 fi

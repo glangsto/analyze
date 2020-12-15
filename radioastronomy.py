@@ -1,3 +1,4 @@
+#Python 
 """
 Class defining a Radio Frequency Spectrum
 Includes reading and writing ascii files
@@ -426,7 +427,7 @@ class Spectrum(object):
         """
         if ephemOK:
             location = ephem.Observer()
-            location.lon = str(self.tellon)
+            location.lon = str(self.tellon) # at this point lon,lat are in degrees
             location.lat = str(self.tellat)
             location.elevation = self.telelev
         strnow = self.utc.isoformat()
@@ -439,6 +440,8 @@ class Spectrum(object):
             lst = location.sidereal_time()
             aparts = angles.phmsdms(str(lst))
             self.lst = angles.sexa2deci(aparts['sign'], *aparts['vals'], todeg=True)
+#                print("lst: %s %s %7.3f" % (lst, datestr, self.lst))
+#            self.lst = angles.sexa2deci(aparts['sign'], *aparts['vals'])
         ## Must set the date before calculating ra, dec!!!
         # compute apparent RA,DEC for date of observations
             ra_a, dec_a = location.radec_of(str(self.telaz), str(self.telel))
@@ -774,11 +777,12 @@ class Spectrum(object):
                 if parts[1] == 'DELTAX':
                     self.deltaFreq = float(parts[3])
                 if parts[1] == 'LST':
-                    lstparts = angles.phmsdms(parts[3])
-                    x = angles.sexa2deci(lstparts['sign'], *lstparts['vals'])
-                    self.lst = x*15. # convert back to degrees
+                    # as of 20 Dec 2, the LST seems to be poorly set in raw data files
+                    self.lst = angles.str2deci(parts[3], todeg=True)
+#                    print("%s %7.3f" % (parts[3], self.lst))
+#                    self.lst = x*15. # convert back to degrees
                     if verbose:
-                        print(parts[3], x)
+                        print(parts[3], self.lst)
                 if parts[1] == 'AZ':
                     self.telaz = degree2float(parts[3], parts[1])
                 if parts[1] == 'EL':
@@ -924,8 +928,12 @@ class Spectrum(object):
 # if parse telescope geographic latitude and longitude into float
                 if parts[1] == 'TELLON':
                     self.tellon = angles.str2deci( parts[3])
+                    if verbose:
+                        print("TELLON: %s %7.3f" % (parts[3], self.tellon))
                 if parts[1] == 'TELLAT':
-                    self.tellat = angles.str2deci( parts[3])
+                    self.tellat = angles.str2deci( parts[3]) 
+                    if verbose:
+                        print("TELLAT: %s %7.3f" % (parts[3], self.tellat))
 # parse ra, dec into float
                 if parts[1] == 'RA':
                     aparts = angles.phmsdms(parts[3])
@@ -966,6 +974,11 @@ class Spectrum(object):
         try:
             if os.path.isfile(fullname):
                 f2 = open(fullname, 'r')
+            else:
+                print("Not a valid file name: %s" % (fullname))
+                self.nChan = 0
+                self.nSamples = 0
+                return
         except:
             print("Can Not open File: %s" % (fullname))
             self.nChan = 0
