@@ -1,0 +1,11 @@
+#!/bin/bash
+# use the version in analyze
+
+if [ -f /usr/bin/python3 ]; then
+    /usr/bin/python3 ~/Research/analyze/scrollip.py
+else
+    python ~/Research/analyze/scrollip.py
+fi
+
+
+
