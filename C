@@ -1,24 +1,25 @@
 #!/bin/bash
 #Median filter calibrate Horn Astronomy data
 #HISTORY
+#20DEC21 GIL replace C with T
 #18DEC11 GIL Moved help inside c.py
 #18DEC10 GIL 1st version with comments
 
 # if the python program is local, execute it
-if [ -e ./c.py ]
+if [ -e ./t.py ]
 then
-   python ./c.py "$@"
+   python ./t.py "$@"
 else
 # if python is in the bin directory, execute that
-    if [ -e ~/bin/c.py ]
+    if [ -e ~/bin/t.py ]
     then
-	python ~/bin/c.py "$@"
+	python ~/bin/t.py "$@"
     else
-	if [ -e ../c.py ]
+	if [ -e ~/Research/analyze/t.py ]
 	then
-       	    python ../c.py "$@"
+       	    python ~/Research/analyze/t.py "$@"
 	else
-	    print "Can not find Calibration plotting python program: c.py" 
+	    print "Can not find Calibration plotting python program: t.py" 
 	fi
     fi
 fi  # end else not in current directory
