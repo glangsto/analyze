@@ -1,6 +1,7 @@
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#20DEC21 GIL fix plotting versus Frequency again
 #20NOV12 GIL fix plotting to files
 #20AUG28 GIL add option to only write the plots
 #20JUL27 GIL add options to set thot, tcold, fix writing Kelvins
@@ -122,7 +123,7 @@ tcold = 10.0
 
 iarg = 1
 if nargs < 3:
-    print("T: Comput Tsys calibrated horn observations")
+    print("T: Compute Tsys calibrated horn observations, plotting Intensity versus Velocity")
     print("Usage: T [-F <order>] [-L <velocity>] [-H <velocity>] <average_seconds> <files>")
     print("Where <average_seconds>: Number of seconds of observations to average.")
     print("-A optionally use pre-calculated hot and cold load files")
@@ -214,7 +215,8 @@ while iarg < nargs:
         iarg = iarg+1
         plotFileDir = sys.argv[iarg]
     elif sys.argv[iarg].upper() == '-Q':
-        plotFrequeny = True
+        plotFrequency = True
+#        print("Plotting Intensity versus Frequency")
     elif sys.argv[iarg].upper() == '-R':
         flagRfi = True
     elif sys.argv[iarg].upper() == '-S':   # if save file name provided
@@ -909,6 +911,7 @@ for filename in names:
         else:
             label = '%s L,L=%5.1f,%5.1f A,E=%4.0f,%4.0f' % (labeltime, gallon, gallat, az, el)
         print(( ' Max: %9.1f  Median: %8.2f +/- %5.2f %3d %s' % (tSourcemax, tSys, tStd, nave, label)))
+
         # if plotting frequency overwrite the corrected velocities
         if plotFrequency:
             velcorr = xv
