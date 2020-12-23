@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # python to get my ip and send an email to megajansky
 #HISTORY
+# 20Dec23 GIL reduce text scolled
 # 20Dec19 GIL add stop option
 # 20Dec15 GIL initial version
 # 20Nov10 GIL try to readh web ip
@@ -9,7 +10,10 @@
 import os
 import sys
 import time
-from sense_hat import SenseHat
+try:
+    from sense_hat import SenseHat
+except:
+    sys.exit()
 
 # configure sense hat
 sense = SenseHat()
@@ -19,8 +23,8 @@ green = (0, 55, 0)
 blue = (50, 50, 255)
 purple = (155, 0, 155)
 sense.show_message("SCROLLIP -", text_colour=green)
-sense.show_message(" Glen Langston", text_colour=green)
-sense.show_message(" NSF 20 Dec 19 ", text_colour=blue)
+sense.show_message(" Langston", text_colour=green)
+sense.show_message(" NSF", text_colour=blue)
 
 waitcount = 0
 
@@ -40,6 +44,7 @@ while True:
         time.sleep(1)
 
     if os.path.exists(mystop):
+        os.system("sudo rm -f %s" % (mystop))
         sys.exit()
 
 # only print IP every so often, but watch for events        
@@ -67,17 +72,17 @@ while True:
         waitcount = 0
         # temperature
         temp = sense.get_temperature()
-        tempstr = "Temperature: %6.1f C" % (float(temp))
+        tempstr = "T: %5.1f C" % (float(temp))
         sense.show_message(tempstr, text_colour=red)
 
         # humidity
         humidity = sense.get_humidity()
-        humidstr = "Humiidty %6.1f %%" % (float(humidity))
+        humidstr = "H: %4.0f %%" % (float(humidity))
         sense.show_message(humidstr, text_colour=blue)
         
         # humidity
         pressure = sense.get_pressure()
-        pressstr = "Pressure %6.1f %%" % (float(pressure))
+        pressstr = "P: %5.0f mbar" % (float(pressure))
         sense.show_message(pressstr, text_colour=purple)
         
 

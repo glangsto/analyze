@@ -50,7 +50,9 @@ os.system( "echo 'Log of Pis booting up: %s' >> %s" % (webip, mailtemp))
 # read all the user-suppied horn info into the mail log
 os.system( "cat /boot/horn.txt >> %s" % (mailtemp))
 # read all the last IP this pi had
-os.system( "cat /boot/lastip.txt >> %s" % (mailtemp))
+bootlastip = "/boot/lastip.txt"
+if os.path.exists(bootlastip):
+    os.system( "cat %s >> %s" % (bootlastip, mailtemp))
 # seem to need to wait for network to get working, before getting ip
 #os.system( "/bin/sleep 15")
 # now get the location of the ip address
