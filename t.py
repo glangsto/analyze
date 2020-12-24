@@ -537,8 +537,9 @@ def read_angles( names, minel, minGLat, maxGlat):
         # note this test excludes low galactic latitude ranges
         if rs.gallat > maxGlat or rs.gallat < minGlat:
             ngalactic = ngalactic + 1
-            
-    print(( "Found %3d High Galactic Latitude spectra and %d high elevation spectra in %d files" % (ngalactic, ncold, nName)))
+
+    if (ngalactic > 0): 
+        print(( "Found %3d High Galactic Latitude spectra and %d high elevation spectra in %d files" % (ngalactic, ncold, nName)))
     return ncold, ngalactic
     
 def read_cold( names, ave_cold, minel, minGLat, maxGlat):
@@ -927,8 +928,8 @@ for filename in names:
         nplot = nplot + 1
         # this code computes and subtracts a baseline so that source intensities can be compared.
 
-        gf.saveTsysValues( saveFile, ave_spec, cpuIndex, tSourcemax, velSource, dV, tVSum, tVSumRms, tSumKmSec, dTSumKmSec)
         if writeTsys:
+            gf.saveTsysValues( saveFile, ave_spec, cpuIndex, tSourcemax, velSource, dV, tVSum, tVSumRms, tSumKmSec, dTSumKmSec)
             ave_spec.ydataA = tsky
             aveutc = ave_spec.utc
             outname = radioastronomy.utcToName( aveutc)

@@ -1,55 +1,44 @@
 #!/bin/bash
 # plot the latest observation compared to latest hot
 # HISTORY
+# 20Dec24 GIL check for files in data dir
 # 20Nov12 GIL create latest file in html directory
 # 20Jun16 GIL initial version that finds the latest observation
 # find the most recent note file 
 
 export datadir=/home/pi/Research/gr-radio_astro/data
+export grhome=/home/pi/Research/gr-radio_astro
 
 export binhome=/home/pi/Research/analyze
 export latesthot=`$binhome/getlatesthot`
 export latestobs=`$binhome/getlatestobs`
-
-if [ "$latesthot" == "" ] ; then
-    echo "No Hot File, can not calibrate"
-    exit
-fi
-
-if [ "$latestobs" == "" ] ; then
-    echo "No Observation File, can not calibrate"
-    exit
-fi
-
 export latestdir="/var/www/html/latest"
-cd $datadir
-$binhome/T -P $latestdir/ 3600. $latesthot $latestobs
 
-# link the latest png for easy access to web page
-export latestpng=$latestdir/T-latest.png
-# now relink to the last latest plot
-if [ -f  $latestpng ] ; then
-    sudo rm $latestpng
+cd $grhome
+
+if [ "$latesthot" != "" ] ; then
+    sudo rm -f $latestdir/latest.hot 
+    cp data/$latesthot $latestdir/latest.hot
 fi
 
-export newestpng=`ls -t $latestdir/T*.png | head -1`
-#echo "Newest: " $newestpng
-if [ "$newestpng" != "$latestpng" ] ; then
-    sudo ln -s $newestpng $latestpng
+if [ "$latestobs" != "" ] ; then
+    sudo rm -f $latestdir/latest.ast
+    cp data/$latestobs $latestdir/latest.ast
 fi
 
-# link the latest png for easy access to web page
-export latestpdf=$latestdir/T-latest.pdf
-if [ -f  $latestpdf ] ; then
-    sudo rm $latestpdf
-fi    
+cd $latestdir
+$binhome/T -P ./ 3600. latest.hot latest.ast
 
-export newestpdf=`ls -t $latestdir/T*.pdf | head -1`
-#echo "Newest: " $newestpdf
-if [ "$newestpdf" != "$latestpdf" ] ; then
-    sudo ln -s $newestpdf $latestpdf
+export tlatest=`ls -1 T-??-??-??.png | head -1`
+# now relink the T-latest plots
+if [ "$tlatest"  != "" ] ; then 
+    sudo rm -f T-latest.png
+    ln -s $tlatest T-latest.png 
 fi
 
-#must touch the files to get them to refresh
-sudo touch $latestpdf
-sudo touch $latestpng
+export tlatest=`ls -1 T-??-??-??.pdf | head -1`
+# now relink the T-latest plots
+if [ "$tlatest"  != "" ] ; then 
+    sudo rm -f T-latest.pdf
+    ln -s $tlatest T-latest.pdf
+fi

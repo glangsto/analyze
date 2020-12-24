@@ -1,6 +1,7 @@
 #Python Script to plot raw NSF record data.
 #plot the raw data from the observation
 #HISTORY
+#20Dec24 GIL remove 20 from plot file names
 #20Aug28 GIL update plotting to a file
 #20Jun16 GIL add plotting to a file
 #20Apr01 GIL update for new python environment
@@ -89,7 +90,7 @@ if nargs < 2:
     print("-Z <file tag> optionally add tag to PDF and PNG file names")
     print("-F optionally fold spectra (obsolete)")
     print("")
-    print("Glen Langston - NSF   August 28, 2020")
+    print("Glen Langston - NSF Dec 24, 2020")
     exit()
 
 xa = -1
@@ -313,6 +314,7 @@ plt.ylabel(ylabel, fontsize=16)
 plt.legend(loc='upper right')
 # if writing files
 if doPlotFile:
+    firstdate = firstdate[2:]
     if fileTag == "":
         fileTag = "R-" + firstdate
     outpng = plotFileDir + fileTag + ".png"

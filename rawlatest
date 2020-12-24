@@ -1,17 +1,33 @@
 #!/bin/bash
 # plot the latest observation compared to latest hot
 # HISTORY
+# 20Dec24 GIL check for no hot and create latest file in html directory
 # 20Nov12 GIL create latest file in html directory
 # 20Jun16 GIL initial version that finds the latest observation
 # find the most recent note file 
 
 export datadir=/home/pi/Research/gr-radio_astro/data
+export grhome=/home/pi/Research/gr-radio_astro
 
 export binhome=/home/pi/Research/analyze
 export latesthot=`$binhome/getlatesthot`
 export latestobs=`$binhome/getlatestobs`
 export latestdir="/var/www/html/latest"
-cd $datadir
+# go to one directory above the data dir
+cd $grhome
+if [ "$latesthot" != "" ] ; then
+    export latesthot=data/$latesthot
+fi
+if [ "$latestobs" != "" ] ; then
+    export latestobs=data/$latestobs
+fi
+
+if [ "$latestobs" == "" ] && [ "$latesthot" == "" ] ; then
+    exit
+fi
+
+
+echo $latesthot $latestobs
 $binhome/R -P $latestdir/ $latestobs $latesthot
 
 # link the latest png for easy access to web page
