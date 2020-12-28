@@ -1,7 +1,8 @@
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
-#20DEC21 GIL fix plotting versus Frequency again
+#20DEC28 GIL check for a average time in first argument
+#20DEC16 GIL flag and ignore short spectra files
 #20NOV12 GIL fix plotting to files
 #20AUG28 GIL add option to only write the plots
 #20JUL27 GIL add options to set thot, tcold, fix writing Kelvins
@@ -123,7 +124,7 @@ tcold = 10.0
 
 iarg = 1
 if nargs < 3:
-    print("T: Compute Tsys calibrated horn observations, plotting Intensity versus Velocity")
+    print("T: Comput Tsys calibrated horn observations")
     print("Usage: T [-F <order>] [-L <velocity>] [-H <velocity>] <average_seconds> <files>")
     print("Where <average_seconds>: Number of seconds of observations to average.")
     print("-A optionally use pre-calculated hot and cold load files")
@@ -216,7 +217,6 @@ while iarg < nargs:
         plotFileDir = sys.argv[iarg]
     elif sys.argv[iarg].upper() == '-Q':
         plotFrequency = True
-#        print("Plotting Intensity versus Frequency")
     elif sys.argv[iarg].upper() == '-R':
         flagRfi = True
     elif sys.argv[iarg].upper() == '-S':   # if save file name provided
@@ -261,7 +261,13 @@ while iarg < nargs:
 # end of while not reading file names
 
 #first argument is the averaging time in seconds
-avetimesec = float(sys.argv[timearg])
+try: 
+    avetimesec = float(sys.argv[timearg])
+except:
+    print("Error: Can not parse %s as a valid average time (seconds)" % \
+          sys.argv[timearg])
+    exit()
+    
 if plotFrequency:
     print(( "Plotting Intensity vs Frequency, Average time: %d (seconds)" % (avetimesec)))
 else:
@@ -423,6 +429,11 @@ def read_hot( names, ave_hot):
             continue
 
         rs.read_spec_ast(filename)
+        nChan = len( rs.ydataA)
+        if nChan != 32 and nChan != 64 and nChan != 128 and nChan != 256 and \
+           nChan != 512 and nChan != 1024 and nChan != 2048 and nChan != 4096:
+            print("Unusual data length (%d) for file %s" % (nChan, filename))
+            continue
         rs.azel2radec()    # compute ra,dec from az,el
 
         # if a hot load observation
@@ -537,9 +548,8 @@ def read_angles( names, minel, minGLat, maxGlat):
         # note this test excludes low galactic latitude ranges
         if rs.gallat > maxGlat or rs.gallat < minGlat:
             ngalactic = ngalactic + 1
-
-    if (ngalactic > 0): 
-        print(( "Found %3d High Galactic Latitude spectra and %d high elevation spectra in %d files" % (ngalactic, ncold, nName)))
+            
+    print(( "Found %3d High Galactic Latitude spectra and %d high elevation spectra in %d files" % (ngalactic, ncold, nName)))
     return ncold, ngalactic
     
 def read_cold( names, ave_cold, minel, minGLat, maxGlat):
@@ -616,6 +626,7 @@ for iii in range(nData):
     if gainHC[iii] < EPSILON:
         gainHC[iii] = EPSILON
 
+# the hot/cold gain ratios are only used to compute tRxMiddle
 trx = np.zeros(nData)
 for iii in range(nData):
     trx[iii] = (cv[iii]/gainHC[iii]) - tcold
@@ -628,6 +639,8 @@ tRxMiddle = (tRxA + tRxB)*.5
 tStdA = np.std(trx[n6:n26])
 tStdB = np.std(trx[n46:n56])
 tRms  = (tStdA + tStdB) * .5
+#after this point, only the hot load observations are used to compute sys
+#No cold observations are used for calibration, except for computing tRxMiddle
 
 print(( "Median Receiver Temp: %7.2f +/- %5.2f (%5.2f %5.2f) (K)" % ( tRxMiddle, tRms, tStdA, tStdB)))
 
@@ -912,7 +925,6 @@ for filename in names:
         else:
             label = '%s L,L=%5.1f,%5.1f A,E=%4.0f,%4.0f' % (labeltime, gallon, gallat, az, el)
         print(( ' Max: %9.1f  Median: %8.2f +/- %5.2f %3d %s' % (tSourcemax, tSys, tStd, nave, label)))
-
         # if plotting frequency overwrite the corrected velocities
         if plotFrequency:
             velcorr = xv

@@ -3,6 +3,8 @@
 Class defining a Radio Frequency Spectrum
 Includes reading and writing ascii files
 HISTORY
+20DEC28 GIL fix parsing header separately from data
+20DEC16 GIL file header
 20NOV27 GIL separate the reading of the file header from the data
 20NOV17 GIL use angles.str2deci() for parsing string angles
 20NOV16 GIL fix reading Longitude outside of +/-90 degrees
@@ -665,6 +667,7 @@ class Spectrum(object):
             if leny > self.nSamples:
                 self.nSamples = leny
                 print("Y array length and N Sample miss match:", leny, self.nSamples)
+                print("Y array length and N Sample miss match:", leny, self.nSamples)
             if TIMEPARTS == 2:             # if not writing time
                 outline = "#   I       Q\n"
                 outfile.write(outline)
@@ -755,6 +758,8 @@ class Spectrum(object):
             if linecount == 2:
                 self.noteA = line[2:].replace('\n', '')
             if line[0] != "#":
+                return linecount
+            if line.strip() == "# END":
                 return linecount
 # if a comment or parameter line, decode value
             if line[0] == '#':
@@ -962,7 +967,7 @@ class Spectrum(object):
         # should not return from here, as end of header is detected above
         return linecount
     
-    def read_spec_ast(self, fullname):
+    def read_spec_ast(self, fullname, doDebug=False):
         """
         Read an ascii radio Spectrum file or an event in radio samples and
         fill a Spectrum object
@@ -995,14 +1000,18 @@ class Spectrum(object):
         y2 = []
 
         linecount = self.parse_spec_header( inlines)
-        datastart = linecount+1
+        datastart = linecount - 1
         datacount = 0
-
+        if doDebug:
+            print ("%3d Header lines; First data line: %s" % \
+                   ( linecount,inlines[datastart]))
         # all remaining are data
-        for line in inlines[datastart:]:
+        inlines = inlines[datastart:]
+        # for all remaining lines in file
+        for line in inlines:
 # start data processing
             datacount = datacount+1
-            p = line.split()
+            p = line.split(" ")
             nparts = len(p)
             if nparts < 2:
                 continue
@@ -1051,12 +1060,19 @@ class Spectrum(object):
                         y2.append(0.0)
 
         # at this point all data and header keywords are read
-        self.ydataA = np.array(y1)           # always transfer values series
-        nData = len(self.ydataA)
+        y1 = np.array(y1)           # always transfer values series
+        nData = len(y1)
+        self.ydataA[0:nData] = y1           # always transfer values series
         if self.nSpec > 0:
-            self.xdata = np.array(x1)        # transfer x axis; channels or time
-            if self.nSpec > 1:               # if more than one spectrum
-                self.ydataB = np.array(y2)   # transfer it too
+            if nData != self.nChan:
+                print( "Warning: channel expected not read count: %d != %d" \
+                       % (self.nChan, nData))
+                print("For file: %s" % (fullname))
+            x1 = np.array(x1)
+            self.xdata[0:nData] = x1       # transfer x axis; channels or time
+            if self.nSpec > 1:             # if more than one spectrum
+                y2 = np.array(y2)
+                self.ydata[0:nData] = y2   # transfer it too
             self.nChan = nData
             self.nSamples = 0
         if self.nTime > 0:
