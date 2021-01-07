@@ -4,6 +4,7 @@ Model to use the GridClass to make an image of radio astronomical observations
 # Functions to create a grid and place astronomical data on that
 # grid with a convolving function
 # HISTORY
+# 21JAN06 GIL change use of split
 # 19SEP23 GIL slightly bigger map in declination
 # 18FEB19 GIL possibly grid max
 # 17FEB03 GIL add comments and cleanup
@@ -14,8 +15,31 @@ import sys
 import numpy as np
 #from numba import jit
 from matplotlib import pyplot as plt
+import datetime
+
 #from matplotlib import colors
 import GridClass
+import radioastronomy
+
+# below are the indices into a data line
+IDATE = 0
+ITIME = 1
+ITEL = 2
+IAZ = 3
+IEL = 4
+ITSYS = 5
+ITRX = 6
+ITRMS = 7
+IAVET = 8
+IKCOUNT = 9
+IPEAKK = 10
+IPEAKV = 11
+IPEAKVRMS = 12
+IVSUM = 13
+IVSUMRMS = 14
+IINTK = 15
+IINTKRMS = 16
+ISCALE = 17
 
 def main():
     """
@@ -35,13 +59,18 @@ def main():
     nargs = len(sys.argv)
     if nargs < 2:
         print('GO: Grid Observations')
-        print('GO RA|GAL datafiles')
+        print('GO RA|GAL Spectrum Summary-files')
         exit()
 
     gridtype = sys.argv[1]
     gridtype = gridtype.upper()
-    print('Grid Type: ', gridtype)
+    print('Grid Type: %s' % (gridtype))
+    spectrum = sys.argv[2]
 
+    # create a radio astronomy spectrum structure to use utilities
+    rs = radioastronomy.Spectrum()
+    rs.read_spec_ast(spectrum)
+    
     # enable having ra going from 24 to 0 hours == 360 to 0 degrees
     xsign = 1.
     xoffset = 0.
@@ -78,7 +107,7 @@ def main():
         ymax = 90.
 
     if gridtype != 'RA' and gridtype != 'GAL' and gridtype != '-RA' and gridtype != "RA0":
-        print('Error parsing grid type: ', gridtype)
+        print('Error parsing grid type: %s' % (gridtype))
         print('1st argument should be either RA, -RA or GAL')
         exit()
 
@@ -87,6 +116,8 @@ def main():
     mygrid = GridClass.Grid(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, width=width, \
                                 height=height, dpi=dpi, FWHM=FWHM, \
                                 projection="Mercator", gridtype=gridtype)
+# setup to parse the date and time
+    timefmt = "%Y-%m-%d %H:%M:%S"
 
 # first read through all data and find hot load
     names = sys.argv[2:]
@@ -110,24 +141,44 @@ def main():
             parts = line.split()
             if len(parts) < 5:
                 continue
+
+            # test that we partially understand the data format
             try:
-                float(parts[0])
+                float(parts[IAZ])
             except ValueError:
-                print("Not a float")
-                print('Parts: ', parts)
+                print("Azimuth Not a float")
+                print(('Parts: ', parts[0:IAZ+1]))
                 continue
-            ra = float(parts[0])
-            dec = float(parts[1])
-            lon = float(parts[2])
-            lat = float(parts[3])
-            tsum = float(parts[4])
-            tsdv = float(parts[5])
-            tmax = float(parts[6])
-            vave = float(parts[7])
-            vsdv = float(parts[8])
-            el = float(parts[9])
-            n = float(parts[10])
-            time = parts[11]
+            # Transfer 
+            date = "20"+parts[IDATE]
+            time = parts[ITIME]
+#            timefmt = "%Y-%m-%d %H:%M:%S"
+            utc = datetime.datetime.strptime(date + " " + time, timefmt)
+#            utc = datetime.fromisoformat(date + " " + time)
+            rs.utc = utc
+            
+            telIndex = int(parts[ITEL])
+            rs.telaz = float(parts[IAZ])
+            rs.telel = float(parts[IEL])
+            # now recompute ra,dec 
+            rs.azel2radec()
+            ra = rs.ra
+            dec = rs.dec
+            
+            tsys = float(parts[ITSYS])
+            trx = float(parts[ITRX])
+            trms = float( parts[ITRMS])
+            avet = int(parts[IAVET])
+            
+            lon = rs.gallon
+            lat = rs.gallat
+            tsum = float(parts[IINTK])
+            tsdv = float(parts[IINTKRMS])
+            tmax = float(parts[IPEAKK])
+            vave = float(parts[IPEAKV])
+            vsdv = float(parts[IPEAKVRMS])
+            n = float(parts[IAVET])
+#            time = parts[11]
             if firsttime == "":
                 firsttime = time
             else:
@@ -149,20 +200,26 @@ def main():
                 mygrid.convolve(x, dec, tsum, weight)
             else:
                 mygrid.convolve(lon, lat, tsum, weight)
-            if count == 0:
-                print('Convolving Coordinates: ', ra, dec, lon, lat)
-                print('Convolving Intensities: ', tsum, tsdv, vave, vsdv)
-                print('Convolvign Parameters : ', n, time)
+            if count%300 == 0:
+                print('Convolving Coordinates: %6.2f,%6.2f => %6.2f,%6.2f' % \
+                       (ra, dec, lon, lat))
+                print('Convolving Intensities: %6.2f,%6.2f' % (tsum, tsdv))
+                print('Convolvign Parameters : %s' % (time))
+
             count = count + 1
 
+    if count < 1:
+        print("No samples gridded, Exiting")
+        exit()
+        
     mygrid.normalize()
-#    mygrid.check()
-    zmin = -1000.
-    zmax = 3000.
+    mygrid.check()
+    zmin = -500.
+    zmax = 1000.
 # limit grid intensities for plotting
     mygrid.set_ij( 0, 0, zmax, 1.)
     mygrid.set_ij( 1, 1, zmin, 1.)
-    mygrid.limit(zmin, zmax)
+#    mygrid.limit(zmin, zmax)
 
     subplots = False
 
@@ -230,7 +287,7 @@ def main():
             plt.ylabel("Galactic Latitude (degrees)")
         # wnat an integer list of labels
 #        slabels = str(labels)
-        print(ticks, labels)
+        print((ticks, labels))
         y_ticks = ymax - (ymax-ymin)*yticks/myheight
         plt.yticks(yticks, y_ticks)
         plt.xticks(ticks, labels, rotation='horizontal')

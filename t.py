@@ -1,6 +1,7 @@
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#21JAN06 GIL fix normalizations
 #20DEC28 GIL check for a average time in first argument
 #20DEC16 GIL flag and ignore short spectra files
 #20NOV12 GIL fix plotting to files
@@ -85,14 +86,16 @@ namearg = 2
 flagCenter = False
 # put list of RFI features here, for interpolation later
 flagRfi = False
-# writeTsys files
-writeTsys = True
+# write log of integrated intensities
 writeTsys = False
+# write calibrated intensities, Kelvin
+writeKelvin = False
 # to address an old problem, optionally allow folding spectra
 doFold = False
 # if plotting to a file, specify the directory
 doPlotFile = False
 plotFileDir = "~/"
+# if keeping average hot and cold load
 doKeep = False
 # specify lowest elevation for cold load averge
 lowel = 10.
@@ -131,9 +134,9 @@ if nargs < 3:
     print("-B optionally plot/keep the baseline subtratcted spectra")
     print("-C optionally flag the center of the band")
     print("-F optionally do a polynomial baseline fit")
-    print("-I optionall set Processor Index")
-    print("-H optionall set the high velocity region for baseline fit")
-    print("-K optionall save average hot and cold load calibration observations")
+    print("-I optionally set Processor Index")
+    print("-H optionally set the high velocity region for baseline fit")
+    print("-K optionally keep average hot and cold load calibration files")
     print("-L optionally set the low velocity region for baseline fit")
     print("-N <number> optionally set the number of spectra to plot")
     print("-P write PNG and PDF files instead of showing plot")
@@ -155,7 +158,7 @@ if nargs < 3:
 # for all arguments, read list and exit when no flag argument found
 while iarg < nargs:
 
-    # if folding data
+    # if hot and cold file names are provided
     if sys.argv[iarg].upper() == '-A':
         iarg = iarg+1
         hotFileName = sys.argv[iarg]
@@ -199,7 +202,7 @@ while iarg < nargs:
         print(('Telescope Index: %2d' % (cpuIndex)))
     elif sys.argv[iarg].upper() == '-K':
         doKeep = True
-        print('Keeping hot and cold load files')
+        print('Keeping Average hot and cold load files')
     elif sys.argv[iarg].upper() == '-L':
         iarg = iarg+1
         minvel = np.float( sys.argv[iarg])
@@ -222,16 +225,17 @@ while iarg < nargs:
     elif sys.argv[iarg].upper() == '-S':   # if save file name provided
         iarg = iarg+1
         saveFile = sys.argv[iarg]
-        print(( 'Save File: ', saveFile))
+        writeTsys = True
+        print( 'Saving integrated Intensities; File: %s' % ( saveFile))
     elif sys.argv[iarg].upper() == '-T':   # if plot title provided
         iarg = iarg+1
         myTitle = sys.argv[iarg]
-        print(( 'Plot Title : ', myTitle))
+        print('Plot Title : %s' % (myTitle))
     elif sys.argv[iarg].upper() == '-U':   # if nU ref is provided (in MHz)n
         iarg = iarg+1
         nuRefFreq = float(sys.argv[iarg])
         print(( 'Reference Frequency : %9.3f MHz' % (nuRefFreq)))
-    elif sys.argv[iarg].upper() == '-X':   # if cold load
+    elif sys.argv[iarg].upper() == '-X':   # if cold load temperature 
         iarg = iarg+1
         tcold = float(sys.argv[iarg])
         print(( 'Cold Load Reference Temperature: %9.3f Kelvins' % (tcold)))
@@ -248,7 +252,7 @@ while iarg < nargs:
         lowel = float( sys.argv[iarg])
         print(( "Using elevations > %7.2f (d) for Cold load calculation" % (lowel)))
     elif sys.argv[iarg].upper() == '-W':
-        writeTsys = True
+        writeKelvin = True
     elif sys.argv[iarg].upper() == '-Z':     # label written files
         iarg = iarg+1
         fileTag = str(sys.argv[iarg])
@@ -338,7 +342,7 @@ def average_spec( ave_spec, in_spec, nave, firstutc, lastutc):
     if doDebug:
         medianData = np.median( in_spec.ydataA[n6:n56])
     # remove number of spectra averaged scaling.
-    in_spec.ydataA = (in_spec.ydataA/in_spec.count) 
+#    in_spec.ydataA = (in_spec.ydataA/in_spec.count) 
     if doDebug:
         medianScale = np.median( in_spec.ydataA[n6:n56])
         print(( "Input: %8.3f, count: %6d; Scale: %8.3f" % (medianData, in_spec.count, medianScale)))
@@ -351,7 +355,7 @@ def average_spec( ave_spec, in_spec, nave, firstutc, lastutc):
         nave = 1
         # print( 'Xmin: ', min(ave_spec.xdata)/1e6, 'Xmax: ', max(ave_spec.xdata),' MHz')
         # sums are weighted by durations
-        ave_spec.ydataA = in_spec.ydataA * in_spec.durationSec  # replace with duration scaleing
+        ave_spec.ydataA = (in_spec.ydataA * in_spec.durationSec)  # replace with duration scaleing
         # keep track of observing time for weighted sum
         ave_spec.durationSec = in_spec.durationSec
     else: # else not enough time yet, average ave_spec data
@@ -359,20 +363,20 @@ def average_spec( ave_spec, in_spec, nave, firstutc, lastutc):
             firstutc = in_spec.utc
         elif in_spec.utc > lastutc:
             lastutc = in_spec.utc
-        ave_spec.count = ave_spec.count + in_spec.count
+#        ave_spec.count = ave_spec.count + in_spec.count
         nave = nave + 1
         ave_spec.ydataA = ave_spec.ydataA + (in_spec.ydataA * in_spec.durationSec)
         # keep track of observing time for weighted sum
         ave_spec.durationSec = ave_spec.durationSec + in_spec.durationSec
-    return ave_spec, in_spec, nave, firstutc, lastutc
+        
+    return ave_spec, nave, firstutc, lastutc
 
-def normalize_spec( ave_spec, nave, firstutc, lastutc):
+def normalize_spec( ave_spec, firstutc, lastutc):
     """
     Normaize the average after completing sum
     input/output
     ave_spec   input raw sum of observation 
                output normalized sum of observations
-    nave       input number of spectra averaged, output zero
     input      first and last utcs in observation
     Note:  The count of observations is not used, rather the integration
     is weighted by durations.  This corrects for observations with 
@@ -385,8 +389,7 @@ def normalize_spec( ave_spec, nave, firstutc, lastutc):
     ave_spec.utc = aveutc
     #need to re-calculate representative RA,Dec for average time
     ave_spec.azel2radec()
-#    nave = 0
-    return ave_spec, nave
+    return ave_spec
 
 # record the time range of hot load observations and count of observations
 firstutc = 0
@@ -441,9 +444,17 @@ def read_hot( names, ave_hot):
             if nhot == 0:
                 firstutc = rs.utc
                 lastutc = rs.utc
-        # accumulate spectra
-            ave_hot, rs, nhot, firstutc, lastutc = \
+        # accumulate spectra, nhot is updated also
+            ave_hot, nhot, firstutc, lastutc = \
                 average_spec( ave_hot, rs, nhot, firstutc, lastutc)
+            if rs.gallat > maxGlat:
+                maxGlat = rs.gallat
+            if rs.gallat < minGlat:
+                minGlat = rs.gallat
+            if minel > rs.telel:
+                minel = rs.telel
+            if maxel < rs.telel:
+                maxel = rs.telel
         else: # else above horizon, find min, max galactic latitudes
             if rs.gallat > maxGlat:
                 maxGlat = rs.gallat
@@ -453,12 +464,11 @@ def read_hot( names, ave_hot):
                 minel = rs.telel
             if maxel < rs.telel:
                 maxel = rs.telel
-
         # end for all files
 
     if nhot > 0:
         print(( "Found %3d Hot load observations" % (nhot)))
-        ave_hot, nhot = normalize_spec( ave_hot, nhot, firstutc, lastutc)
+        ave_hot = normalize_spec( ave_hot, firstutc, lastutc)
     else:
         print( "No Hot load data, can not calibrate")
         exit()
@@ -478,12 +488,13 @@ def read_hot( names, ave_hot):
 
 if hotFileName != "":
     ave_hot.read_spec_ast(hotFileName)
-    ave_hot.ydataA = ave_hot.ydataA/ave_hot.count
 else:
     ave_hot, minel, maxel, minGlat, maxGlat = read_hot( names, ave_hot)
 
-print(("Min, Max Galactic Latitude: %7.1f,%7.1f" % (minGlat, maxGlat)))
-print(("Min, Max Elevation:         %7.1f,%7.1f" % (minel, maxel)))
+    print(("Min, Max Galactic Latitude: %7.1f,%7.1f" % (minGlat, maxGlat)))
+    print(("Min, Max Elevation:         %7.1f,%7.1f" % (minel, maxel)))
+
+# now, min and max elevations are known
 
 # convert to MHz
 xv = ave_hot.xdata * 1.E-6
@@ -517,21 +528,22 @@ if minGlat < -30. or maxGlat > 30.:
     minGlat = -30.
     maxGlat = 30.
 
-def read_angles( names, minel, minGLat, maxGlat):
+def read_angles( names, lowel):
     """
     read_angles() reads all files and counts number of files with 
     high elevation and high galactic latitude
     Inputs:
-       minel   minimum elevation to accept for cold load 
-       minGLat minimum galactic latitude
-       maxGlat maximum galactic latitude
+       lowel   minimum elevation to accept for cold load 
     """
 
     # flag starting a new sum of cold (high elevation and galactic latitude) obs
     ncold = 0
-    ngalactic = 0
     rs = radioastronomy.Spectrum()
     nName = len(names)
+    minel = 90.
+    maxel = -90.
+    minGlat = 90
+    maxGlat = -90
     # now average coldest data for calibration
     for filename in names:
 
@@ -540,26 +552,29 @@ def read_angles( names, minel, minGLat, maxGlat):
 
         if rs.telel < lowel:  #if elevation too low for a cold load obs
             continue
-
+        if rs.gallat > maxGlat:
+            maxGlat = rs.gallat
+        if rs.gallat < minGlat:
+            minGlat = rs.gallat
+        if minel > rs.telel:
+            minel = rs.telel
+        if maxel < rs.telel:
+            maxel = rs.telel
+        
         # count number of high elevation files
-        if rs.telel > minel:
+        if rs.telel > lowel:
             ncold = ncold + 1
 
-        # note this test excludes low galactic latitude ranges
-        if rs.gallat > maxGlat or rs.gallat < minGlat:
-            ngalactic = ngalactic + 1
-            
-    print(( "Found %3d High Galactic Latitude spectra and %d high elevation spectra in %d files" % (ngalactic, ncold, nName)))
-    return ncold, ngalactic
+    print(( "Found %d high elevation spectra in %d files" % (ncold, nName)))
+    return ncold, minel, maxel, minGlat, maxGlat
     
-def read_cold( names, ave_cold, minel, minGLat, maxGlat):
+def read_cold( names, ave_cold, lowel, lowGlat):
     """
     read_cold() reads all files and averages selected files with high elevation and 
     galactic Latitude.
     Inputs:
-       minel   minimum elevation to accept for cold load 
-       minGLat minimum galactic latitude
-       maxGlat maximum galactic latitude
+       lowel   minimum elevation to accept for cold load 
+       lowGlat minimum galactic latitude
     """
 
     # flag starting a new sum of cold (high elevation and galactic latitude) obs
@@ -576,19 +591,19 @@ def read_cold( names, ave_cold, minel, minGLat, maxGlat):
             continue
 
         # note this test excludes low galactic latitude ranges
-        if rs.gallat > maxGlat or rs.gallat < minGlat:
+        if rs.gallat > lowGlat or rs.gallat < -lowGlat:
             if ncold == 0:
                 firstutc = rs.utc
                 lastutc = rs.utc
-            ave_cold, rs, ncold, firstutc, lastutc = \
+            ave_cold, ncold, firstutc, lastutc = \
                 average_spec( ave_cold, rs, ncold, firstutc, lastutc)
 
     # end of all files to average
     if ncold < 1:
-        print( "No high galactic latitude data: can not calibrate")
+        print( "No high elevation data: can not calibrate")
         exit()
     else:
-        ave_cold, ncold = normalize_spec( ave_cold, ncold, firstutc, lastutc)
+        ave_cold = normalize_spec( ave_cold, firstutc, lastutc)
 
     if flagRfi:
         yv = ave_cold.ydataA
@@ -604,20 +619,47 @@ def read_cold( names, ave_cold, minel, minGLat, maxGlat):
 
 if coldFileName != "":
     ave_cold.read_spec_ast( coldFileName)
-    ave_cold.ydataA = ave_cold.ydataA/ave_cold.count
+    ncold = 1
+    minel = ave_cold.telel
+    maxel = ave_cold.telel
+    minGlat = ave_cold.gallat
 else:
-    ncold, ngalactic = read_angles( names, minel, minGlat, maxGlat)
+    ncold, minel, maxel, minGlat, maxGlat = read_angles( names, lowel)
+    
     # if no high galactic latitude data, use all latitudes
-    if ngalactic < 1:
-        minGlat = -0.5
-        maxGlat = 0.5
-    # if no high elevation data, use all
-    lowel = minel
-    if ncold < 1:
-        lowel = 0.5
-    ave_cold, ncold = read_cold( names, ave_cold, lowel, minGlat, maxGlat)
+    if maxGlat > 40. or minGlat < -40.:
+        lowGlat = 40.
+    else:
+        if maxGlat < 0.:
+            lowGlat = -0.9 * maxGlat
+        else:
+            lowGlat = 0.9 * maxGlat
+
+    ave_cold, ncold = read_cold( names, ave_cold, lowel, lowGlat)
 
 cv = copy.deepcopy(ave_cold.ydataA)
+
+# if keeping hot and cold files
+if doKeep:
+    outname = radioastronomy.utcToName( ave_cold.utc)
+    outname = outname + ".cld"  # output in counts
+    # add telescope index
+    outname = ("T%d-" % cpuIndex)+outname
+#    ave_cold.count = 1
+#    ave_cold.nave = 1
+    n = ave_cold.nChan
+    print("Ave Cold: %d: %.6f" % (n, np.median( ave_cold.ydataA[int(n/3):int(2*n/3)])))
+    ave_cold.write_ascii_file("../", outname)
+    print( "Wrote Average Cold Load File: %s%s" % ("../", outname))
+    # now hot file
+    outname = radioastronomy.utcToName( ave_hot.utc)
+    outname = outname + ".hot"  # output in counts
+    # add telescope index
+    outname = ("T%d-" % cpuIndex)+outname
+#    ave_hot.count = 1
+#    ave_hot.nave = 1
+    ave_hot.write_ascii_file("../", outname)                
+    print( "Wrote Average Hot  Load File: %s%s" % ("../", outname))
 
 # compute gain on a channel by channel basis for tRx calculation
 gainHC = np.zeros(nData)
@@ -769,7 +811,7 @@ for filename in names:
         if rs.nChan != ave_spec.nChan:
             print(("File Size Error: %d != %d for file %s; Skipping ..." % (rs.nChan, ave_spec.nChan, filename)))
         else:
-            ave_spec, rs, nave, firstutc, lastutc = average_spec( ave_spec, rs, nave, firstutc, lastutc)
+            ave_spec, nave, firstutc, lastutc = average_spec( ave_spec, rs, nave, firstutc, lastutc)
 
     # if time to average (or end of all files)
     if (dt > avetime) or newObs or allFiles:
@@ -782,7 +824,7 @@ for filename in names:
             # Reset the ncold count and restart sum
             nave = 0
             continue
-        ave_spec, nave = normalize_spec( ave_spec, nave, firstutc, lastutc)
+        ave_spec = normalize_spec( ave_spec, firstutc, lastutc)
         xv = ave_spec.xdata * 1.E-6  # covert to MHz
         yv = ave_spec.ydataA 
         if flagRfi:
@@ -942,6 +984,7 @@ for filename in names:
 
         if writeTsys:
             gf.saveTsysValues( saveFile, ave_spec, cpuIndex, tSourcemax, velSource, dV, tVSum, tVSumRms, tSumKmSec, dTSumKmSec)
+        if writeKelvin:
             ave_spec.ydataA = tsky
             aveutc = ave_spec.utc
             outname = radioastronomy.utcToName( aveutc)
@@ -979,31 +1022,13 @@ for filename in names:
         if rs.nChan != ave_spec.nChan:
             print(("File Size Error: %d != %d for file %s; Skipping ..." % (rs.nChan, ave_spec.nChan, filename)))
         else:
-            ave_spec, rs, nave, firstutc, lastutc = average_spec( ave_spec, rs, nave, firstutc, lastutc)
+            ave_spec, nave, firstutc, lastutc = average_spec( ave_spec, rs, nave, firstutc, lastutc)
 
     #end for all files to sum
 # end of all files to read
 
 if doDebug:
     print(( 'Number of remaining observations not plotted: %d' % ( ncold)))
-
-# if keeping hot and cold files
-if doKeep:
-    outname = radioastronomy.utcToName( ave_cold.utc)
-    outname = outname + ".cld"  # output in counts
-    # add telescope index
-    outname = ("T%d-" % cpuIndex)+outname
-    ave_cold.count = 1000
-    ave_cold.ydataA = ave_cold.ydataA * float(ave_cold.count)
-    ave_cold.write_ascii_file("../", outname)                
-    # now hot file
-    outname = radioastronomy.utcToName( ave_hot.utc)
-    outname = outname + ".hot"  # output in counts
-    # add telescope index
-    outname = ("T%d-" % cpuIndex)+outname
-    ave_hot.count = 1000
-    ave_hot.ydataA = ave_hot.ydataA * float(ave_hot.count)
-    ave_hot.write_ascii_file("../", outname)                
 
 # if observations cover multiple days
 if firstdate != lastdate:

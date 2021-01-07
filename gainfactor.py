@@ -1,5 +1,6 @@
 #Python function to compute gain factor for different processor indicies, dates and elevations
 #HISTORY
+#21JAN07 GIL add help, update for changes
 #20APR30 GIL add pointing offset model
 #20APR29 GIL add read savefile function
 #20APR22 GIL clean up save labels

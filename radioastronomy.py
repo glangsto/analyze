@@ -3,6 +3,7 @@
 Class defining a Radio Frequency Spectrum
 Includes reading and writing ascii files
 HISTORY
+20JAN06 GIL remove print of lst, merge some breakthrough listen keywords
 20DEC28 GIL fix parsing header separately from data
 20DEC16 GIL file header
 20NOV27 GIL separate the reading of the file header from the data
@@ -442,7 +443,7 @@ class Spectrum(object):
             lst = location.sidereal_time()
             aparts = angles.phmsdms(str(lst))
             self.lst = angles.sexa2deci(aparts['sign'], *aparts['vals'], todeg=True)
-#                print("lst: %s %s %7.3f" % (lst, datestr, self.lst))
+#            print("lst: %s %s %7.3f" % (lst, datestr, self.lst))
 #            self.lst = angles.sexa2deci(aparts['sign'], *aparts['vals'])
         ## Must set the date before calculating ra, dec!!!
         # compute apparent RA,DEC for date of observations
@@ -477,10 +478,10 @@ class Spectrum(object):
             print("File %4d: %s (%d)" % (self.writecount, outname, self.count))
         fullname = dirname + outname
         outfile = open(fullname, 'w')
-        outfile.write('# File: ' + outname + '\n')
+        outfile.write('# FILE      = ' + outname + '\n')
         self.noteA = self.noteA.replace('\n', '')
         self.noteA = self.noteA.strip()
-        outline = '# NOTEA     = ' + self.noteA + '\n'
+        outline =     '# NOTEA     = ' + self.noteA + '\n'
         outfile.write(outline)
         self.noteB = self.noteB.replace('\n', '')
         self.noteB = self.noteB.strip()
@@ -772,6 +773,9 @@ class Spectrum(object):
                 if parts[1] == "SECONDS":
                     self.seconds = float(parts[3])
                 if parts[1] == 'CENTERFREQ':
+                    self.centerFreqHz = float(parts[3])
+                # for compatibility with Breakthough listen files
+                if parts[1] == 'OBSFREQ':
                     self.centerFreqHz = float(parts[3])
                 if parts[1] == 'CENTERFREQ=':
                     self.centerFreqHz = float(parts[2])

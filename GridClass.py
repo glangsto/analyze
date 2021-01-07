@@ -224,7 +224,7 @@ class Grid(object):
                     self.image[jjj, iii] = \
                         self.image[jjj, iii]/self.weights[jjj, iii]
                     nonzero = nonzero + 1
-        print('Normalize: ', nonzero, ' Values in the grid')
+        print('Normalize: %d Values in the grid' % (nonzero))
 
     def check(self):
         """
@@ -242,7 +242,7 @@ class Grid(object):
                     print('Non-finite weight at: ', iii, jjj, self.weights[jjj, iii])
                     self.weights[jjj, iii] = 0
                     nonzero = nonzero + 1
-        print('Check: ', nonzero, ' Illegal Values in the grid')
+        print('Check: %d Illegal Values in the grid' % (nonzero))
 
         return
 
