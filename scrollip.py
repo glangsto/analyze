@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # python to get my ip and send an email to megajansky
 #HISTORY
+# 21Jan16 GIL exit if can not reach scroll hat
 # 20Dec23 GIL reduce text scolled
 # 20Dec19 GIL add stop option
 # 20Dec15 GIL initial version
@@ -16,8 +17,17 @@ except:
     sys.exit()
 
 # configure sense hat
-sense = SenseHat()
-sense.set_rotation(0)
+try:
+    sense = SenseHat()
+except:
+    print("Can not reach Scroll Hat")
+    sys.exit()
+try:
+    sense.set_rotation(0)
+except:
+    print("Can not set hat rotation")
+    sys.exit()
+    
 red = (155, 0, 0)
 green = (0, 55, 0)
 blue = (50, 50, 255)
