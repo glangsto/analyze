@@ -1,44 +1,31 @@
 #!/bin/bash
 # plot the latest observation compared to latest hot
 # HISTORY
+# 21Jan18 GIL only process files in the "latest" dir
 # 20Dec24 GIL check for files in data dir
 # 20Nov12 GIL create latest file in html directory
 # 20Jun16 GIL initial version that finds the latest observation
 # find the most recent note file 
 
-export datadir=/home/pi/Research/gr-radio_astro/data
-export grhome=/home/pi/Research/gr-radio_astro
-
 export binhome=/home/pi/Research/analyze
-export latesthot=`$binhome/getlatesthot`
-export latestobs=`$binhome/getlatestobs`
 export latestdir="/var/www/html/latest"
 
-cd $grhome
-
-if [ "$latesthot" != "" ] ; then
-    sudo rm -f $latestdir/latest.hot 
-    cp data/$latesthot $latestdir/latest.hot
-fi
-
-if [ "$latestobs" != "" ] ; then
-    sudo rm -f $latestdir/latest.ast
-    cp data/$latestobs $latestdir/latest.ast
-fi
-
 cd $latestdir
-$binhome/T -P ./ 3600. latest.hot latest.ast
 
-export tlatest=`ls -1 T-??-??-??.png | head -1`
+sudo python $binhome/t.py -P ./ 3600. latest.hot latest.ast
+
+export tlatest=`ls -t1 T-2?-??-??.png | head -1`
+echo $tlatest
 # now relink the T-latest plots
 if [ "$tlatest"  != "" ] ; then 
     sudo rm -f T-latest.png
-    ln -s $tlatest T-latest.png 
+    sudo ln -s $latestdir/$tlatest T-latest.png 
 fi
 
-export tlatest=`ls -1 T-??-??-??.pdf | head -1`
+export tlatest=`ls -t1 T-2?-??-??.pdf | head -1`
+echo $tlatest
 # now relink the T-latest plots
 if [ "$tlatest"  != "" ] ; then 
     sudo rm -f T-latest.pdf
-    ln -s $tlatest T-latest.pdf
+    sudo ln -s $latestdir/$tlatest T-latest.pdf
 fi
