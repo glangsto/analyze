@@ -1,6 +1,7 @@
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#21JAN19 GIL fix normalizations again
 #21JAN06 GIL fix normalizations
 #20DEC28 GIL check for a average time in first argument
 #20DEC16 GIL flag and ignore short spectra files
@@ -109,6 +110,7 @@ saveFile = ""     # Default no saveFileName
 hotFileName = ""
 coldFileName = ""
 plotFrequency = False
+doScaleAve = False
 
 # define reference frequency for velocities (MHz)
 nuh1 = 1420.40575 # neutral hydrogen frequency (MHz)
@@ -342,7 +344,6 @@ def average_spec( ave_spec, in_spec, nave, firstutc, lastutc):
     if doDebug:
         medianData = np.median( in_spec.ydataA[n6:n56])
     # remove number of spectra averaged scaling.
-#    in_spec.ydataA = (in_spec.ydataA/in_spec.count) 
     if doDebug:
         medianScale = np.median( in_spec.ydataA[n6:n56])
         print(( "Input: %8.3f, count: %6d; Scale: %8.3f" % (medianData, in_spec.count, medianScale)))
@@ -432,6 +433,11 @@ def read_hot( names, ave_hot):
             continue
 
         rs.read_spec_ast(filename)
+        if doScaleAve:
+            rs.ydataA = rs.ydataA/rs.count
+        else:
+            rs.ydataA = rs.ydataA/rs.nave
+        
         nChan = len( rs.ydataA)
         if nChan != 32 and nChan != 64 and nChan != 128 and nChan != 256 and \
            nChan != 512 and nChan != 1024 and nChan != 2048 and nChan != 4096:
@@ -488,6 +494,10 @@ def read_hot( names, ave_hot):
 
 if hotFileName != "":
     ave_hot.read_spec_ast(hotFileName)
+    if doScaleAve:
+        ave_hot.ydataA = ave_hot.ydataA/ave_hot.count
+    else:
+        ave_hot.ydataA = ave_hot.ydataA/ave_hot.nave
 else:
     ave_hot, minel, maxel, minGlat, maxGlat = read_hot( names, ave_hot)
 
@@ -548,6 +558,11 @@ def read_angles( names, lowel):
     for filename in names:
 
         rs.read_spec_ast(filename)
+        if doScaleAve:
+            rs.ydataA = rs.ydataA/rs.count
+        else:
+            rs.ydataA = rs.ydataA/rs.nave
+
         rs.azel2radec()    # compute ra,dec from az,el
 
         if rs.telel < lowel:  #if elevation too low for a cold load obs
@@ -585,6 +600,10 @@ def read_cold( names, ave_cold, lowel, lowGlat):
     for filename in names:
 
         rs.read_spec_ast(filename)
+        if doScaleAve:
+            rs.ydataA = rs.ydataA/rs.count
+        else:
+            rs.ydataA = rs.ydataA/rs.nave
         rs.azel2radec()    # compute ra,dec from az,el
 
         if rs.telel < lowel:  #if elevation too low for a cold load obs
@@ -619,6 +638,11 @@ def read_cold( names, ave_cold, lowel, lowGlat):
 
 if coldFileName != "":
     ave_cold.read_spec_ast( coldFileName)
+    if doScaleAve:
+        ave_cold.ydataA = ave_cold.ydataA/ave_cold.count
+    else:
+        ave_cold.ydataA = ave_cold.ydataA/ave_cold.nave
+
     ncold = 1
     minel = ave_cold.telel
     maxel = ave_cold.telel
@@ -735,6 +759,7 @@ avetime = datetime.timedelta(seconds=avetimesec)
 nRead = 0        
 nave = 0
 
+rs = radioastronomy.Spectrum()
 # now read through all data and average cold sky obs
 for filename in names:
 
@@ -752,9 +777,12 @@ for filename in names:
         allFiles = True
 
 #   create spectrum structure, empty
-    rs = radioastronomy.Spectrum()
-#  print( filename)
     rs.read_spec_ast(filename)
+    if doScaleAve:
+        rs.ydataA = rs.ydataA/rs.count
+    else:
+        rs.ydataA = rs.ydataA/rs.nave
+#  print( filename)
     rs.azel2radec()    # compute ra,dec from az,el
 # if not a sky observation
     if rs.telel < 0. and (not allFiles):

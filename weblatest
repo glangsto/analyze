@@ -1,9 +1,7 @@
 #!/bin/bash
 # plot the latest observation compared to latest hot
 # HISTORY
-# 20Dec24 GIL check for no hot and create latest file in html directory
-# 20Nov12 GIL create latest file in html directory
-# 20Jun16 GIL initial version that finds the latest observation
+# 21Jan19 GIL merge rawlatest and tsyslatest
 # find the most recent note file 
 
 export datadir=/home/pi/Research/gr-radio_astro/data
@@ -33,30 +31,33 @@ cd $latestdir
 echo $latesthot $latestobs
 $binhome/R -P ./ *.hot *.ast
 
-export latestpng=$latestdir/R-latest.png
-# now relink to the last latest plot
-if [ -f  $latestpng ] ; then
-    sudo rm $latestpng
-fi
-
-export newestpng=`ls -1t $latestdir/R-2*.png | head -1`
+export newestpng=`ls -1 $latestdir/R-2*.png | tail -1`
 #echo "Newest: " $newestpng
 if [ "$newestpng" != "$latestpng" ] ; then 
-    sudo ln -s $newestpng $latestpng
+    sudo mv -f $newestpng R-latest.png
 fi
 
-# link the latest png for easy access to web page
-export latestpdf=$latestdir/R-latest.pdf
-if [ -f  $latestpdf ] ; then
-    sudo rm $latestpdf
-fi    
-
-export newestpdf=`ls -1t $latestdir/R-2*.pdf | head -1`
+export newestpdf=`ls -1 $latestdir/R-2*.pdf | tail -1`
 #echo "Newest: " $newestpdf
 if [ "$newestpdf" != "$latestpdf" ] ; then 
-    sudo ln -s $newestpdf $latestpdf
+    sudo mv -f $newestpdf R-latest.pdf
 fi
 
-#must touch the files to get them to refresh
-sudo touch $latestpdf
-sudo touch $latestpng
+# begin calibration plot after a short delay
+sleep 5
+
+sudo python $binhome/t.py -P ./ 600. *.hot *.ast
+
+export tlatest=`ls -1 T-2?-??-??.png | tail -1`
+echo $tlatest
+# now relink the T-latest plots
+if [ "$tlatest"  != "" ] ; then 
+    sudo mv -f $tlatest T-latest.png 
+fi
+
+export tlatest=`ls -1 T-2?-??-??.pdf | tail -1`
+echo $tlatest
+# now relink the T-latest plots
+if [ "$tlatest"  != "" ] ; then 
+    sudo mv -f $tlatest T-latest.pdf
+fi

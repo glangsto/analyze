@@ -11,8 +11,7 @@ export binhome=/home/pi/Research/analyze
 export latestdir="/var/www/html/latest"
 
 cd $latestdir
-
-sudo python $binhome/t.py -P ./ 3600. latest.hot latest.ast
+sudo python $binhome/t.py -P ./ 600. *.hot *.ast
 
 export tlatest=`ls -t1 T-2?-??-??.png | head -1`
 echo $tlatest
