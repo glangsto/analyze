@@ -1,0 +1,2 @@
+#start a script with low priority to avoid data loss
+nice -10 /home/pi/Research/analyze/weblatest

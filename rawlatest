@@ -33,30 +33,16 @@ cd $latestdir
 echo $latesthot $latestobs
 $binhome/R -P ./ *.hot *.ast
 
-export latestpng=$latestdir/R-latest.png
-# now relink to the last latest plot
-if [ -f  $latestpng ] ; then
-    sudo rm $latestpng
-fi
-
-export newestpng=`ls -1t $latestdir/R-2*.png | head -1`
-#echo "Newest: " $newestpng
-if [ "$newestpng" != "$latestpng" ] ; then 
-    sudo ln -s $newestpng $latestpng
+export latestpng=`ls -1 $latestdir/R-2*.png | tail -1`
+if [ -f $latestpng ] ; then 
+    sudo mv -f $latestpng R-latest.png
+    sudo chown pi R-latest.png
 fi
 
 # link the latest png for easy access to web page
 export latestpdf=$latestdir/R-latest.pdf
 if [ -f  $latestpdf ] ; then
-    sudo rm $latestpdf
+    sudo mv -f $newestpdf R-latest.pdf
+    sudo chown pi R-latest.pdf
 fi    
 
-export newestpdf=`ls -1t $latestdir/R-2*.pdf | head -1`
-#echo "Newest: " $newestpdf
-if [ "$newestpdf" != "$latestpdf" ] ; then 
-    sudo ln -s $newestpdf $latestpdf
-fi
-
-#must touch the files to get them to refresh
-sudo touch $latestpdf
-sudo touch $latestpng

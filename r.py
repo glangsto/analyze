@@ -13,12 +13,11 @@
 #15AUG30 add option to plot range fo values
 #15JUL01 GIL Initial version
 #
-import matplotlib.pyplot as plt
+import matplotlib as mpl
 import sys
 import numpy as np
 import radioastronomy
 import interpolate
-import gainfactor as gf
 
 dy = -1.
 
@@ -166,6 +165,12 @@ while iarg < nargs:
     namearg = iarg + 1
     iarg = iarg + 1
 # end of while not reading file names
+
+# to create plots in cronjobs, must use a different backend
+if doPlotFile:
+    mpl.use('Agg')
+import matplotlib.pyplot as plt
+import gainfactor as gf
 
 if plotFrequency:
     print( "Ploting Intensity versus Frequency")

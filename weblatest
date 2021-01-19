@@ -14,50 +14,59 @@ export latestobs=`$binhome/getlatestobs`
 export latestdir="/var/www/html/latest"
 # go to one directory above the data dir
 cd $grhome
+# if a new hot file
 if [ "$latesthot" != "" ] ; then
+    # then transfer to web/latest directory
     export latesthot=data/$latesthot
     sudo cp -f $latesthot $latestdir/latest.hot
+    sudo chown pi $latestdir/latest.hot
+    sudo chgrp pi $latestdir/latest.hot
 fi
+# if a new observation file
 if [ "$latestobs" != "" ] ; then
+    # then transfer to web/latest directory
     export latestobs=data/$latestobs
     sudo cp -f $latestobs $latestdir/latest.ast
-fi
-
-if [ "$latestobs" == "" ] && [ "$latesthot" == "" ] ; then
-    exit
+    sudo chown pi $latestdir/latest.ast
+    sudo chgrp pi $latestdir/latest.hot
 fi
 
 cd $latestdir
-echo $latesthot $latestobs
-$binhome/R -P ./ *.hot *.ast
+$binhome/R -P ./ Hot.hot latest.hot Cold.ast latest.ast
 
 export newestpng=`ls -1 $latestdir/R-2*.png | tail -1`
 #echo "Newest: " $newestpng
 if [ "$newestpng" != "$latestpng" ] ; then 
     sudo mv -f $newestpng R-latest.png
+    sudo chown pi R-latest.png
+    sudo chgrp pi R-latest.png
 fi
 
 export newestpdf=`ls -1 $latestdir/R-2*.pdf | tail -1`
 #echo "Newest: " $newestpdf
 if [ "$newestpdf" != "$latestpdf" ] ; then 
     sudo mv -f $newestpdf R-latest.pdf
+    sudo chown pi R-latest.pdf
+    sudo chgrp pi R-latest.pdf
 fi
 
 # begin calibration plot after a short delay
 sleep 5
 
-sudo python $binhome/t.py -P ./ 600. *.hot *.ast
+/usr/bin/python $binhome/t.py -P ./ 600. Hot.hot latest.hot Cold.ast latest.ast
 
 export tlatest=`ls -1 T-2?-??-??.png | tail -1`
-echo $tlatest
 # now relink the T-latest plots
 if [ "$tlatest"  != "" ] ; then 
-    sudo mv -f $tlatest T-latest.png 
+    sudo mv -f $tlatest T-latest.png
+    sudo chown pi T-latest.png
+    sudo chgrp pi T-latest.png
 fi
 
 export tlatest=`ls -1 T-2?-??-??.pdf | tail -1`
-echo $tlatest
 # now relink the T-latest plots
 if [ "$tlatest"  != "" ] ; then 
     sudo mv -f $tlatest T-latest.pdf
+    sudo chown pi T-latest.pdf
+    sudo chgrp pi T-latest.pdf
 fi

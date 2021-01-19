@@ -1,27 +1,78 @@
 <meta http-equiv="refresh" content="30" />
-<title>Latest Spectra from our Telescope</title>
-<H1>Latest Spectra from our Home Radio Telescope</H1>
-  <a href="R-latest.pdf">
-    <img src="R-latest.png" width=49% align="left">
-  </a>
-  <a href="T-latest.pdf">
-    <img src="T-latest.png" width=49% align="right">
-  </a>
-<p>
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<!DOCTYPE html> 
+<html> 
   
+<head> 
+  <title>Latest Spectra from our Telescope</title>
+</head> 
+  
+<body> 
+    <!-- Display the image --> 
+<H1>Latest Spectra from our Radio Telescope</H1>
+<table width=90%>
+  <tr>
+    <td width=45%><a href="R-latest.pdf"> <img id="Rlatest" src="R-latest.png" width=90%></a>
+    </td>
+  <td width=45%><a href="T-latest.pdf"><img id="Tlatest" src="T-latest.png" width=90%></a>
+  </td>
+  </tr>
+  <tr><td><b>Plot of the intensity, in counts,
+	versus frequency, in MHz, for the most recent Hot Load and astronomical observations.
+	</b>
+  </td>
+    <td><b>Plot of calibrated intensity, in Kelvins, versus velocity, in km/sec.   The velocity range is centered on the solar system rest-frame velocity.  The velocity axis is corrected by the velocity of our solarsystem in the drection of  the observation.
+  </td>
+  </tr>
+  <tr>
+    <td><a href="latest.hot"> Most recent Hot-Load observation</a>
+      </td>
+      <td><a href="latest.ast"> Most recent Astronomical observation</a>
+      </td>
+    </tr>
+  <tr>
+    <td><a href="Hot.hot"> Most recent Hot-Load Calibration observation</a>
+      </td>
+      <td><a href="Cold.ast"> Most recent Cold-Load Calibration observation</a>
+      </td>
+    </tr>
+</table>
+
 <p>
-  <center>
-    <h2> -------------------------------------------------- </h2>
-  </center>
+The latest observations are <a href="../data"> available for download </a>
+
+<p>For Teachers guides for astronomical observations see the <a href="http://www.WVURAIL.org/dspira-lessons"> DSPIRA Portal</a>
+<p>For Guides to building your own Radio Telescopes see
+  <a href="http://www.WVURAIL.org/cra"> WVU Class Room Radio Astronomy </a>
 <p>
-
-  <h2> Raw Hot and Cold Spectra (Left) and Calibrated Spectra (right) </h2>
-
-The Raw Hot and Cold Calibration Spectra plot shows intensity, in Counts, versus frequency.
-The Calibrated Spectra show intensity, in Kelvins, versus Galactic Velicty (km/sec)
-
+  For a description of the development of Student Radio Telescope designs see the
+  <a href="https://drive.google.com/drive/folders/1SJJTUQ5Q6DLDuiqoSHR5YVY_0TDXaNIH?usp=sharing">
+     LightWork Memos</a>
 <p>
-For more info please see <a href="http://www.WVURAIL.org/cra"> WVU Class Room Radio Astronomy </a>
-
-<a href="http://www.nsf.gov/ast"> <img src="NsfLogo.jpeg" width=10% align="left">
+  Follow this link to download the latest version of the
+  <a href="https://drive.google.com/drive/folders/1t2soWvGIgze7wg-7QGlVgB0m3Q-BR3C-?usp=sharing">
+  Raspberry PI Radio Astronomy Operating System </a>
+<p>
+  <a href="http://www.nsf.gov/ast"> <img src="NsfLogo.jpeg" width=10% align="left"> Glen Langston - NSF    
 </a>
+
+  <script> 
+        // Create a timestamp 
+        var timestamp = new Date().getTime(); 
+  
+        // Get the image element  
+        var image = document.getElementById("Tlatest"); 
+  
+        // Adding the timestamp parameter to image src 
+        image.src = "T-latest.png?t=" + timestamp; 
+        console.log(image.src); 
+
+        // Get the image element  
+        var image = document.getElementById("Rlatest"); 
+  
+        // Adding the timestamp parameter to image src 
+        image.src = "R-latest.png?t=" + timestamp; 
+        console.log(image.src); 
+</script>
+</body>
+</html>

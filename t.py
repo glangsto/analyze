@@ -35,26 +35,13 @@
 #15AUG30 add option to plot range fo values
 #15JUL01 GIL Initial version
 #
-import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 import sys
 import datetime
 import radioastronomy
 import copy
 import interpolate
-import gainfactor as gf
-
-try:
-    from PyAstronomy import pyasl
-    baryCenterAvailable = True
-except:
-    print("!!!! Unable to import PyAstronomy !!!!")
-    print("Can not compute Bary Center velocity offset")
-    print("In Linux, try: ")
-    print("sudo pip install PyAstronomy")
-    print("or")
-    print("sudo pip3 install PyAstronomy")
-    baryCenterAvailable = False
 
 # define a small number
 EPSILON = 1.E-10
@@ -265,6 +252,27 @@ while iarg < nargs:
     timearg = iarg
     namearg = iarg+1
 # end of while not reading file names
+
+# to create plots in cronjobs, must use a different backend
+if doPlotFile:
+    mpl.use('Agg')
+import matplotlib.pyplot as plt
+import gainfactor as gf
+try:
+    from PyAstronomy import pyasl
+    baryCenterAvailable = True
+except:
+    print("!!!! Unable to import PyAstronomy !!!!")
+    print("Can not compute Bary Center velocity offset")
+    print("In Linux, try: ")
+    print("sudo pip install PyAstronomy")
+    print("or")
+    print("sudo pip3 install PyAstronomy")
+    baryCenterAvailable = False
+
+
+
+
 
 #first argument is the averaging time in seconds
 try: 
@@ -1117,7 +1125,10 @@ plt.title(myTitle, fontsize=16)
 if plotFrequency:
     plt.xlabel('Frequency (MHz)', fontsize=16)
 else:
-    plt.xlabel('Velocity (km/sec)', fontsize=16)
+    if corr != 0.:
+        plt.xlabel(('Velocity (km/sec; V_corr:%.1f)' % corr), fontsize=16)
+    else:
+        plt.xlabel('Velocity (km/sec)', fontsize=16)
 
 plt.ylabel('Intensity (Kelvins)', fontsize=16)
 #plt.legend(loc='upper left')
