@@ -53,7 +53,7 @@ fi
 # begin calibration plot after a short delay
 sleep 5
 
-/usr/bin/python $binhome/t.py -P ./ 600. Hot.hot latest.hot Cold.ast latest.ast
+/usr/bin/python $binhome/t.py -P ./ 180. Hot.hot latest.hot Cold.ast latest.ast
 
 export tlatest=`ls -1 T-2?-??-??.png | tail -1`
 # now relink the T-latest plots
