@@ -1,0 +1,53 @@
+<meta http-equiv="refresh" content="30" />
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<!DOCTYPE html> 
+<html> 
+  
+<head> 
+  <title>Latest Events from our Telescope</title>
+</head> 
+  
+<body> 
+    <!-- Display the image --> 
+<H1>Latest Events from our Radio Telescope</H1>
+<table width=95%>
+  <tr>
+    <td width=47%><a href="E-latest.pdf"> <img id="Elatest" src="E-latest.png" width=90%></a>
+    </td>
+  </tr>
+  <tr><td><b>Plot of the intensity, in counts,
+	versus Time, in microseconds, for the most recent events.
+	</b>
+  <tr>
+</table>
+
+<p>
+The latest spectral line observations are <a href="../latest"> available.</a>
+<p>
+The latest events are <a href="../events"> available for download </a>
+<p>
+<p>For Teachers guides for astronomical observations see the <a href="http://www.WVURAIL.org/dspira-lessons"> DSPIRA Portal</a>
+<p>For Guides to building your own Radio Telescopes see
+  <a href="http://www.WVURAIL.org/cra"> WVU Class Room Radio Astronomy </a>
+<p>
+  For a description of the development of Student Radio Telescope designs see the
+  <a href="https://drive.google.com/drive/folders/1SJJTUQ5Q6DLDuiqoSHR5YVY_0TDXaNIH?usp=sharing">
+     LightWork Memos</a>
+<p>
+  Follow this link to download the latest version of the
+  <a href="https://drive.google.com/drive/folders/1t2soWvGIgze7wg-7QGlVgB0m3Q-BR3C-?usp=sharing">
+  Raspberry PI Radio Astronomy Operating System </a>
+<p>
+  <a href="http://www.nsf.gov/ast"> <img src="NsfLogo.jpeg" width=10% align="left"> Glen Langston - NSF    
+</a>
+
+  <script> 
+        // Create a timestamp 
+        var timestamp = new Date().getTime(); 
+  
+        // Adding the timestamp parameter to image src 
+        image.src = "E-latest.png?t=" + timestamp; 
+        console.log(image.src); 
+</script>
+</body>
+</html>
