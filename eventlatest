@@ -1,0 +1,50 @@
+#!/bin/bash
+# plot the latest events
+# HISTORY
+# 21Feb01 GIL initial version based on rawlatest
+
+export datadir=/var/www/html/events
+export grhome=/home/pi/Research/gr-radio_astro
+
+export binhome=/home/pi/Research/analyze
+# go to one directory above the data dir
+cd $datadir
+# now find the 3 most recent events
+export latestone=`ls *.eve | tail -1`
+export latesttwo=`ls *.eve | tail -2 | head -1`
+export latestthree=`ls *.eve | tail -3 | head -1`
+# if not a duplicate
+if [ "$latesttwo" == "$latestthree" ] ; then
+    export latesthree=""
+else
+    echo "3: " $latestthree
+fi
+    
+if [ "$latestone" == "$latesttwo" ] ; then
+    export latestwo=""
+else
+    echo "2: " $latesttwo
+fi
+if [ "$latestone" != "" ] ; then
+    echo "1: " $latestone
+    echo $binhome/E -Y .2 -P $latestthree $latesttwo $latestone
+    python $binhome/e.py -Y .2 -P $latestthree $latesttwo $latestone
+fi
+# the plots are placed one directory up.
+
+export latestdir=/var/www/html/event
+export latestpng=`ls E-2*.png | tail -1`
+if [ -f $latestpng ] ; then
+    echo $latestpng
+    sudo mv -f $latestpng $latestdir/E-latest.png
+    sudo chown pi $latestdir/E-latest.png
+fi
+
+# link the latest png for easy access to web page
+export latestpdf=`ls E-2*.pdf | tail -1`
+if [ -f  $latestpdf ] ; then
+    echo $latestpdf
+    sudo mv -f $latestpdf $latestdir/E-latest.pdf
+    sudo chown pi $latestdir/E-latest.pdf
+fi    
+

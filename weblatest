@@ -1,6 +1,7 @@
 #!/bin/bash
 # plot the latest observation compared to latest hot
 # HISTORY
+# 21Feb01 GIL add eventlatest
 # 21Jan19 GIL merge rawlatest and tsyslatest
 # find the most recent note file 
 
@@ -70,3 +71,8 @@ if [ "$tlatest"  != "" ] ; then
     sudo chown pi T-latest.pdf
     sudo chgrp pi T-latest.pdf
 fi
+
+# sleep a bit
+sleep 10
+# now process events
+sudo $binhome/eventlatest

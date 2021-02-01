@@ -11,7 +11,8 @@
 #19MAR11 GIL fix plot axies
 #19JAN16 GIL initial version
 #
-import matplotlib.pyplot as plt
+import matplotlib as mpl
+#import matplotlib.pyplot as plt
 import sys
 import radioastronomy
 import interpolate
@@ -92,6 +93,15 @@ while iarg < nargs:
     else:
         break
     iarg = iarg+1
+
+
+# end of reading arguments
+# to create plots in cronjobs, must use a different backend
+if doPlotFile:
+    mpl.use('Agg')
+import matplotlib.pyplot as plt
+import gainfactor as gf
+
 namearg = iarg
 
 firstel = -100.
@@ -235,9 +245,9 @@ else:
 if doPlotFile:
     if fileTag == "":
         fileTag = "E-" + firstdate
-    outpng = "../" + fileTag + ".png"
+    outpng = fileTag + ".png"
     plt.savefig(outpng,bbox_inches='tight')
-    outpdf = "../" + fileTag + ".pdf"
+    outpdf = fileTag + ".pdf"
     plt.savefig(outpdf,bbox_inches='tight')
     print( "Wrote files %s and %s" % (outpng, outpdf))
 else:

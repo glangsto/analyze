@@ -7,7 +7,7 @@
 export datadir=/home/pi/Research/gr-radio_astro/data
 
 cd $datadir
-export files=`ls -1 *.hot 2> /dev/null | tail -1`
+export files=`ls -1 2*.hot 2> /dev/null | tail -1`
 export latesthot=`echo $files | awk '{print $1}'` 2> /dev/null
 echo $latesthot
 
