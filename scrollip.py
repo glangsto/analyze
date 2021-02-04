@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # python to get my ip and send an email to megajansky
 #HISTORY
-# 21Feb04 GIL reduce characters printed
+# 21Feb04 GIL reduce characters printed, exit after 100 scyles
 # 21Jan16 GIL exit if can not reach scroll hat
 # 20Dec23 GIL reduce text scolled
 # 20Dec19 GIL add stop option
@@ -36,7 +36,7 @@ purple = (155, 0, 155)
 sense.show_message("SCROLLIP-", text_colour=green)
 sense.show_message("Langston", text_colour=purple)
 sense.show_message("-NSF", text_colour=blue)
-
+totalcount = 0
 waitcount = 0
 
 # communicate with this code that runs as root, via /tmp
@@ -57,6 +57,10 @@ while True:
     if os.path.exists(mystop):
         os.system("sudo rm -f %s" % (mystop))
         sense.show_message("!Exiting!", text_colour=red)
+        sys.exit()
+
+    if totalcount > 100:
+        sense.show_message("...Ending...", text_colour=red)
         sys.exit()
 
 # only print IP every so often, but watch for events        
@@ -95,8 +99,10 @@ while True:
         pressure = sense.get_pressure()
         pressstr = "P:%3.0fmbar" % (float(pressure))
         sense.show_message(pressstr, text_colour=purple)
-        
 
+    # count total displays, stop after many displays to reduce power
+    totalcount = totalcount + 1
+    
         
 
 
