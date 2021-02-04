@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # python to get my ip and send an email to megajansky
 #HISTORY
+# 21Feb04 GIL reduce characters printed
 # 21Jan16 GIL exit if can not reach scroll hat
 # 20Dec23 GIL reduce text scolled
 # 20Dec19 GIL add stop option
@@ -29,12 +30,12 @@ except:
     sys.exit()
     
 red = (155, 0, 0)
-green = (0, 55, 0)
+green = (0, 155, 0)
 blue = (50, 50, 255)
 purple = (155, 0, 155)
-sense.show_message("SCROLLIP -", text_colour=green)
-sense.show_message(" Langston", text_colour=green)
-sense.show_message(" NSF", text_colour=blue)
+sense.show_message("SCROLLIP-", text_colour=green)
+sense.show_message("Langston", text_colour=purple)
+sense.show_message("-NSF", text_colour=blue)
 
 waitcount = 0
 
@@ -55,6 +56,7 @@ while True:
 
     if os.path.exists(mystop):
         os.system("sudo rm -f %s" % (mystop))
+        sense.show_message("!Exiting!", text_colour=red)
         sys.exit()
 
 # only print IP every so often, but watch for events        
@@ -71,9 +73,8 @@ while True:
 
         parts = ipparts.split('\n')
         myip = parts[0]
-        mytext = "IP: " + myip
+        mytext = "IP:%s" % (myip)
         sense.show_message(mytext, text_colour=purple)
-
         
     waitcount = waitcount + 1
 
@@ -82,17 +83,17 @@ while True:
         waitcount = 0
         # temperature
         temp = sense.get_temperature()
-        tempstr = "T: %5.1f C" % (float(temp))
+        tempstr = "T:%4.1fC" % (float(temp))
         sense.show_message(tempstr, text_colour=red)
 
         # humidity
         humidity = sense.get_humidity()
-        humidstr = "H: %4.0f %%" % (float(humidity))
+        humidstr = "H:%2.0f%%" % (float(humidity))
         sense.show_message(humidstr, text_colour=blue)
         
         # humidity
         pressure = sense.get_pressure()
-        pressstr = "P: %5.0f mbar" % (float(pressure))
+        pressstr = "P:%3.0fmbar" % (float(pressure))
         sense.show_message(pressstr, text_colour=purple)
         
 
