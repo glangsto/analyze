@@ -1,6 +1,7 @@
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#21FEB23 GIL add a zero intensity line option
 #21JAN19 GIL fix normalizations again
 #21JAN06 GIL fix normalizations
 #20DEC28 GIL check for a average time in first argument
@@ -98,6 +99,7 @@ hotFileName = ""
 coldFileName = ""
 plotFrequency = False
 doScaleAve = False
+doZero = False
 
 # define reference frequency for velocities (MHz)
 nuh1 = 1420.40575 # neutral hydrogen frequency (MHz)
@@ -138,6 +140,7 @@ if nargs < 3:
     print("-X optionally set Cold Load Temperature (Kelvins)")
     print("-Y optionally set Hot  Load Temperature (Kelvins)")
     print("-Z <file tag> optionally add tag to PDF and PNG file names")
+    print("-0 optionally plot zero intensity line(s)")
     print("-MINEL optionally set the lowest elevation allowed for calibration obs (default 60d)")
     print("Observation file list must include at least one hot load file")
     print("")
@@ -246,6 +249,9 @@ while iarg < nargs:
         iarg = iarg+1
         fileTag = str(sys.argv[iarg])
         print(( 'File tag: %s' % (fileTag)))
+    elif sys.argv[iarg].upper() == '-0':
+        doZero = True
+        print('Plotting zero intensity lines')
     else:
         break
     iarg = iarg + 1
@@ -1111,7 +1117,10 @@ for tick in ax1.yaxis.get_major_ticks():
 #plt.xlim(-250., 250.)
 if not plotFrequency:
     plt.xlim(minvel, maxvel)
-# keep the plot from becoming too narrow
+
+if doZero:
+    ax1.axhline( linewidth=1, linestyle=':', color='k')
+
 dy = yallmax - yallmin
 if dy < 8:
     dy = 8
