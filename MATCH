@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # find the matchevent program
-if [ -e matchevent.py ]
+if [ -e matchevents.py ]
 then
-    python matchevent.py "$@"
+    python matchevents.py "$@"
 else
     if [ -e ~/Research/analyze/matchevents.py ]
     then

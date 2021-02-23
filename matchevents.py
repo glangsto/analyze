@@ -1,5 +1,6 @@
 #Python find matchs in 4 data directories
 #HISTORY
+#21FEB23 GIL remove extra character in time zone
 #20DEC04 GIL allow histogram plotting in case of only one directory
 #20DEC03 GIL minor updates to histogram plottoing
 #20DEC02 GIL fix bugs, add histogram plotting
@@ -296,9 +297,11 @@ def plotHistogram( nDir, rs, nday, mjdRef, EventDirs, nall, match4times, match4c
     batcmd="/bin/date +%Z"
     timezone = subprocess.check_output(batcmd, shell=True)
     parts = timezone.split()
-    timezone = parts[0]
-#print("Zone: %s" % (timezone))
-
+    # fix strange problem with zone sometimes coming back in quotes like b'EST'
+    try:
+        timezone = str(parts[0], 'UTF-8')
+    except:
+        timezone = str(parts[0])
 
     # prepart to compute local time 
     utcOffsetHours = time.timezone/3600. 
