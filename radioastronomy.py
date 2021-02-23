@@ -442,7 +442,7 @@ class Spectrum(object):
             lst = location.sidereal_time()
             aparts = angles.phmsdms(str(lst))
             self.lst = angles.sexa2deci(aparts['sign'], *aparts['vals'], todeg=True)
-            print("lst: %s %s %7.3f" % (lst, datestr, self.lst))
+#            print("lst: %s %s %7.3f" % (lst, datestr, self.lst))
 #            self.lst = angles.sexa2deci(aparts['sign'], *aparts['vals'])
         ## Must set the date before calculating ra, dec!!!
         # compute apparent RA,DEC for date of observations
