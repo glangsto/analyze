@@ -1,5 +1,7 @@
 #Python find matchs in 4 data directories
 #HISTORY
+#21FEB25 GIL FInd the SUN transit time
+#21FEB24 GIL show LST of SUN 
 #21FEB23 GIL remove extra character in time zone
 #20DEC04 GIL allow histogram plotting in case of only one directory
 #20DEC03 GIL minor updates to histogram plottoing
@@ -40,10 +42,11 @@ import copy
 nargs = len(sys.argv)
 if nargs < 2:
     print("MATCH: Match events listed in several directories")
-    print("Usage: MATCH [-OF seconds] [-D] [-C Date] [dir1 dir2 dir3 dir4 ...]")
+    print("Usage: MATCH [-OF seconds] [-D] [-C Date] [-E] [-N <n>] [dir1 dir2 dir3 dir4 ...]")
     print("Where: Optionally the user provides the maximum time offset (secs) to call a match")
-    print("Where -D  Optionally print debugging info")
     print("Where -C  Optionally provide a calendar date (ie 19Nov17) instead of directories")
+    print("Where -D  Optionally print debugging info")
+    print("Where -E Optionally on show Events with elevation above zero")
     print("Where -H Optionally plot histogram of events per parts of a day")
     print("Where -N <n> Optionally print matches when number is equal or greater to <n>")
     print("Where -P Plot matches")
@@ -66,6 +69,7 @@ doHistogram = False
 flagGroups = False
 doDebug = False
 nPrint = 4
+minEl = -100.
 
 # read through arguments extracting parameters
 while iii < nargs:
@@ -83,6 +87,10 @@ while iii < nargs:
             nPrint = 2
         print("Print if %d or more matches" % (nPrint))
         ifile = ifile + 2
+    if str(anarg[0:3]) == "-E":
+        minel = 1.
+        print("Only counting events when telescope above %5.1f (d) elevation" % (minel))
+        ifile = ifile + 1
     if str(anarg[0:3]) == "-F":
         flagGroups = True
         print("Flagging groups of events")
@@ -223,6 +231,8 @@ def readEventsInDir( directory):
     for filename in events:
         fullname = filename
         rs.read_spec_ast(fullname)
+        if rs.telel < minel:
+            continue
         mjds[kkk] = rs.emjd
         peaks[kkk] = rs.epeak
         rmss[kkk] = rs.erms
@@ -231,6 +241,7 @@ def readEventsInDir( directory):
         if (100 * int(kkk/100) == kkk) and doDebug:
             print("Event %5d: %12.9f: %7.3f+/-%5.3f" % (kkk, rs.emjd, rs.epeak, rs.erms))
         kkk = kkk + 1
+    nEve = kkk
 
     return nEve, events, mjds, peaks, rmss, azs, els
 # end of readEventsInDir
@@ -284,7 +295,7 @@ def findpairs( EventDir1, EventDir2):
     return ii12s, dt12s
 # end of find pairs of matches
 
-def plotHistogram( nDir, rs, nday, mjdRef, EventDirs, nall, match4times, match4count, match4gallon, match4gallat, nUnique):
+def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, match4count, match4gallon, match4gallat, nUnique):
     """
     plot several histograms of the event count versus time of day
     """
@@ -293,6 +304,7 @@ def plotHistogram( nDir, rs, nday, mjdRef, EventDirs, nall, match4times, match4c
     global calendar
     fig, ax = plt.subplots( figsize=(12,6))
 
+    rs = copy.deepcopy(rs_in)
     # get local timezon and utc offset
     batcmd="/bin/date +%Z"
     timezone = subprocess.check_output(batcmd, shell=True)
@@ -349,11 +361,12 @@ def plotHistogram( nDir, rs, nday, mjdRef, EventDirs, nall, match4times, match4c
     utcOffsetDays = time.timezone/86400.
 #    print( "Time zone %s is offset %5.1f hours from UTC" % (timezone, utcOffsetHours))
 
-
+    # annoate plot for local midnight
     rs.utc = utcmidnight
     rs.azel2radec()
     alabel = " RA,Dec: %5.1f,%5.1f" % (rs.ra, rs.dec)
     xa = utcOffsetHours % 24.
+    xmidnight = xa
     ya = max0
     ax.annotate(alabel, xy=( xa, ya), xytext=( xa, ya) )
     epsilon = 3./1440
@@ -362,6 +375,48 @@ def plotHistogram( nDir, rs, nday, mjdRef, EventDirs, nall, match4times, match4c
     alabel = " Local Midnight"
     xa = utcOffsetHours % 24.
     ax.annotate(alabel, xy=( xa, -yoffset*.75), xytext =( xa, -yoffset*.75))
+
+    # utc time of noon
+    dateHour = "%s %5d" % (parts[0],utcOffsetHours+12.)
+    utcnoon = datetime.datetime.strptime( dateHour, "%Y-%m-%d %H")
+    rs.utc = utcnoon
+    # compute az, alt of sun at noon
+    telel = rs.telel
+    # compute location of sun at noon
+    rs.azel2radec()   
+    # then use el of sun at noon to compute ra,dec of sun
+    rs.telel = rs.altsun
+    rs.azel2radec()   
+    print( "Noon Sun Az, El : %7.2f, %7.2f" % (rs.az_sun, rs.altsun))
+    print( "Noon Sun Ra, Dec: %7.2f, %7.2f" % (rs.ra, rs.dec))
+    # Compute offset between noon sun Az and horn az (degrees)
+    daz = rs.telaz - rs.az_sun
+    # transit time is 
+    transithour = utcOffsetHours + 12. + (daz/15.)
+    if transithour > 24:
+        transithour = transithour - 24.
+    elif transithour < 0:
+        transithour = + 24.
+    # have calculated LST of UTC midnight.  Use Azimuth of Sun to compute azimuth of transit.
+    print ("LST, SUN_AZ: %8.3f, %8.3f" % (rs.lst, rs.az_sun))
+#    print ("h, SUN_ALT: %d, %8.3f" % (minh, rs.altsun))
+
+    alabel = " Sun RA,Dec: %5.1f,%5.1f" % (rs.ra, rs.dec)
+    ya = max0
+    ax.annotate(alabel, xy=( transithour, ya), xytext=( transithour, ya) )
+    alabel = " AZ,El:  %5.1f,%5.1f" % (rs.telaz, rs.telel)
+    ya = max0 - yoffset
+    ax.annotate(alabel, xy=( transithour, ya), xytext=(transithour , ya) )
+    # set elevation back to horn elevaiton
+    rs.telel = telel
+
+    # now draw vertical lines for Sun cross horn
+    plt.axvline( transithour, color='b', linestyle='dotted')
+
+    # next draw sun az - 10 and sun_az + 10 vertial lines
+#    ram10 = rs.lst - rs.sun_ra - (np.pi * 10./180.)
+#    rap10 = rs.lst - rs.sun_ra + (np.pi * 10./180.)
+    
     # now draw vertical lines for events
     iplot = 0
     for iii in range(nall):
