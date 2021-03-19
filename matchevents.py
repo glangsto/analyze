@@ -1,5 +1,6 @@
-#Python find matchs in 4 data directories
+#Python find matchs in data directories
 #HISTORY
+#21MAR19 GIL Complete code for 5 directories/telescopes
 #21FEB26 GIL Show Galactic Plane range
 #21FEB25 GIL FInd the SUN transit time
 #21FEB24 GIL show LST of SUN 
@@ -96,8 +97,8 @@ while iii < nargs:
         print("Print if %d or more matches" % (nPrint))
         ifile = ifile + 2
     if str(anarg[0:3]) == "-E":
-        minel = 1.
-        print("Only counting events when telescope above %5.1f (d) elevation" % (minel))
+        minEl = 1.
+        print("Only counting events when telescope above %5.1f (d) elevation" % (minEl))
         ifile = ifile + 1
     if str(anarg[0:3]) == "-F":
         flagGroups = True
@@ -243,7 +244,7 @@ def readEventsInDir( directory):
     for filename in events:
         fullname = filename
         rs.read_spec_ast(fullname)
-        if rs.telel < minel:
+        if rs.telel < minEl:
             continue
         mjds[kkk] = rs.emjd
         peaks[kkk] = rs.epeak
@@ -602,6 +603,13 @@ def main():
     else:
         nEve4 = 0
         counts4 = np.zeros(nday)
+    if nDir > 5:
+        session5 = EventDirs[ 5 ]
+        nEve5 = EventDirs[ 5 ]['n']
+        counts5 = copy.deepcopy( EventDirs[5]['counts'])
+    else:
+        nEve5 = 0
+        counts5 = np.zeros(nday)
 
     print("Hour        Telescope/Day  ")
     print("Hour      1     2     3     4")
@@ -651,6 +659,12 @@ def main():
         ii03s, dt03s = findpairs( EventDirs[0], EventDirs[3])
         ii13s, dt13s = findpairs( EventDirs[1], EventDirs[3])
         ii23s, dt23s = findpairs( EventDirs[2], EventDirs[3])
+    if nDir > 4:
+        mjd4s = EventDirs[4]['mjds']
+        ii04s, dt04s = findpairs( EventDirs[0], EventDirs[4])
+        ii14s, dt14s = findpairs( EventDirs[1], EventDirs[4])
+        ii24s, dt24s = findpairs( EventDirs[2], EventDirs[4])
+        ii34s, dt34s = findpairs( EventDirs[3], EventDirs[4])
 
     # now report out the minimum time offsets and times less than 1 second off
     OneMjdSec = 1./86400.
@@ -667,6 +681,7 @@ def main():
         i1 = NOMATCH
         i2 = NOMATCH
         i3 = NOMATCH
+        i4 = NOMATCH
         if nDir < 2:
             continue
         if abs(dt01s[i0]) < offset:
@@ -683,6 +698,11 @@ def main():
             if abs(dt03s[i0]) < offset:
                 i3 = int(ii03s[i0])
                 mjdave = mjdave + mjd3s[i3]
+                matchcount = matchcount + 1
+        if nDir > 4:
+            if abs(dt04s[i0]) < offset:
+                i4 = int(ii04s[i0])
+                mjdave = mjdave + mjd4s[i4]
                 matchcount = matchcount + 1
         # if any matches to this event
         if matchcount > 1:
@@ -805,8 +825,9 @@ def main():
 
 
     print( " Matches of Events with other telescopes")
-    print( " Tel:     2     3     4")
-    for iii in range(nDir): 
+    print( " Tel:     2     3     4     5")
+    nCheck = min( nDir, 4)
+    for iii in range(nCheck): 
         counttypes = np.zeros(max(nDir,4))
         for lll in range(nMatch):
             matcha = matchs[ lll]
@@ -853,12 +874,12 @@ def main():
     match4gallon = np.zeros(nMatch)
     match4gallat = np.zeros(nMatch)
     match4index = np.zeros(nMatch)
-    # now make a list of events that only have all matches
+    # now make a list of events that only have enough matches
     for lll in range(nMatch):
         matcha = matchs[ lll ]
         lista = matcha['list']
         counta = matcha['count']
-        if counta < nDir:
+        if counta < nPrint:
             continue
         # must have one directory, but others might not be present
         i0 = lista[0]
@@ -909,7 +930,7 @@ def main():
         matcha = matchs[ lll ]
         lista = matcha['list']
         counta = matcha['count']
-        if counta < nDir:
+        if counta < nPrint:
             continue
         # now only print unique or 1st of many matches
         isUnique = False
