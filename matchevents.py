@@ -1,5 +1,6 @@
 #Python find matchs in 4 data directories
 #HISTORY
+#21FEB26 GIL Show Galactic Plane range
 #21FEB25 GIL FInd the SUN transit time
 #21FEB24 GIL show LST of SUN 
 #21FEB23 GIL remove extra character in time zone
@@ -35,6 +36,11 @@ import time
 import datetime
 import glob
 import numpy as np
+from astropy import units as u
+from astropy.coordinates import SkyCoord
+from astropy.coordinates import EarthLocation
+from astropy.time import Time
+from astropy.coordinates import AltAz
 import radioastronomy
 import subprocess
 import copy
@@ -42,11 +48,12 @@ import copy
 nargs = len(sys.argv)
 if nargs < 2:
     print("MATCH: Match events listed in several directories")
-    print("Usage: MATCH [-OF seconds] [-D] [-C Date] [-E] [-N <n>] [dir1 dir2 dir3 dir4 ...]")
+    print("Usage: MATCH [-OF seconds] [-D] [-C Date] [-E] [-N <n>] [-G] [dir1 dir2 dir3 dir4 ...]")
     print("Where: Optionally the user provides the maximum time offset (secs) to call a match")
     print("Where -C  Optionally provide a calendar date (ie 19Nov17) instead of directories")
     print("Where -D  Optionally print debugging info")
     print("Where -E Optionally on show Events with elevation above zero")
+    print("Where -G Optionally plot +/- 10 degrees of galactic plane")
     print("Where -H Optionally plot histogram of events per parts of a day")
     print("Where -N <n> Optionally print matches when number is equal or greater to <n>")
     print("Where -P Plot matches")
@@ -68,6 +75,7 @@ doPlot = False
 doHistogram = False
 flagGroups = False
 doDebug = False
+doGalactic = False
 nPrint = 4
 minEl = -100.
 
@@ -94,6 +102,10 @@ while iii < nargs:
     if str(anarg[0:3]) == "-F":
         flagGroups = True
         print("Flagging groups of events")
+        ifile = ifile + 1
+    if str(anarg[0:3]) == "-G":
+        doGalactic = True
+        print("Marking observations within 10 degrees of the galatic plane with *")
         ifile = ifile + 1
     if str(anarg[0:3]) == "-ND":
         nday = np.int(sys.argv[iii+1])
@@ -353,6 +365,10 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
     # get Local Ra, Dec at UTC midnight
     utcstr = str(rs.utc)
     parts = utcstr.split()
+    # get utc of begining of utc day
+    dateHour = "%s %5d" % (parts[0], 0)
+    utc0 = datetime.datetime.strptime( dateHour, "%Y-%m-%d %H")
+    # get utc of local midnight
     dateHour = "%s %5d" % (parts[0],utcOffsetHours)
     utcmidnight = datetime.datetime.strptime( dateHour, "%Y-%m-%d %H")
 #    print("Utc: %s, Local Midnight Utc: %s" % (utcstr, utcmidnight))
@@ -416,7 +432,31 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
     # next draw sun az - 10 and sun_az + 10 vertial lines
 #    ram10 = rs.lst - rs.sun_ra - (np.pi * 10./180.)
 #    rap10 = rs.lst - rs.sun_ra + (np.pi * 10./180.)
-    
+    lat = rs.tellat
+    lon = rs.tellon
+    height = 1000.
+    # first need site clcation to get coordinates of galaxy
+    asite = EarthLocation(lat=lat*u.deg, lon=lon*u.deg, height=height*u.m)
+
+    # prepare to draw +- 10 degrees of galactic plane
+    if doGalactic:
+        utc = utc0
+        dt = datetime.timedelta(seconds=(86400./360.)) 
+        minlat = 10.
+        for mmm in range(360):   # every minute of the day
+            azel = SkyCoord(az = float(rs.telaz)*u.deg, alt = float(rs.telel)*u.deg, \
+                                frame='altaz', location=asite, obstime=utc)  
+            if mmm % 60 == 0:
+                print( "MMM: %4d  %7.2f, %7.2f; %s" % \
+                           (mmm, azel.galactic.l.degree, azel.galactic.b.degree, utc))
+            bbb = azel.galactic.b.degree
+            lll = azel.galactic.l.degree
+            utc = utc + dt
+            if bbb < minlat and bbb > -minlat:
+                xgal = 24.*mmm/360.
+                ygal = max0 - 3*yoffset
+                ax.annotate("*", xy=( xgal, y0), color='red')
+
     # now draw vertical lines for events
     iplot = 0
     for iii in range(nall):
@@ -451,13 +491,10 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
         plt.title("%s   Events per Hour for %d Observations" % (calendar, nDir))
         plt.xlabel("Time (UTC hours, %s offset: %2.0f hours) (Distinct Event Count: %d)" % (timezone, utcOffsetHours, nUnique))
     plt.ylabel("Count of Events")
-#    plt.show()
     plotfile = 'match-%s.png' % (calendar)
     fig = plt.gcf()
     fig.savefig(plotfile, bbox_inches='tight')
     plt.show()
-#    plotfile = 'match-%s-2.png' % (calendar)
-#    plt.savefig(plotfile, bbox_inches='tight')
 
     return
 # end of plotHistogram
