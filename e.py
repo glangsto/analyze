@@ -2,6 +2,7 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#21Mar21 GIL initialize t variable for computing M
 #20Dec10 GIL optionally shift plots in y 
 #20Aug28 GIL optionally on plot to files
 #20Mar24 GIL increment color in plot order
@@ -177,7 +178,7 @@ for iii in range(namearg, min(nargs,25)):
     if doMag:   # if plotting magnitude
         xv = np.zeros(nData)
         yv = np.zeros(nData)
-        t = t + (2 * -dt * (rs.refSample-xa))
+        t = (2 * -dt * (rs.refSample-xa))
         for i in range(nData):
             y  = (ya[i]*ya[i]) + (yb[i]*yb[i])
             yv[j] = np.sqrt(y)
@@ -236,12 +237,13 @@ plt.xlabel('Time Offset From Event (micro-seconds)')
 plt.ylabel('Intensity (Counts)')
 plt.legend(loc='upper right')
 plt.xlim(xallmin,xallmax)
-if y0 > 0.:
-    plt.ylim(yallmin,yallmax+y0*.666)
-elif y0 < 0.:
-    plt.ylim(yallmin+y0*.666,yallmax)
-else:
-    plt.ylim(yallmin,(1.2*yallmax)+y0)
+if not doMag:
+    if y0 > 0.:
+        plt.ylim(yallmin,yallmax+y0*.666)
+    elif y0 < 0.:
+        plt.ylim(yallmin+y0*.666,yallmax)
+    else:
+        plt.ylim(yallmin,(1.2*yallmax)+y0)
 if doPlotFile:
     if fileTag == "":
         fileTag = "E-" + firstdate
