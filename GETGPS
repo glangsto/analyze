@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# find the GPS coordinate averaging program
+if [ -e getgps.py ]
+then
+    python getgps.py "$@"
+else
+    if [ -e ~/Research/analyze/getgps.py ]
+    then
+       python ~/Research/analyze/getgps.py "$@"
+    else
+	if [ -e ~/bin/getgps.py ]
+	then
+	    python ~/bin/getgps.py "$@"
+	fi
+    fi
+fi
