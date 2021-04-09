@@ -2,6 +2,7 @@
 #The list of header items to fix is given in help.
 #These include El (elevation) and Az (azimuth)
 #HISTORY
+#21APR09 GIL deal with note files add fix telescope altitude
 #19NOV22 GIL don't plot spectra
 #19SEP24 GIL turn off plotting by default
 #19FEB20 GIL initial version
@@ -31,6 +32,7 @@ newEl = NOVALUE
 newAz = NOVALUE
 newLat = NOVALUE
 newLon = NOVALUE
+newAlt = NOVALUE
 newCen = NOVALUE
 newBan = NOVALUE
 newRefSample = NOVALUE
@@ -66,13 +68,19 @@ while iii < nargs:
     if anarg[0:3] == "-LA":
         newLat = np.float( sys.argv[iii+1])
         iii = iii + 1
-        print "New Latitude: ", newLat
+        print "New Latitude : ", newLat
         ifile = ifile + 2
         aFix = True
     if anarg[0:3] == "-LO":
         newLon = np.float( sys.argv[iii+1])
         iii = iii + 1
         print "New Longitude: ", newLon
+        ifile = ifile + 2
+        aFix = True
+    if anarg[0:3] == "-AL":
+        newAlt = np.float( sys.argv[iii+1])
+        iii = iii + 1
+        print "New Altitude : ", newAlt
         ifile = ifile + 2
         aFix = True
     if anarg == "-NT":
@@ -157,6 +165,7 @@ if aFix == False:
     print " -el Telescope elevation in degrees"
     print " -lat Telescope latitude in degrees"
     print " -lon Telescope longitude in degrees"
+    print " -alt Telescope altitude above sea level in meters"
     print " -cen Center Frequency (MHz)"
     print " -ban Bandwidth (MHz)"
     print " -rch Reference channel  (1 based)"
@@ -188,6 +197,8 @@ for iii in range(nfiles):
         rs.tellat = newLat
     if newLon != NOVALUE:
         rs.tellon = newLon
+    if newAlt != NOVALUE:
+        rs.telelev = newAlt
     if observer != "":
         rs.observer = observer
     if device != "":
