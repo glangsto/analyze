@@ -225,13 +225,16 @@ for iii in range(nfiles):
             dirname = dirname + parts[i] + "/"
 #    print "Directory: ", dirname
 
-    parts = aname.split('.')
+    strutc = rs.utc.isoformat()
+    parts = strutc.split('.')
     aname = parts[0]
     parts = aname.split('T')
+    # the date and time are only used for labeling plots
     date  = parts[0]
     time  = parts[1]
     time  = time.replace('_',':')
 
+    extension = ""
     # if replacing original file
     if replace:
         try:
@@ -243,11 +246,13 @@ for iii in range(nfiles):
         parts = filepart.split('.')
         nparts = len(parts)
         if (nparts == 2):
-            outname = parts[0] + "-fix." + parts[1]
+            extension = parts[1]
+            outname = parts[0] + "-fix." + extension
         elif (nparts == 1):
             outname = parts[0] + "-fix"
         else:
-            outname = parts[0] + "-fix." + parts[nparts-1]
+            extension = parts[nparts-1]
+            outname = parts[0] + "-fix." + extension
  
 # now if a spectrum, fix name for elevation above zero 
 # Spectra do not have time series.
@@ -256,10 +261,15 @@ for iii in range(nfiles):
         nparts = len(parts)
         # last part of file name is file type
         filetype = parts[nparts-1]
-        if rs.telel > 0.:
-            filetype = 'ast'
+        # special case of a notes files
+        if extension == "not":
+            filetype = extension
         else:
-            filetype = 'hot'
+            if rs.telel > 0.:
+                filetype = 'ast'
+            else:
+                filetype = 'hot'
+                
         if nparts == 2:
             outname = parts[0] + "." + filetype
         elif nparts == 1:
