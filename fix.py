@@ -253,6 +253,10 @@ for iii in range(nfiles):
         except:
             print "Cound not remove file: ",filename
         outname = filename
+        parts = filename.split('.')
+        # last bit of file name is the extension
+        nparts = len(parts)
+        extension = parts[nparts-1]
     else:
         parts = filepart.split('.')
         nparts = len(parts)
