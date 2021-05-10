@@ -1,5 +1,9 @@
 #Python find matchs in data directories
 #HISTORY
+#21MAY10 GIL clean up sun plotting
+#21APR30 GIL fix sun azimuth when pointed north
+#21APR28 GIL fix case of absolutely no matches
+#21APR21 GIL force azimuth = 180 for Sun position calculations
 #21MAR21 GIL Increase interval between Galactic coordinate calc.
 #21MAR19 GIL Complete code for 5 directories/telescopes
 #21FEB26 GIL Show Galactic Plane range
@@ -277,7 +281,7 @@ def findpairs( EventDir1, EventDir2):
     Inputs are Python data structures describing the events in the directories
     Outputs are indicies of matches to 2nd directory and time offsets between
     """
-    # extract number of eventts in each directory
+    # extract number of events in each directory
     n1 = EventDir1['n']
     n2 = EventDir2['n']
     # make sure there are plenty of indicies
@@ -361,7 +365,7 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
     yoffset = yoffset / 20
     y0 = 2*yoffset
 
-# now annoated Az, El, Ra, Dec
+# now annoated Az, El, Ra Dec
     alabel = " AZ,El:  %5.1f,%5.1f" % (rs.telaz, rs.telel)
     xa = utcOffsetHours
     ya = max0 - yoffset
@@ -388,56 +392,92 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
     alabel = " RA,Dec: %5.1f,%5.1f" % (rs.ra, rs.dec)
     xa = utcOffsetHours % 24.
     xmidnight = xa
-    ya = max0
+    ytop = max0
+    ya = ytop
     ax.annotate(alabel, xy=( xa, ya), xytext=( xa, ya) )
     epsilon = 3./1440
     # now draw vertical lines for midnight local time
     plt.axvline( xa, color='b', linestyle='dotted')
     alabel = " Local Midnight"
     xa = utcOffsetHours % 24.
-    ax.annotate(alabel, xy=( xa, -yoffset*.75), xytext =( xa, -yoffset*.75))
+    ybottom = -yoffset*.75
+    ax.annotate(alabel, xy=( xa, ybottom), xytext =( xa, ybottom))
+    lst = datetime.timedelta(seconds=(86400.*rs.lst/360.))
+    lststr = str(lst)
+    lstparts = lststr.split(" ")
+    nparts = len(lstparts)
+    if nparts > 1:
+        lststr = lstparts[nparts - 1]
+    lstparts = lststr.split(".")
+    lststr = lstparts[0]
+    alabel = " LST: %s" % (lststr)
+    ax.annotate(alabel, xy=( xa, yoffset*.25), xytext =( xa, yoffset*.25))
 
     # utc time of noon
     dateHour = "%s %5d" % (parts[0],utcOffsetHours+12.)
     utcnoon = datetime.datetime.strptime( dateHour, "%Y-%m-%d %H")
     rs.utc = utcnoon
-    # compute az, alt of sun at noon
+    print( "          Utc Noon : %s" % (str(rs.utc)))
+    # save telescope pointing direction
     telel = rs.telel
+    telaz = rs.telaz
+    # compute az, alt of sun at noon
+    if telaz < 90. or telaz > 270.:
+        rs.telaz = 180.
     # compute location of sun at noon
-    rs.azel2radec()   
+        rs.azel2radec()
     # then use el of sun at noon to compute ra,dec of sun
+    rs.telaz = rs.az_sun
     rs.telel = rs.altsun
-    rs.azel2radec()   
-    print( "Noon Sun Az, El : %7.2f, %7.2f" % (rs.az_sun, rs.altsun))
-    print( "Noon Sun Ra, Dec: %7.2f, %7.2f" % (rs.ra, rs.dec))
+    rs.azel2radec()
+    print( "Noon Sun Az, El    : %7.2f, %7.2f" % (rs.az_sun, rs.altsun))
+    # numerically find sun transit time via newton's method
+    for kkk in range(10):
+        daz = (180. - rs.az_sun)/2.
+#        print( "Daz %8.2f (rs.lst = %8.2f, rs.az_sun = %8.2f" % \
+#           (daz, rs.lst, rs.az_sun))
+        xtransit = 12. + (24*daz/360.) + utcOffsetHours
+        rs.utc = rs.utc + datetime.timedelta(seconds=(86400.*daz/360.))
+        rs.azel2radec()
     # Compute offset between noon sun Az and horn az (degrees)
-    daz = rs.telaz - rs.az_sun
-    # transit time is 
-    transithour = utcOffsetHours + 12. + (daz/15.)
-    if transithour > 24:
-        transithour = transithour - 24.
-    elif transithour < 0:
-        transithour = + 24.
-    # have calculated LST of UTC midnight.  Use Azimuth of Sun to compute azimuth of transit.
-    print ("LST, SUN_AZ: %8.3f, %8.3f" % (rs.lst, rs.az_sun))
-#    print ("h, SUN_ALT: %d, %8.3f" % (minh, rs.altsun))
-
-    alabel = " Sun RA,Dec: %5.1f,%5.1f" % (rs.ra, rs.dec)
-    ya = max0
-    ax.annotate(alabel, xy=( transithour, ya), xytext=( transithour, ya) )
-    alabel = " AZ,El:  %5.1f,%5.1f" % (rs.telaz, rs.telel)
-    ya = max0 - yoffset
-    ax.annotate(alabel, xy=( transithour, ya), xytext=(transithour , ya) )
+    print( "Transit Sun        : %s" % (str(rs.utc)))
+    print( "Transit Sun Az, El : %7.2f, %7.2f" % (rs.az_sun, rs.altsun))
+    rs.telaz = rs.az_sun
+    rs.telel = rs.altsun
+    rs.azel2radec()
+    transit = rs.utc - utc0
+#    print("dt: %s" % transit)
+    dt = transit.total_seconds()/86400.
+    xtransit = 24.*dt
+#    print("dt: %s dt=%7.3f  %7.3f" % (transit, dt, xtransit))
+    alabel = " RA,Dec: %5.1f, %5.1f" % (rs.ra, rs.dec)
+    ya = ytop
+    xa = xtransit
+    ax.annotate(alabel, xy=( xa, ya), xytext =( xa, ya))
     # set elevation back to horn elevaiton
+    alabel = " AZ,El: %5.1f, %5.1f" % (rs.az_sun, rs.altsun)
+    ya = ytop-yoffset
+    ax.annotate(alabel, xy=( xtransit, ya), xytext =( xtransit, ya))
+    # restore telescope az and el
+    rs.telaz = telaz
     rs.telel = telel
+    ya = ytop
+    xa = xtransit
+    alabel = "Sun:"
+    ya = ytop - (yoffset/2.)
+    xa = xtransit - 1.
+    ax.annotate(alabel, xy=( xa, ya), xytext =( xa, ya))
 
     # now draw vertical lines for Sun cross horn
-    plt.axvline( transithour, color='b', linestyle='dotted')
+    plt.axvline( xtransit, color='b', linestyle='dotted')
 
-    # next draw sun az - 10 and sun_az + 10 vertial lines
+    # next draw galactic az - 10 and galactic z + 10 vertial lines
     lat = rs.tellat
     lon = rs.tellon
-    height = 1000.
+    try:
+        height = rs.telelev
+    except:
+        height = 1000.
     # first need site clcation to get coordinates of galaxy
     asite = EarthLocation(lat=lat*u.deg, lon=lon*u.deg, height=height*u.m)
 
@@ -465,7 +505,7 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
     # now draw vertical lines for events
     iplot = 0
     for iii in range(nall):
-        x4 = match4times[iii] - mjdRef
+        x4 = match4times[iii] - mjdRef + (0.5/float(nday))
         x4 = (x4*24.) % 24.
         # now compute x position for this MJD 
         # MJD midnight = UTC midnight.
@@ -566,7 +606,7 @@ def main():
         counts = np.zeros(nday)
         # now count events in each range
         for iEve in range(nEve):
-            dMjd = mjds[iEve] - mjdRef
+            dMjd = mjds[iEve] - mjdRef + (0.5/float(nday))
             iDay = int((dMjd*nday))
             # wrap around day fraction
             iDay = iDay % nday
@@ -620,7 +660,12 @@ def main():
         counts5 = np.zeros(nday)
 
     print("Hour        Telescope/Day  ")
-    print("Hour      1     2     3     4")
+    if nDir > 3:
+        print("Hour      1     2     3     4")
+    elif nDir > 2:
+        print("Hour      1     2     3")
+    else:
+        print("Hour      1     2")
 
     utcparts = np.zeros(nday)
     # now print matches as a function of time 
@@ -690,6 +735,11 @@ def main():
         i2 = NOMATCH
         i3 = NOMATCH
         i4 = NOMATCH
+        if i0 == 0:
+            match = { 'nmatch': nMatch, 'count': matchcount, 'mjd': mjdRef, 'list': [ i0, i1, i2, i3] }
+            matchs = { nMatch: match }
+            
+            
         if nDir < 2:
             continue
         if abs(dt01s[i0]) < offset:
@@ -891,6 +941,10 @@ def main():
             continue
         # must have one directory, but others might not be present
         i0 = lista[0]
+        if i0 < 0 or i0 >= nEve0:
+            print("Error reading telescope 0 index %d not in range 0 to %d" % \
+                  ( i0, len(files0)))
+            continue
         file0 = files0[i0]
         rs.read_spec_ast(file0)
         rs.azel2radec()
@@ -967,11 +1021,7 @@ def main():
         else:
             file0 = files0[i0]
             rs.read_spec_ast(file0)
-#            print("In UTC %s Ra,Dec: %7.1f,%7.1f " % (rs.utc, rs.ra, rs.dec))
-#            print("In LST %8.3f %4d" % (rs.lst, i0))
             rs.azel2radec()
-#            print("Ou UTC %s Ra,Dec: %7.1f,%7.1f " % (rs.utc, rs.ra, rs.dec))
-#            print("Ou LST %8.3f %4d" % (rs.lst, i0))
             print("%3d 0 %s %7.1f %7.1f %7.1f %7.1f %d" %  (lll, file0, rs.ra, rs.dec, rs.gallon, rs.gallat, multiples))
             
         if i1 == NOMATCH:
