@@ -3,7 +3,6 @@
 #21Jun07 GIL rr -> ras, complete class
 #21Jun06 GIL initial version 
 #
-import os
 import matplotlib as mpl
 import numpy as np
 import radioastronomy
@@ -84,7 +83,7 @@ class Plot(object):
         self.xa = -1     # initialize indices corresponding to bandwidth to plot
         self.xb = -1
         self.scalefactor = 1.0
-        self.nplot = 0
+        self.nplot = 0   # count of plots so far
         # initialize of range for search
         self.minGlat = +90.
         self.maxGlat = -90.
@@ -96,13 +95,19 @@ class Plot(object):
         self.ave_cold = radioastronomy.Spectrum()
         self.nhot = 0
         self.ncold = 0
+        self.thot = 295. # Kelvins
+        self.tcold = 10. # Kelvins
         self.nData = 128
         self.hv = np.zeros(self.nData)
         self.cv = np.zeros(self.nData)
         self.gain = np.zeros(self.nData)
         self.vel = np.zeros(self.nData)
+        self.gainAve = 1.
+        self.minGLat = 0.
+        self.maxGLat = 0.
+
+        # end of init
         return
-    # end of init
 
     def help(self, argstring=""):
         ###
@@ -229,7 +234,7 @@ class Plot(object):
         return names
     # end of help/parsing arguments
 
-    def Help(self, argstring):
+    def Help(self, argstring=""):
         ###
         # Alias for help()
         ###
@@ -572,6 +577,71 @@ class Plot(object):
         """
         Compute the telescope gain (Kelvins per Count) based on hot and cold
         """
+
+        nData = int(self.nData)
+        n6 = int(nData/6)
+        n26 = int(2*n6)
+        n46 = int(4*n6)
+        n56 = int(5*n6)
+
+        self.vel = np.zeros(self.nData)
+        # create index array
+        for jjj in range (0, nData):
+            self.vel[jjj] = c * (self.nuRefFreq - self.xv[jjj])/self.nuRefFreq
+
+        self.xa, self.xb = gf.velocity_to_indicies( self.vel, \
+                                                    self.minvel, self.maxvel)
+        # compute gain on a channel by channel basis for tRx calculation
+        gainHC = np.zeros(nData)
+        for iii in range(nData):
+            gainHC[iii] = (self.hv[iii] - self.cv[iii])/(self.thot - self.tcold)
+            if gainHC[iii] < EPSILON:
+                gainHC[iii] = EPSILON
+
+        # the hot/cold gain ratios are only used to compute tRxMiddle
+        trx = np.zeros(nData)
+        for iii in range(nData):
+            trx[iii] = (self.cv[iii]/gainHC[iii]) - self.tcold
+
+        #Prepare to compute tRx, which is based only on cold load observations
+        tRxA = np.median(trx[n6:n26])
+        tRxB = np.median(trx[n46:n56])
+        tRxMiddle = (tRxA + tRxB)*.5
+
+        tStdA = np.std(trx[n6:n26])
+        tStdB = np.std(trx[n46:n56])
+        tRms  = (tStdA + tStdB) * .5
+
+        #at this point, only the hot load observations are used to compute sys
+        #No cold observations used for calibration, except for tRxMiddle
+
+        print("Median Receiver Temp: %7.2f +/- %5.2f (%5.2f %5.2f) (K)" % \
+              (tRxMiddle, tRms, tStdA, tStdB))
+
+        # for remainder of calculations only use hot counts for calibration
+        # Using hot load only reduces interference effects
+        self.gain = np.zeros(nData)
+        for iii in range(nData):
+            self.gain[iii] = hv[iii]/(thot + tRxMiddle)
+            if self.gain[iii] < EPSILON:
+                self.gain[iii] = EPSILON
+
+        gainA = np.median(self.gain[n6:n26])
+        gainB = np.median(self.gain[n46:n56])
+        gainAve = 2.0/(gainA + gainB)  # Report gain in K per Count 
+
+        if self.verbose:
+            print('Min Vel  %7.1f, Max Vel  %7.1f' % \
+                  (self.minvel, self.maxvel))
+            print('Min Chan %7d, Max Chan %7d' % (self.xa, self.xb))
+            print('Min,Max Galactic Latitudes %7.1f,%7.1f (d)' % \
+                  (self.minGlat, self.maxGlat))
+
+        # if any high galactic latitude data,
+        # then all galactic latitudes above +/-30d can be used
+        if self.minGlat < -30. or self.maxGlat > 30.:
+            self.minGlat = -30.
+            self.maxGlat = 30.
         
     def splitNames( self, names):
         """
