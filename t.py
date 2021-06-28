@@ -1060,6 +1060,7 @@ for filename in names:
             outname = radioastronomy.utcToName( aveutc)
             outname = outname + ".kel"  # output in Kelvins
             write_spec.count = 1
+            write_spec.nave = 1
             if plotFrequency:
                 doFreq = True
             else:

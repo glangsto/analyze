@@ -647,9 +647,9 @@ class Spectrum(object):
         outline = '# AST_VERS  = '  + str("06.01") + '\n'
         outfile.write(outline)
         if doFreq:
-            outline = "# N Frequency  Intensity \n"
+            outline = "# N  Frequency  Intensity \n"
             outfile.write(outline)
-            outline = "#    (Hz)      (%s) \n" % (self.bunit)
+            outline = "#       (Hz)    (%s) \n" % (self.bunit)
             outfile.write(outline)
         else:
             outline = "# N Velocity  Intensity \n"
