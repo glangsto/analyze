@@ -3,6 +3,7 @@
 Class defining a Radio Frequency Spectrum
 Includes reading and writing ascii files
 HISTORY
+21JUN28 GIL prepare to write spectra with velocities 
 21APR09 GIL add telescope altitude read/write
 20DEC28 GIL fix parsing header separately from data
 20DEC16 GIL file header
@@ -470,7 +471,7 @@ class Spectrum(object):
         return
     
 ##################################################
-    def write_ascii_header(self, outfile):
+    def write_ascii_header(self, outfile, outname, doFreq = True):
         """
         Write ascii header saves the observing parameters
         Inputs:  
@@ -591,7 +592,7 @@ class Spectrum(object):
         outfile.write(outline)
         outline = '# Fft_rate  = '  + str(self.fft_rate) + '\n'
         outfile.write(outline)
-        strnow = now.isoformat()
+        strnow = self.utc.isoformat()
         dates = strnow.split('T')
         datestr = dates[0] + ' ' + dates[1]
         outline = '# UTC       = '  + datestr + '\n'
@@ -645,6 +646,16 @@ class Spectrum(object):
         outfile.write(outline)
         outline = '# AST_VERS  = '  + str("06.01") + '\n'
         outfile.write(outline)
+        if doFreq:
+            outline = "# N Frequency Intensity \n"
+            outfile.write(outline)
+            outline = "#    (Hz)     (%s) \n" % (self.bunit)
+            outfile.write(outline)
+        else:
+            outline = "# N Velocity  Intensity \n"
+            outfile.write(outline)
+            outline = "#    (m/sec)  (%s) \n" % (self.bunit)
+            outfile.write(outline)
         # end of write ascii header
         return
 
@@ -667,7 +678,7 @@ class Spectrum(object):
 
         # if writing the observation summary header
         if doHeader:
-            self.write_ascii_header( outfile)
+            self.write_ascii_header( outfile, outname, doFreq=doFreq)
             
         if self.nTime > 0:            # if an event
             self.nSpec = 0            # then not a spectrum

@@ -2,6 +2,7 @@
 #plot the raw data from the observation
 #HISTORY
 #21JUN26 GIL add option to write velocities
+#21MAY09 GIL optionally flag 1422.0 MHz
 #21FEB23 GIL add a zero intensity line option
 #21JAN19 GIL fix normalizations again
 #21JAN15 GIL add a little more documentation
@@ -55,8 +56,10 @@ fileTag = ""
 # default values
 avetimesec = 3600.
 # put your list of known RFI features here.  Must have at least two.
-linelist = [1400.00, 1420.0]  # RFI lines in MHz
-linewidth = [5, 5]
+linelist = [1400.00, 1418.21, 1420.0, 1422.0]  # RFI lines in MHz
+linewidth = [5, 15, 5, 7]
+#linelist = [1400.00, 1420.0]  # RFI lines in MHz
+#linewidth = [5, 5]
 # min and maximum default velocities
 maxvel = 220.
 minvel = -maxvel
@@ -84,7 +87,7 @@ writeKelvin = False
 # to address an old problem, optionally allow folding spectra
 doFold = False
 # Usually writing file header, but optionally skip
-doWriteHeder = True
+doWriteHeader = True
 # if limiting velocity output to specified min and max velocity
 doLimitVel = False
 # if plotting to a file, specify the directory
@@ -96,7 +99,8 @@ doKeep = False
 lowel = 10.
 # define fitOrder for intensity measurement
 fitOrder = int(1)
-
+# define flag to compute barycentric velocity
+doBary = True
 # optionally turn on debug plotting
 doDebug = False
 myTitle = ""      # Default no input title
@@ -125,28 +129,31 @@ tcold = 10.0
 iarg = 1
 if nargs < 3:
     print("T: Comput Tsys calibrated horn observations")
-    print("Usage: T [-F <order>] [-L <velocity>] [-H <velocity>] <average_seconds> <files>")
-    print("Where <average_seconds>: Number of seconds of observations to average.")
-    print("-A optionally use pre-calculated hot and cold load files")
+    print("Usage: T [-F <order>] [-L <velocity>] [-H <velocity>] <_seconds> <files>")
+    print("Where <seconds>: Number of seconds of observations to average.")
+    print("-A <hot file> <cold file> use save hot and cold load files")
     print("-B optionally plot/keep the baseline subtratcted spectra")
     print("-C optionally flag the center of the band")
     print("-D optionally print extra debugging info")
-    print("-F optionally do a polynomial baseline fit")
-    print("-I optionally set Processor Index")
+    print("-E optionally to not estimate Barycentric Velocity offset")
+    print("-F <order> optionally do a polynomial baseline fit")
+    print("-I optionally set Processor/Telescope Index on Plot Label")
     print("-H optionally set the high velocity region for baseline fit")
     print("-K optionally keep average hot and cold load calibration files")
     print("-L optionally set the low velocity region for baseline fit")
     print("-N <number> optionally set the number of spectra to plot")
+    print("-M Skip writing header for .kel files")
     print("-P write PNG and PDF files instead of showing plot")
     print("-Q optionally plot intensity versus freQuency, instead of velocity")
     print("-R optionally flag known RFI lines")
     print("-S <filename> optionally set summary file name")
-    print("-U optionally update reference frequency for a different line")
+    print("-T <Plot Title> optionally set the plot title")
+    print("-U <freqMHz> optionally set reference frequency for different line")
     print("   ie -U 1612.231, 1665.402, 1667.349, 1720.530 or 1420.40575")
     print("-V Limit ascii file putput to low and high velocity ranges")
-    print("-W optionally write the calibrated Tsys files")
-    print("-X optionally set Cold Load Temperature (Kelvins)")
-    print("-Y optionally set Hot  Load Temperature (Kelvins)")
+    print("-W optionally write the calibrated Tsys files (kelvins)")
+    print("-X <temp> optionally set Cold Load Temperature (Kelvins)")
+    print("-Y <temp> optionally set Hot  Load Temperature (Kelvins)")
     print("-Z <file tag> optionally add tag to PDF and PNG file names")
     print("-0 optionally plot zero intensity line(s)")
     print("-MINEL optionally set the lowest elevation allowed for calibration obs (default 60d)")
@@ -186,12 +193,6 @@ while iarg < nargs:
             print("Fitting a linear baseline")
         else:
             print(("Fitting a %d-nd order polynomical baseline" % (fitOrder)))
-    elif sys.argv[iarg].upper() == '-G':
-        iarg = iarg+1
-        hotLoadFile = sys.argv[iarg]
-        iarg = iarg+1
-        coldLoadFile = sys.argv[iarg]
-        print(("Gain calibration Using Hot Load Obs: %s and Cold Obs: %s" % (hotLoadFile, coldLoadFile)))
     elif sys.argv[iarg].upper() == '-H':
         iarg = iarg+1
         maxvel = np.float( sys.argv[iarg])
@@ -249,14 +250,11 @@ while iarg < nargs:
         iarg = iarg+1
         thot = float(sys.argv[iarg])
         print(( 'Hot  Load Reference Temperature: %9.3f Kelvins' % (thot)))
-    elif sys.argv[iarg].upper() == '-CEN':   # if nU ref is provided (in MHz)n
-        iarg = iarg+1
-        nuRefFreq = float(sys.argv[iarg])
-        print(( 'Reference Frequency : %9.3f MHz' % (nuRefFreq)))
     elif sys.argv[iarg].upper() == '-MINEL':  # if min elevation 
         iarg = iarg + 1
         lowel = float( sys.argv[iarg])
-        print(( "Using elevations > %7.2f (d) for Cold load calculation" % (lowel)))
+        print(( "Using elevations > %7.2f (d) for Cold load calculation" % \
+                (lowel)))
     elif sys.argv[iarg].upper() == '-W':
         writeKelvin = True
     elif sys.argv[iarg].upper() == '-Z':     # label written files
@@ -278,18 +276,21 @@ if doPlotFile:
     mpl.use('Agg')
 import matplotlib.pyplot as plt
 import gainfactor as gf
-try:
-    from PyAstronomy import pyasl
-    baryCenterAvailable = True
-except:
-    print("!!!! Unable to import PyAstronomy !!!!")
-    print("Can not compute Bary Center velocity offset")
-    print("In Linux, try: ")
-    print("sudo pip install PyAstronomy")
-    print("or")
-    print("sudo pip3 install PyAstronomy")
+if doBary: 
+    try:
+        from PyAstronomy import pyasl
+        baryCenterAvailable = True
+    except:
+        print("!!!! Unable to import PyAstronomy !!!!")
+        print("Can not compute Bary Center velocity offset")
+        print("In Linux, try: ")
+        print("sudo pip install PyAstronomy")
+        print("or")
+        print("sudo pip3 install PyAstronomy")
+        baryCenterAvailable = False
+else:
     baryCenterAvailable = False
-
+    
 #first argument is the averaging time in seconds
 try: 
     avetimesec = float(sys.argv[timearg])
@@ -610,8 +611,8 @@ def read_angles( names, lowel):
     
 def read_cold( names, ave_cold, lowel, lowGlat):
     """
-    read_cold() reads all files and averages selected files with high elevation and 
-    galactic Latitude.
+    read_cold() reads all files, averages selected files
+    (high elevation and galactic Latitude).
     Inputs:
        lowel   minimum elevation to accept for cold load 
        lowGlat minimum galactic latitude
@@ -658,7 +659,7 @@ def read_cold( names, ave_cold, lowel, lowGlat):
     if doFold:
         ave_cold.foldfrequency()
 
-#    print( "Found %3d High Galactic Latitude spectra" % (ncold))
+#   print( "Found %3d High Galactic Latitude spectra" % (ncold))
     return ave_cold, ncold 
 
 if coldFileName != "":
@@ -750,8 +751,9 @@ gainAve = 2.0/(gainA + gainB)  # Report gain in K per Count
 def compute_tsky_hotcold( xv, yv, hv, cv, thot, tcold):
     """
     Compute TSky based on hot and coold load observations
-    Note that here the yv[], hv[] and cv[] values are normalized by the total number of integrations.
-    The raw data, read in, are increased linearly by the number of spectra averaged.
+    Note that here the yv[], hv[] and cv[] values are normalized by the 
+    total number of integrations.  The raw data, read in, are increased 
+    linearly by the number of spectra averaged.
     """
     nData = len(xv)
     vel = np.zeros(nData)
@@ -762,7 +764,7 @@ def compute_tsky_hotcold( xv, yv, hv, cv, thot, tcold):
         tsky[jjj] = yv[jjj]/gain[jjj]
 
     if flagCenter:             # if flagging spike in center of plot
-    # remove spike in center of the plot
+        # remove spike in center of the plot
         icenter = int(nData/2)
         tsky[icenter] = (tsky[icenter-2] + tsky[icenter+2])*.5
         tsky[icenter-1] = (3.*tsky[icenter-2] + tsky[icenter+2])*.25
@@ -858,11 +860,13 @@ for filename in names:
         lastdate = date
 
     newAzEl = (lastaz != rs.telaz) or (lastel != rs.telel)
-    newObs = (lastfreq != rs.centerFreqHz) or (lastbw != rs.bandwidthHz) or (lastgain != rs.gains[0]) or newAzEl
+    newObs = (lastfreq != rs.centerFreqHz) or (lastbw != rs.bandwidthHz) or \
+                          (lastgain != rs.gains[0]) or newAzEl
     # if this is the last file and there was not a change in observing setup 
     if allFiles and (not newObs):
         if rs.nChan != ave_spec.nChan:
-            print(("File Size Error: %d != %d for file %s; Skipping ..." % (rs.nChan, ave_spec.nChan, filename)))
+            print(("File Size Error: %d != %d for file %s; Skipping ..." % \
+                   (rs.nChan, ave_spec.nChan, filename)))
         else:
             ave_spec, nave, firstutc, lastutc = average_spec( ave_spec, rs, nave, firstutc, lastutc)
 
@@ -908,8 +912,12 @@ for filename in names:
         ave_spec.KperC = gainAve
             
         # compute velocity correction for this direction and date
-        corr = gf.compute_vbarycenter( ave_spec)
-        velcorr = vel + corr
+        if baryCenterAvailable:
+            corr = gf.compute_vbarycenter( ave_spec)
+            velcorr = vel + corr            
+        else:
+            velcorr = vel
+
 
         # compute indicies for min and max velocity
         imin, imax = gf.velocity_to_indicies( velcorr, minvel, maxvel)
@@ -1020,19 +1028,23 @@ for filename in names:
             label = '%s L,L=%5.1f,%5.1f (%d)' % (labeltime, gallon, gallat, nave)
         else:
             label = '%s L,L=%5.1f,%5.1f A,E=%4.0f,%4.0f' % (labeltime, gallon, gallat, az, el)
-        print(( ' Max: %9.1f  Median: %8.2f +/- %5.2f %3d %s' % (tSourcemax, tSys, tStd, nave, label)))
+        print(( ' Max: %9.1f  Median: %8.2f +/- %5.2f %3d %s' % \
+                (tSourcemax, tSys, tStd, nave, label)))
         # if plotting frequency overwrite the corrected velocities
         if plotFrequency:
-            velcorr = xv
+            velcorr = xv 
         if int(nplot) < int(maxPlot):
             yallmin = min(ymin,yallmin)
             yallmax = max(ymax,yallmax)
             if gallat < 7.5 and gallat > -7.5:
-                plt.plot(velcorr, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label, lw=4)
+                plt.plot(velcorr, tsky, colors[ncolor], linestyle=linestyles[ncolor], \
+                         label=label, lw=4)
             elif gallat < 15. and gallat > -15.:
-                plt.plot(velcorr, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label, lw=2)
+                plt.plot(velcorr, tsky, colors[ncolor], linestyle=linestyles[ncolor], \
+                         label=label, lw=2)
             else:
-                plt.plot(velcorr, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label)
+                plt.plot(velcorr, tsky, colors[ncolor], linestyle=linestyles[ncolor], \
+                         label=label)
         nplot = nplot + 1
 
         if writeTsys:
@@ -1041,40 +1053,41 @@ for filename in names:
                                dTSumKmSec)
 
         if writeKelvin:
-            ave_spec.ydataA = tsky
+            write_spec = copy.deepcopy( ave_spec)
             aveutc = ave_spec.utc
             outname = radioastronomy.utcToName( aveutc)
             outname = outname + ".kel"  # output in Kelvins
-            ave_spec.count = 1
+            write_spec.count = 1
             if plotFrequency:
-                ave_spec.xdata = velcorr
-                doFreq = False
-            else:
                 doFreq = True
+            else:
+                doFreq = False
             doComputeX = False  # x-axis already computed
             if doLimitVel:
                 print("Limiting File Output to selected channels")
                 nOut = imax - imin
                 nChan = ave_spec.nChan
                 print("Writing Channels %d to %d (%d total)" % \
-                      imin, imax, nOut)
-                ox = ave_spec.xdata[imin:imax]
-                oy = ave_spec.ydataA[imin:imax]
-                ave_sec.nChan = nOut
+                      (imin, imax, nOut))
+                write_spec.nChan = nOut
                 # adjust x axis indicies
                 i2 = int((imax+imin)/2)
-                ave_spec.refChan = i2 - imin
-                ave_spec.centerFreqHz =  ave_spec.xdata[i2]
-                ave_spec.bandWidth = ave_spec.bandwidth * float(nOut/nChan)
-                ave_spec.xdata = ox
-                ave_spec.ydataA = oy
-                ave_spec.ydataB = oy
-                ave_sec.nChan = nOut
-                ave_spec.bandWidth = ave_spec.bandwidth * float(nOut/nChan)
+                write_spec.refChan = i2 - imin
+                write_spec.centerFreqHz = ave_spec.xdata[i2]
+                write_spec.bandwidthHz = ave_spec.bandwidthHz*float(nOut/nChan)
+                write_spec.ydataA = tsky[imin:imax]
+                if doFreq:
+                    write_spec.xdata = ave_spec.xdata[imin:imax]
+                else:
+                    write_spec.xdata = velcorr[imin:imax] * 1000. 
+                write_spec.nChan = nOut
+            else:
+                write_spec.ydataA = tsky
+                if not doFreq:
+                    write_spec.xdata = velcorr * 1000. # km/sec -> m/sec
             # finally write the calibrated spectrum
-            ave_spec.write_ascii_file("../", outname, doFreq, \
+            write_spec.write_ascii_file("../", outname, doFreq, \
                                        doWriteHeader, doComputeX)
-
         # flag restarting the sum
         nave = 0
 
