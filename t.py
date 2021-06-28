@@ -179,6 +179,9 @@ while iarg < nargs:
     elif sys.argv[iarg].upper() == '-D':
         print( 'Adding Debug Printing')
         doDebug = True
+    elif sys.argv[iarg].upper() == '-E':
+        print( 'Skipping Barycentric velocity correction')
+        doBary = False
     elif sys.argv[iarg].upper() == '-F':
         iarg = iarg+1
         fitOrder = int( sys.argv[iarg])
@@ -910,6 +913,7 @@ for filename in names:
         ave_spec.tint = ave_spec.durationSec
         ave_spec.bunit = 'Kelvins'
         ave_spec.KperC = gainAve
+        ave_spec.azel2radec()    # compute ra,dec from az,el and average utc
             
         # compute velocity correction for this direction and date
         if baryCenterAvailable:
@@ -917,6 +921,7 @@ for filename in names:
             velcorr = vel + corr            
         else:
             velcorr = vel
+            corr = 0
 
 
         # compute indicies for min and max velocity
@@ -934,7 +939,6 @@ for filename in names:
         # pull out coordinates for labeling
         az = ave_spec.telaz
         el = ave_spec.telel
-        ave_spec.azel2radec()    # compute ra,dec from az,el and average utc
         gallon = ave_spec.gallon
         gallat = ave_spec.gallat
         label = 'L,L=%5.1f,%6.1f' % (gallon, gallat)
@@ -944,22 +948,20 @@ for filename in names:
         if dV < 0:
             dV = - dV
 
-            # this code computes and subtracts a baseline so that source intensities can be compared.
+        # Computes and subtracts baseline for source intensities
 
-        # if can not fit velocity
+        iVmin, iVmax = gf.velocity_to_indicies( velcorr, minSVel, maxSVel)
+        # next compute the integrated intensities after baseline subtraction
+        baseline = gf.fit_baseline( velcorr[0:nData], tsky[0:nData], imin, imax, 10, fitOrder)
+
+        # remove baseline to get the source spectrum
+        tSource = tsky[0:nData] - baseline[0:nData]
+
+        # if plotting/keeping the baseline subtracted spectra, transfer to Sky
+        if doBaseline:
+            tsky = tSource
+
         if not plotFrequency:
-            # compute indicies for min and max velocity to integrate
-            iVmin, iVmax = gf.velocity_to_indicies( velcorr, minSVel, maxSVel)
-            # next compute the integrated intensities after baseline subtraction
-            baseline = gf.fit_baseline( velcorr[0:nData], tsky[0:nData], imin, imax, 10, fitOrder)
-
-            # remove baseline to get the source spectrum
-            tSource = tsky[0:nData] - baseline[0:nData]
-
-            # if plotting/keeping the baseline subtracted spectra, transfer to Sky
-            if doBaseline:
-                tsky = tSource
-
             # now compute integrated intensity and noise estimates
             nv = iVmax - iVmin
             if nv < 0:
