@@ -362,7 +362,7 @@ class Spectrum(object):
         self.tint = 1.              # Average time for tRms+tSys measurement
         self.KperC = 100.           # Kelvins per Count
         self.gainFactor = 1.        # Gain Factor to normalize relative to other horns
-        self.version = str("3.0.1")
+        self.version = str("4.0.1")
         self.polA = str("X")        # polariation of A ydata: X, Y, R, L,
         self.polB = str("Y")        # polariation of B ydata: X, Y, R, L,
         self.polAngle = float(0.0)  # orientation of polariation of A
@@ -466,18 +466,17 @@ class Spectrum(object):
             aparts = angles.phmsdms(str(sun.alt))
             self.altsun = angles.sexa2deci(aparts['sign'], *aparts['vals'])
 
+        # end of azel2radec()
+        return
+    
 ##################################################
-#
-    def write_ascii_file(self, dirname, outname):
+    def write_ascii_header(self, outfile):
         """
-        Write ascii file containing astronomy data
+        Write ascii header saves the observing parameters
+        Inputs:  
+        outfile    Open file to which the header will be written
         """
-    # need the current time to update coordiantes
-        now = self.utc
-        if self.writecount > 0:
-            print("File %4d: %s (%d)" % (self.writecount, outname, self.count))
-        fullname = dirname + outname
-        outfile = open(fullname, 'w')
+
 #        outfile.write('# File: ' + outname + '\n')
         outline = '# FILE      =  ' + outname + '\n'
         outfile.write(outline)
@@ -599,7 +598,8 @@ class Spectrum(object):
         outfile.write(outline)
         outline = '# SECONDS   = %18.10f \n' % (self.seconds)
         outfile.write(outline)
-        lststr = angles.fmt_angle(self.lst/15., s1=":", s2=":", pre=3)  # convert to hours
+        # convert to hours
+        lststr = angles.fmt_angle(self.lst/15., s1=":", s2=":", pre=3)  
         outline = '# LST       = '  + lststr[1:] + '\n'
         outfile.write(outline)
         outline = '# AZ        = '  + str(self.telaz) + '\n'
@@ -614,7 +614,8 @@ class Spectrum(object):
         outfile.write(outline)
         outline = '# TELALT    = '  + str(self.telelev) + '\n'
         outfile.write(outline)
-        rastr = angles.fmt_angle(self.ra/15., s1=":", s2=":", pre=3) # convert to hours
+        # convert to hours
+        rastr = angles.fmt_angle(self.ra/15., s1=":", s2=":", pre=3) 
         outline = '# RA        = '  + rastr[1:] + '\n'
         outfile.write(outline)
         decstr = angles.fmt_angle(self.dec, s1=":", s2=":")
@@ -642,32 +643,66 @@ class Spectrum(object):
         outfile.write(outline)
         outline = '# TELSIZEBM = '  + str(self.telSizeBm) + '\n'
         outfile.write(outline)
-        outline = '# AST_VERS  = '  + str("05.01") + '\n'
+        outline = '# AST_VERS  = '  + str("06.01") + '\n'
         outfile.write(outline)
+        # end of write ascii header
+        return
 
+    def write_ascii_file(self, dirname, outname, doFreq = True, \
+                         doHeader = True, doComputeX = True):
+        """
+        Write ascii file containing astronomy data
+        Inputs:  
+        dirname    Directory where spectra/event will be written
+        outname    Name of file to write
+        doFreq     Flag writting frequency or velocity
+        doHeader   Flag writting data header, or only intenisities
+        """
+    # need the current time to update coordiantes
+        now = self.utc
+        if self.writecount > 0:
+            print("File %4d: %s (%d)" % (self.writecount, outname, self.count))
+        fullname = dirname + outname
+        outfile = open(fullname, 'w')
+
+        # if writing the observation summary header
+        if doHeader:
+            self.write_ascii_header( outfile)
+            
         if self.nTime > 0:            # if an event
             self.nSpec = 0            # then not a spectrum
             
         # if a spectrum in this data stream
         if self.nSpec > 0:
-            dx = self.bandwidthHz/float(self.nChan)
-            x = self.centerFreqHz - (self.bandwidthHz/2.) + (dx/2.)
             leny = len(self.ydataA)
+            leny = min(self.nChan, leny)
+            
+            if doComputeX: # if recomputing x values
+                self.xdata = np.zeros(leny)
+                dx = self.bandwidthHz/float(self.nChan)
+                x = self.centerFreqHz - (self.bandwidthHz/2.) + (dx/2.)
+                for i in range(leny):
+                    self.xdata[i] = x
+                    x = x + dx
+                
             if self.nSpec > 1:
                 pformat = "%04d %s %.4f %.4f\n"
-                for i in range(min(self.nChan, leny)):
-                    outline = pformat % (i, str(int(x)), self.ydataA[i], self.ydataB[i])
-                    outfile.write(outline)
-                    x = x + dx
-            else:
-                pformat = "%04d %s %.4f\n"
-                for i in range(min(self.nChan, leny)):
-#                    outline = str(i).zfill(4) + ' ' + str(long(x)) + ' ' + str(self.ydataA[i]) + '\n'
-                    outline = pformat % (i, str(int(x)), self.ydataA[i])
+                for i in range(leny):
+                    outline = pformat % (i, str(int(self.xdata[i])), \
+                                         self.ydataA[i], self.ydataB[i])
                     outline = outline.replace('  ', ' ')
                     outfile.write(outline)
-                    x = x + dx
-            del outline
+                del outline    # attempt at optumizing
+            else:   # else only a single spectrum (not an I/Q pair_
+                pformat = "%04d %s %.4f\n"
+                for i in range(leny):
+                    outline = pformat % (i, str(int(self.xdata[i])), \
+                                         self.ydataA[i])
+                    outline = outline.replace('  ', ' ')
+                    outfile.write(outline)
+                del outline    # attempt at optumizing
+                
+        # else if an event sample stream
         if self.nTime > 0:
             dt = 1./self.bandwidthHz       # sample rate is inverse bandwidth
             t = -dt * self.refSample       # time tag relative to event sample

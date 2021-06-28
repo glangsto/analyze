@@ -1,8 +1,10 @@
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#21JUN26 GIL add option to write velocities
 #21FEB23 GIL add a zero intensity line option
 #21JAN19 GIL fix normalizations again
+#21JAN15 GIL add a little more documentation
 #21JAN06 GIL fix normalizations
 #20DEC28 GIL check for a average time in first argument
 #20DEC16 GIL flag and ignore short spectra files
@@ -81,6 +83,10 @@ writeTsys = False
 writeKelvin = False
 # to address an old problem, optionally allow folding spectra
 doFold = False
+# Usually writing file header, but optionally skip
+doWriteHeder = True
+# if limiting velocity output to specified min and max velocity
+doLimitVel = False
 # if plotting to a file, specify the directory
 doPlotFile = False
 plotFileDir = "~/"
@@ -124,6 +130,7 @@ if nargs < 3:
     print("-A optionally use pre-calculated hot and cold load files")
     print("-B optionally plot/keep the baseline subtratcted spectra")
     print("-C optionally flag the center of the band")
+    print("-D optionally print extra debugging info")
     print("-F optionally do a polynomial baseline fit")
     print("-I optionally set Processor Index")
     print("-H optionally set the high velocity region for baseline fit")
@@ -136,6 +143,7 @@ if nargs < 3:
     print("-S <filename> optionally set summary file name")
     print("-U optionally update reference frequency for a different line")
     print("   ie -U 1612.231, 1665.402, 1667.349, 1720.530 or 1420.40575")
+    print("-V Limit ascii file putput to low and high velocity ranges")
     print("-W optionally write the calibrated Tsys files")
     print("-X optionally set Cold Load Temperature (Kelvins)")
     print("-Y optionally set Hot  Load Temperature (Kelvins)")
@@ -144,7 +152,7 @@ if nargs < 3:
     print("-MINEL optionally set the lowest elevation allowed for calibration obs (default 60d)")
     print("Observation file list must include at least one hot load file")
     print("")
-    print("Glen Langston - NSF   August 28, 2020")
+    print("Glen Langston - NSF   June 27, 2021")
     exit()
 
 # for all arguments, read list and exit when no flag argument found
@@ -206,6 +214,9 @@ while iarg < nargs:
             print("Not Plotting")
         else:
             print(("Plot will have a maximum of %d spectra" % (maxPlot)))
+    elif sys.argv[iarg].upper() == '-M':
+        doWriteHeader = False
+        print( 'Skipping writing file header, if writing files')
     elif sys.argv[iarg].upper() == '-P':
         doPlotFile = True
         iarg = iarg+1
@@ -227,10 +238,13 @@ while iarg < nargs:
         iarg = iarg+1
         nuRefFreq = float(sys.argv[iarg])
         print(( 'Reference Frequency : %9.3f MHz' % (nuRefFreq)))
+    elif sys.argv[iarg].upper() == '-V':   # limit velocity output
+        doLimitVel = True
+        print('Limiting Output Velocities to User Specified range')
     elif sys.argv[iarg].upper() == '-X':   # if cold load temperature 
         iarg = iarg+1
         tcold = float(sys.argv[iarg])
-        print(( 'Cold Load Reference Temperature: %9.3f Kelvins' % (tcold)))
+        print('Cold Load Reference Temperature: %9.3f Kelvins' % (tcold))
     elif sys.argv[iarg].upper() == '-Y':   # if hot load
         iarg = iarg+1
         thot = float(sys.argv[iarg])
@@ -275,10 +289,6 @@ except:
     print("or")
     print("sudo pip3 install PyAstronomy")
     baryCenterAvailable = False
-
-
-
-
 
 #first argument is the averaging time in seconds
 try: 
@@ -456,6 +466,7 @@ def read_hot( names, ave_hot):
         if nChan != 32 and nChan != 64 and nChan != 128 and nChan != 256 and \
            nChan != 512 and nChan != 1024 and nChan != 2048 and nChan != 4096:
             print("Unusual data length (%d) for file %s" % (nChan, filename))
+            print("Skipping use in averages")
             continue
         rs.azel2radec()    # compute ra,dec from az,el
 
@@ -859,7 +870,8 @@ for filename in names:
     if (dt > avetime) or newObs or allFiles:
         if doDebug:
             medianData = np.median( ave_spec.ydataA[n6:n56])
-            print(( "Average duration: %7.1f, Median:  %8.3f" % (ave_spec.durationSec, medianData)))
+            print("Average duration: %7.1f, Median:  %8.3f" % \
+                  (ave_spec.durationSec, medianData))
 
         # not calibrating hot load observations.
         if ave_spec.telel < 0.:
@@ -869,8 +881,8 @@ for filename in names:
         ave_spec = normalize_spec( ave_spec, firstutc, lastutc)
         xv = ave_spec.xdata * 1.E-6  # covert to MHz
         yv = ave_spec.ydataA 
-        if flagRfi:
-            yv = interpolate.lines( linelist, linewidth, xv, yv) # interpolate rfi
+        if flagRfi:  # if interpolating over regions with rfi
+            yv = interpolate.lines( linelist, linewidth, xv, yv) 
         xmin = min(xv)
         xmax = max(xv)
         xallmin = min(xmin, xallmin)
@@ -1022,18 +1034,48 @@ for filename in names:
             else:
                 plt.plot(velcorr, tsky, colors[ncolor], linestyle=linestyles[ncolor],label=label)
         nplot = nplot + 1
-        # this code computes and subtracts a baseline so that source intensities can be compared.
 
         if writeTsys:
-            gf.saveTsysValues( saveFile, ave_spec, cpuIndex, tSourcemax, velSource, dV, tVSum, tVSumRms, tSumKmSec, dTSumKmSec)
+            gf.saveTsysValues( saveFile, ave_spec, cpuIndex, tSourcemax, \
+                               velSource, dV, tVSum, tVSumRms, tSumKmSec, \
+                               dTSumKmSec)
+
         if writeKelvin:
             ave_spec.ydataA = tsky
             aveutc = ave_spec.utc
             outname = radioastronomy.utcToName( aveutc)
             outname = outname + ".kel"  # output in Kelvins
             ave_spec.count = 1
-            ave_spec.write_ascii_file("../", outname)                
-# flag restarting the sum
+            if plotFrequency:
+                ave_spec.xdata = velcorr
+                doFreq = False
+            else:
+                doFreq = True
+            doComputeX = False  # x-axis already computed
+            if doLimitVel:
+                print("Limiting File Output to selected channels")
+                nOut = imax - imin
+                nChan = ave_spec.nChan
+                print("Writing Channels %d to %d (%d total)" % \
+                      imin, imax, nOut)
+                ox = ave_spec.xdata[imin:imax]
+                oy = ave_spec.ydataA[imin:imax]
+                ave_sec.nChan = nOut
+                # adjust x axis indicies
+                i2 = int((imax+imin)/2)
+                ave_spec.refChan = i2 - imin
+                ave_spec.centerFreqHz =  ave_spec.xdata[i2]
+                ave_spec.bandWidth = ave_spec.bandwidth * float(nOut/nChan)
+                ave_spec.xdata = ox
+                ave_spec.ydataA = oy
+                ave_spec.ydataB = oy
+                ave_sec.nChan = nOut
+                ave_spec.bandWidth = ave_spec.bandwidth * float(nOut/nChan)
+            # finally write the calibrated spectrum
+            ave_spec.write_ascii_file("../", outname, doFreq, \
+                                       doWriteHeader, doComputeX)
+
+        # flag restarting the sum
         nave = 0
 
     if newObs:
