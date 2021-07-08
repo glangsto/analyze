@@ -1,6 +1,7 @@
 #! /usr/bin/python
 #Python Script to average GPS values and return estimate of uncertainty.
 #HISTORY
+# 21Jul08 GIL print arguments for FIX 
 # 21Apr08 GIL return rms values 
 # 21Apr02 GIL initial version
 
@@ -61,15 +62,18 @@ try:
     dlon = np.std( tellons)
     dlat = np.std( tellats)
     dalt = np.std( telalts)
-    print("Average lat, lon, alt: %13.9f %13.9f, %9.3f" % \
+    print("Average lat, lon, alt: %13.9f %13.9f %9.3f" % \
           ( avelat, avelon, avealt))
-    print("   +/-  lat, lon, alt: %13.9f %13.9f, %9.3f" % \
+    print("   +/-  lat, lon, alt: %13.9f %13.9f %9.3f" % \
           ( dlat, dlon, dalt))
     rEarth = 6.371E6
     dlat = dlat * rEarth * np.pi / 180.
     dlon = dlon * rEarth * np.pi / 180.
-    print("   +/-m lat, lon, alt: %10.3f %10.3f, %9.3f (meters)" % \
+    print("   +/-m lat, lon, alt: %10.3f %10.3f %9.3f (meters)" % \
           ( dlat, dlon, dalt))
+    print("FIX arguments for updating notes files:")
+    print("FIX -RE -LAT %11.7f -LON %11.7f -ALT %7.3f" % \
+          (avelat, avelon, avealt))
 
 # keep latitude and longitude in float format
     lat = avelat
