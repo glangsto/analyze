@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # python to get my ip and send an email to megajansky
 #HISTORY
+# 21Jul13 GIL find myip
 # 21Feb04 GIL reduce characters printed, exit after 100 scyles
 # 21Jan16 GIL exit if can not reach scroll hat
 # 20Dec23 GIL reduce text scolled
@@ -43,6 +44,14 @@ waitcount = 0
 # directory
 mynewevent = "/tmp/mynewevent"
 mystop = "/tmp/stop"
+myippath = "/home/pi/Research/analyze/myip"
+
+if not os.path.exists(myippath):
+    myippath = "/home/pi/bin/myip"
+    if not os.path.exists(myippath):
+        print("Can not find script myip!!")
+        sys.exit()
+    
 
 while True: 
 
@@ -66,7 +75,7 @@ while True:
 # only print IP every so often, but watch for events        
     if waitcount < 1:
         myiptemp = "/tmp/myip"
-        os.system( "/home/pi/bin/myip | head -1 > %s" % (myiptemp))
+        os.system( "%s | head -1 > %s" % (myippath, myiptemp))
         # read all the ip addresses
         with open(myiptemp, "r") as f:
             for line in f:
