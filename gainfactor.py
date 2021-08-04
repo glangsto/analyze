@@ -55,10 +55,9 @@ measurements[iObs, 4,] = ( 47.2, 48.2, 48.4)
 measurements[iObs, 5,] = ( 40.0, 39.6, 38.1)
 gainFactors = np.zeros((nObs, nProcessors))
 normalized = False
-doDebug = False
 firstRun = True
 
-def fit_baseline( xs, ys, imin, imax, nchan, fitOrder):
+def fit_baseline( xs, ys, imin, imax, nchan, fitOrder, doDebug = False):
     """
     fit baseline does a polynomical fit over channels in a select range
     The baseline is returned. 
