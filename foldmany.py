@@ -1,5 +1,6 @@
 #Python Script to plot and the fourier transform of blocks of raw NSF events 
 #HISTORY
+#21AUG05 GIL convert from python 2 to python 3
 #19APR11 GIL initial version for folding many files
 #19APR11 GIL improve labeling
 #19APR10 GIL initial version based on FFT
@@ -43,31 +44,31 @@ while iii < nargs:
     if str(anarg[0:3]) == "-BL":
         nblock = np.int( sys.argv[iii+1])
         iii = iii + 1
-        print "FFT Block Size: ", nblock
+        print("FFT Block Size: ", nblock)
         aFix = True
         ifile = ifile + 2
     if str(anarg[0:3]) == "-KP":
         kpercount = np.float( sys.argv[iii+1])
         iii = iii + 1
-        print "Kelvins Per Count: ", kpercount
+        print("Kelvins Per Count: ", kpercount)
         aFix = True
         ifile = ifile + 2
     if str(anarg[0:3]) == "-ND":
         ndays = np.int( sys.argv[iii+1])
         iii = iii + 1
-        print "Divide Day into N Parts: ", nday
+        print("Divide Day into N Parts: ", nday)
         aFix = True
         ifile = ifile + 2
     if str(anarg[0:3]) == "-SI":
         sigma = np.float( sys.argv[iii+1])
         iii = iii + 1
-        print "Keeping Events > %7.2f Sigma " % (sigma)
+        print("Keeping Events > %7.2f Sigma " % (sigma))
         aFix = True
         ifile = ifile + 2
     if anarg[0:3] == "-NO":
         note = sys.argv[iii+1]
         iii = iii + 1
-        print "Note: ", note
+        print("Note: ", note)
         ifile = ifile + 2
         aFix = True
     iii = iii + 1
@@ -88,23 +89,23 @@ nplot = 0
 ifile = 2
 nfiles = nargs-ifile
 
-print "Number of Files:                ",nfiles
+print("Number of Files:                ",nfiles)
 if nfiles < 1:
-    print "FOLD: Fourier Transform and sum a time series of events"
-    print "Usage: FOLD <n channels] [-note <note for plot title>] <file 1>"
-    print "Where optionally the following paramters may be applied"
-    print " <n samples>     - Number of samples to FFT to produce a spectra (power of 2)"
-    print " -kpercount <factor> - Gain factor to convert counts to Kelvin"
-    print "   Estimate by an assumed system temperature for the band pass"
-    print "   And running FFT without this factor to get the value in counts"
-    print " -note <text>        - Note for the top of the plot"
+    print("FOLD: Fourier Transform and sum a time series of events")
+    print("Usage: FOLD <n channels] [-note <note for plot title>] <file 1>")
+    print("Where optionally the following paramters may be applied")
+    print(" <n samples>     - Number of samples to FFT to produce a spectra (power of 2)")
+    print(" -kpercount <factor> - Gain factor to convert counts to Kelvin")
+    print("   Estimate by an assumed system temperature for the band pass")
+    print("   And running FFT without this factor to get the value in counts")
+    print(" -note <text>        - Note for the top of the plot")
     exit()
     
 files = sys.argv[ifile:]
-print "First File     :                ",files[0]
+print("First File     :                ",files[0])
 
 
-def gridManyFiles( nChan, names):
+def gridManyFiles( nChan, names, note=note):
     """
     Compute a grided image of the fourier transform of a time series
     Inputs: names  names of files to fold
@@ -159,15 +160,15 @@ def gridManyFiles( nChan, names):
         label = '%s, AZ,EL: %5s,%5s, Lon,Lat=%5.1f,%5.1f' % ( time,rs.telaz,rs.telel,gallon,gallat)
         xs = rs.xdata 
         if rs.nTime < 1:
-            print "Not an Event: ",filename
+            print("Not an Event: ",filename)
             continue
 
         # now reorganize data into a single time series
         xv = np.zeros(rs.nSamples*2)
         yv = np.zeros(rs.nSamples*2)
-        yc = np.zeros(rs.nSamples,dtype=np.complex)
+        yc = np.zeros(rs.nSamples,dtype=complex)
         ymag = np.zeros(rs.nSamples)
-        nSamples = 2L * rs.nSamples
+        nSamples = 2 * rs.nSamples
         j = 0
         dt = 0.5/rs.bandwidthHz
         t = xs[0]
@@ -196,7 +197,7 @@ def gridManyFiles( nChan, names):
                 maxMagnitude = nsigma
                 maxFile = filename
         else:
-            print "Problem observation: %7.3f rms in file %s\n", yrms, filename
+            print("Problem observation: %7.3f rms in file %s\n", yrms, filename)
     # end else not a signficant event
 
         # will compute several FFTs, discarding any extra samples at end
@@ -206,7 +207,7 @@ def gridManyFiles( nChan, names):
         # 
         BW = 1.E-6*rs.bandwidthHz
         # frequency axis is always the same
-        nu = np.linspace(0.0, BW, nblock/2) + (1.E-6*(rs.centerFreqHz-rs.bandwidthHz/2.))
+        nu = np.linspace(0.0, BW, int(nblock/2)) + int((1.E-6*(rs.centerFreqHz-rs.bandwidthHz/2.)))
         xp = nu[1:N2]
         xmin = min(nu)
         xmax = max(nu)
@@ -231,7 +232,7 @@ def gridManyFiles( nChan, names):
             yp = 2.0/N*np.abs(yf[1:N2])
         
         # unwrap spectra
-            nnn = ((N2/2) - 1)
+            nnn = int(((N2/2) - 1))
             for kkk in range(N2-1):
                 #            if jjj == nfft/2:
                 #                print "kkk, nnn: ",kkk,nnn
@@ -257,7 +258,7 @@ def gridManyFiles( nChan, names):
                 plt.plot(xp, yp3, colors[nplot-1], linestyle=linestyles[nplot-1],label=label)
                 note = rs.noteA
 #                print "Number of FFTs per time series: ",nfft
-                print "Seconds of observations:        ", aveTime
+                print("Seconds of observations:        ", aveTime)
             else:
 #            print "Ysum, yp2: ", len(ysum), len(yp2)
                 ysum = ysum + yp2
@@ -272,11 +273,11 @@ def gridManyFiles( nChan, names):
         J = float(nfft) + float(nfft*iName)
         for mmm in range( N2-1):
             mygrid.convolve( xp[mmm], J, ysum[mmm], 1.0)
-        print "Event Time         : ", maxEvent.utc
-        print "Event File         : ", maxFile
-        print "Maximum Event Sigma: %8.2f" % ( maxMagnitude)
-        print "Event RA           :   %8.4f d Dec %8.4f d" % (maxEvent.ra, maxEvent.dec)
-        print "Event G Lon        :   %6.2f d  Lat %6.2f d" % (maxEvent.gallon, maxEvent.gallat)
+        print("Event Time         : ", maxEvent.utc)
+        print("Event File         : ", maxFile)
+        print("Maximum Event Sigma: %8.2f" % ( maxMagnitude))
+        print("Event RA           :   %8.4f d Dec %8.4f d" % (maxEvent.ra, maxEvent.dec))
+        print("Event G Lon        :   %6.2f d  Lat %6.2f d" % (maxEvent.gallon, maxEvent.gallat))
     # end for all files
     yallsum = kpercount * yallsum / float(nallsum)
     yallsum = yallsum[1:N2] 
@@ -286,6 +287,7 @@ def gridManyFiles( nChan, names):
 
 #        plt.xlim(xallmin,xallmax)
     plt.title(note)
+    plt.suptitle(names[0])
     plt.xlabel('Frequency (MHz)')
     if kpercount == 1.:
         plt.ylabel('Intensity (Counts)')
@@ -294,6 +296,7 @@ def gridManyFiles( nChan, names):
         plt.ylabel('Intensity (Kelvins)')
         #            plt.ylim(kpercount*yallmin,kpercount*1.25*yallmax)
     plt.legend(loc='upper right')
+    plt.suptitle(names[0])
     plt.show()
 
     return nChan, nfft*nFiles, xmin, xmax, mygrid
@@ -306,20 +309,20 @@ def main():
 
     nargs = len(sys.argv)
     if nargs < 2:
-        print 'fold : Fold A time series'
-        print 'usage: fold <nChannels>  <eventfile>'
+        print('fold : Fold A time series')
+        print('usage: fold <nChannels>  <eventfile>')
         exit()
 
-    print "Count Index: ", iCount
-    print "File  Index: ", ifile
+    print("Count Index: ", iCount)
+    print("File  Index: ", ifile)
 
     nChan = int(sys.argv[iCount])
     names = sys.argv[ifile:]
-    print "First Name: ", names[0]
+    print("First Name: ", names[0])
     gridtype = 'PULSAR'
 
     #create the grid with map parameters
-    mywidth, myheight, xmin, xmax, mygrid = gridManyFiles( nChan, names)
+    mywidth, myheight, xmin, xmax, mygrid = gridManyFiles( nChan, names, note)
 
     count = 0
 
@@ -353,7 +356,8 @@ def main():
 
     plt.imshow(mygrid.image, interpolation='nearest', cmap=plt.get_cmap('jet'))
 
-    plt.title("Pulsar-Folded Time Series of Spectra")
+    plt.suptitle("Pulsar-Folded Time Series of Spectra")
+    plt.title(names[0])
 
     if gridtype == 'PULSAR':
         plt.xlabel("Frequency (MHz)")

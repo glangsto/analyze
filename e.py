@@ -2,6 +2,7 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#21Aug05 GIL matplotlib updates
 #21Mar21 GIL initialize t variable for computing M
 #20Dec10 GIL optionally shift plots in y 
 #20Aug28 GIL optionally on plot to files
@@ -24,7 +25,7 @@ dy = -1.
 nargs = len( sys.argv)
 
 linestyles = ['-','-.','-', '-', '--','-.','--','-','--','--','--','-.','-','--','-.','-','--','-.','-','--','-','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.']
-colors = ['-b','-r','-g','-c', '-m', '-b','-r','-g','-b','-c', '-m', '-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g']
+colors = ['b','r','g','c', 'm', 'b','r','g','b','c', 'm', 'r','g','b','r','g','b','r','g','b','r','g','b','r','g','b','r','g','b','r','g','b','r','g','b','r','g','b','r','g']
 
 xallmax = -9.e9
 xallmin =  9.e9
@@ -224,7 +225,7 @@ for iii in range(namearg, min(nargs,25)):
     if nplot <= 0:
         title = mytitle + " Az,El: %6.1f,%6.1f - %s" % (rs.telaz, rs.telel, date)
         fig,ax1 = plt.subplots(figsize=(10,6))
-        fig.canvas.set_window_title(title)
+#        fig.set_window_title(title)
     nplot = nplot + 1
     note = rs.noteA
     yallmin = min(ymin,yallmin)
