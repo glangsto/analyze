@@ -1,0 +1,7 @@
+#!/bin/bash
+#Wait a while for network, then send an IP address email.
+
+sleep 1
+nice -10 /home/pi/Research/analyze/poeIp 2> /dev/null > /dev/null &
+
+

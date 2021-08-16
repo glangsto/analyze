@@ -1,0 +1,14 @@
+#!/bin/bash
+# use the version in analyze
+
+export POEIPPATH=/home/pi/PoE_HAT_B_code/python/examples
+if [ -d $POEIPPATH ] ; then
+   python $POEIPPATH/main.py > /dev/null
+else
+    echo "WaveShare POE HAT software for IP printing not found"
+    echo "See https://www.waveshare.com/wiki/PoE_HAT_(B)"
+fi
+       
+
+
+
