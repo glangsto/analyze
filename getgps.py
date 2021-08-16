@@ -28,7 +28,8 @@ telalts = np.zeros( maxcount)
 
 count = 0
 gpsd = gps(mode=WATCH_ENABLE|WATCH_NEWSTYLE) 
-print 'latitude\tlongitude\ttime utc\t\t\taltitude\tepv\tept\tspeed\tclimb' # '\t' = TAB to try and output the data in columns.
+print('latitude\tlongitude\ttime utc\t\t\taltitude\tepv\tept\tspeed\tclimb')
+# '\t' = TAB to try and output the data in columns.
 avelat = 0.
 avelon = 0.
 avealt = 0.
@@ -39,14 +40,15 @@ try:
         report = gpsd.next() #
         if report['class'] == 'TPV':
              
-            print  getattr(report,'lat',0.0),"\t",
-            print  getattr(report,'lon',0.0),"\t",
-            print getattr(report,'time',''),"\t",
-            print  getattr(report,'alt','nan'),"\t\t",
-            print  getattr(report,'epv','nan'),"\t",
-            print  getattr(report,'ept','nan'),"\t",
-            print  getattr(report,'speed','nan'),"\t",
-            print getattr(report,'climb','nan'),"\t"
+            print ( "%s %s" % (getattr(report,'lat',0.0),"\t"), end="")
+            print ( "%s %s" % (getattr(report,'lon',0.0),"\t"), end="")
+            print ( "%s %s" % (getattr(report,'time',''),"\t"), end="")
+            print ( "%s %s" % (getattr(report,'alt','nan'),"\t"), end="")
+            print ( "%s %s" % (getattr(report,'epv','nan'),"\t"), end="")
+            print ( "%s %s" % (getattr(report,'ept','nan'),"\t"), end="")
+            print ( "%s %s" % (getattr(report,'speed','nan'),"\t"), end="")
+            print( "%s %s" % (getattr(report,'climb','nan'),"\t")
+)
             # now sum averages
             avelon = avelon + float(getattr(report,'lon',0.0))
             tellons[count] = float(getattr(report,'lon',0.0))
@@ -116,5 +118,5 @@ try:
     print(('Longitude: %s%02d:%02d:%05.2f' % (pmlon,dlon,mlon,slon)))
 
 except (KeyboardInterrupt, SystemExit): #when you press ctrl+c
-    print "Done.\nExiting."
-    x
+    print( "Done.\nExiting.")
+
