@@ -54,103 +54,103 @@ iii = ifile
 while iii < nargs:
     anarg = sys.argv[iii].upper()
     if str(anarg[0:3]) == "-EL":
-        newEl = np.float( sys.argv[iii+1])
+        newEl = float( sys.argv[iii+1])
         iii = iii + 1
-        print "New El: ", newEl
+        print("New El: %7.2f" % (newEl))
         aFix = True
         ifile = ifile + 2
     if anarg[0:3] == "-AZ":
-        newAz = np.float( sys.argv[iii+1])
+        newAz = float( sys.argv[iii+1])
         iii = iii + 1
-        print "New Az: ", newAz
+        print("New Az: %7.2f" % (newAz))
         ifile = ifile + 2
         aFix = True
     if anarg[0:3] == "-LA":
-        newLat = np.float( sys.argv[iii+1])
+        newLat = float( sys.argv[iii+1])
         iii = iii + 1
-        print "New Latitude : ", newLat
+        print("New Latitude : %13.9f" % (newLat))
         ifile = ifile + 2
         aFix = True
     if anarg[0:3] == "-LO":
-        newLon = np.float( sys.argv[iii+1])
+        newLon = float( sys.argv[iii+1])
         iii = iii + 1
-        print "New Longitude: ", newLon
+        print("New Longitude: %13.9f" % (newLon))
         ifile = ifile + 2
         aFix = True
     if anarg[0:3] == "-AL":
-        newAlt = np.float( sys.argv[iii+1])
+        newAlt = float( sys.argv[iii+1])
         iii = iii + 1
-        print "New Altitude : ", newAlt
+        print("New Altitude : %6.3f" % (newAlt))
         ifile = ifile + 2
         aFix = True
     if anarg == "-NT":
         newNTime = np.int( sys.argv[iii+1])
         iii = iii + 1
-        print "New Number of Samples: ", newNTime
+        print("New Number of Samples: ", newNTime)
         ifile = ifile + 2
         aFix = True
     if anarg[0:3] == "-OB":
         observer = sys.argv[iii+1]
         iii = iii + 1
-        print "Observers: ", observer
+        print("Observers: ", observer)
         ifile = ifile + 2
         aFix = True
     if anarg[0:2] == "-P":
         doPlot = True
         iii = iii + 1
-        print "Plotting fixed observations"
+        print("Plotting fixed observations")
         ifile = ifile + 1
     if anarg[0:3] == "-NO":
         note = sys.argv[iii+1]
         iii = iii + 1
-        print "Note: ", note
+        print("Note: ", note)
         ifile = ifile + 2
         aFix = True
     if anarg[0:3] == "-TE":
         telescope = sys.argv[iii+1]
         iii = iii + 1
-        print "Telescope: ", telescope
+        print("Telescope: ", telescope)
         ifile = ifile + 2
         aFix = True
     if anarg[0:3] == "-DE":
         device = sys.argv[iii+1]
         iii = iii + 1
-        print "Device: ", device
+        print("Device: ", device)
         ifile = ifile + 2
         aFix = True
     if anarg[0:3] == "-CE":
-        newCen = np.float(sys.argv[iii+1])
+        newCen = float(sys.argv[iii+1])
         iii = iii + 1
-        print "Center Frequency: ", newCen, " (MHz)"
+        print("Center Frequency: ", newCen, " (MHz)")
         ifile = ifile + 2
         aFix = True
     if anarg[0:3] == "-BA":
-        newBan = np.float(sys.argv[iii+1])
+        newBan = float(sys.argv[iii+1])
         iii = iii + 1
-        print "Bandwidth ", newBan, " (MHz)"
+        print("Bandwidth ", newBan, " (MHz)")
         ifile = ifile + 2
         aFix = True
     if anarg[0:3] == "-RC":
-        newRefChan = np.float(sys.argv[iii+1])
+        newRefChan = float(sys.argv[iii+1])
         iii = iii + 1
-        print "Ref Chan  ", newRefChan
+        print("Ref Chan  ", newRefChan)
         ifile = ifile + 2
         aFix = True
     if anarg[0:3] == "-NC":
-        newNChan = np.float(sys.argv[iii+1])
+        newNChan = float(sys.argv[iii+1])
         iii = iii + 1
-        print "N Channel ", newNChan
+        print("N Channel ", newNChan)
         ifile = ifile + 2
         aFix = True
     if anarg[0:3] == "-RS":
-        newRefSample = np.float(sys.argv[iii+1])
+        newRefSample = float(sys.argv[iii+1])
         iii = iii + 1
-        print "Reference Sample ", newRefSample, " "
+        print("Reference Sample ", newRefSample, " ")
         ifile = ifile + 2
         aFix = True
     if anarg[0:3] == "-RE":
         replace = True 
-        print "Replacing original file"
+        print("Replacing original file")
         ifile = ifile + 1
         aFix = True
     iii = iii + 1
@@ -158,26 +158,26 @@ while iii < nargs:
 #print "Afix: ",aFix, iii
 # if nothing to fix, give help
 if aFix == False:
-    print "FIX: Fix observing file parameters"
-    print "Usage: Fix [-el elevation] [-az azimuth]... <file 1> [<file 2>] ... [<file N>]"
-    print "Where optionally the following paramters may be fixed"
-    print " -az Telescope azimuth in degrees"
-    print " -el Telescope elevation in degrees"
-    print " -lat Telescope latitude in degrees"
-    print " -lon Telescope longitude in degrees"
-    print " -alt Telescope altitude above sea level in meters"
-    print " -cen Center Frequency (MHz)"
-    print " -ban Bandwidth (MHz)"
-    print " -rch Reference channel  (1 based)"
-    print " -nch Number of channels (1 based)"
-    print " -obs Observers names (ascii)"
-    print " -tel Telescope name (ascii)"
-    print " -not Note describing observation (ascii)"
-    print " -dev Software Defined Radio used for observation (ascii)"
-    print " -nt  Number of time samples in the observations"
-    print " -rs  Index of the Reference Time Sample"
-    print " -re  Replace original file with revised header"
-    print " -p   Plot fixed events"
+    print("FIX: Fix observing file parameters")
+    print("Usage: Fix [-el elevation] [-az azimuth]... <file 1> [<file 2>] ... [<file N>]")
+    print("Where optionally the following paramters may be fixed")
+    print(" -az Telescope azimuth in degrees")
+    print(" -el Telescope elevation in degrees")
+    print(" -lat Telescope latitude in degrees")
+    print(" -lon Telescope longitude in degrees")
+    print(" -alt Telescope altitude above sea level in meters")
+    print(" -cen Center Frequency (MHz)")
+    print(" -ban Bandwidth (MHz)")
+    print(" -rch Reference channel  (1 based)")
+    print(" -nch Number of channels (1 based)")
+    print(" -obs Observers names (ascii)")
+    print(" -tel Telescope name (ascii)")
+    print(" -not Note describing observation (ascii)")
+    print(" -dev Software Defined Radio used for observation (ascii)")
+    print(" -nt  Number of time samples in the observations")
+    print(" -rs  Index of the Reference Time Sample")
+    print(" -re  Replace original file with revised header")
+    print(" -p   Plot fixed events")
     exit()
 
 nplot = 0
@@ -251,7 +251,7 @@ for iii in range(nfiles):
         try:
             os.remove(filename)
         except:
-            print "Cound not remove file: ",filename
+            print("Cound not remove file: ",filename)
         outname = filename
         parts = filename.split('.')
         # last bit of file name is the extension
@@ -346,7 +346,7 @@ for iii in range(nfiles):
         fig.canvas.set_window_title(date)
         nplot = nplot + 1
 
-    print(' Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ymax, ymed, ymax/ymed, count, label))
+    print((' Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ymax, ymed, ymax/ymed, count, label)))
     note = rs.noteA
 #    print('%s' % note)
     yallmin = min(ymin,yallmin)
