@@ -2,6 +2,7 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#21Aug21 GIL deal with different length event files
 #21Aug05 GIL matplotlib updates
 #21Mar21 GIL initialize t variable for computing M
 #20Dec10 GIL optionally shift plots in y 
@@ -42,6 +43,7 @@ y0 = 0
 firstdate = ""
 xa = -1
 xb = -1
+lastn = -1
 
 if nargs < 2:
     print("E: Plot Events")
@@ -158,11 +160,12 @@ for iii in range(namearg, min(nargs,25)):
         label = '%s A,E: %5.1f,%5.1f' % ( time,rs.telaz,rs.telel)
     else:
         label = '%s R,D: %6.2f,%6.2f, Lon,Lat=%5.1f,%5.1f' % ( time,rs.ra,rs.dec,gallon,gallat)
-    if xa < 0:
+    if (xa < 0) or (lastn != rs.nSamples):
           xa = int(rs.nSamples/4)
-    if xb < 0:
+    if (xb < 0) or (lastn != rs.nSamples):
           xb = rs.nSamples-1
-          
+    lastn = rs.nSamples
+    
     xs = rs.xdata[xa:xb] * 1.E6
 
     ya = rs.ydataA[xa:xb]
