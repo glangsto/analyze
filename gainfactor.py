@@ -1,5 +1,6 @@
 #Python function to compute gain factor for different processor indicies, dates and elevations
 #HISTORY
+#21AUG20 GIL enable passing of the debug flag
 #21JAN07 GIL add help, update for changes
 #20APR30 GIL add pointing offset model
 #20APR29 GIL add read savefile function
@@ -57,7 +58,7 @@ gainFactors = np.zeros((nObs, nProcessors))
 normalized = False
 firstRun = True
 
-def fit_baseline( xs, ys, imin, imax, nchan, fitOrder, doDebug = False):
+def fit_baseline( xs, ys, imin, imax, nchan, fitOrder, doDebug=False):
     """
     fit baseline does a polynomical fit over channels in a select range
     The baseline is returned. 
@@ -82,7 +83,7 @@ def fit_baseline( xs, ys, imin, imax, nchan, fitOrder, doDebug = False):
 
     return yout
 
-def compute_vbarycenter( spectrum):
+def compute_vbarycenter( spectrum, doDebug=False):
     """ 
     Compute the velocity correction to Barycentric for this date and direction
     """
@@ -101,7 +102,7 @@ def compute_vbarycenter( spectrum):
 # Calculate barycentric correction (debug=True show
 # various intermediate results)
         corr, hjd = pyasl.helcorr(longitude, latitude, altitude, \
-                                      ra2000, dec2000, jd, debug=doDebug)
+                                      ra2000, dec2000, jd, debug=False)
         if doDebug or firstRun:
             print("Barycentric correction [km/s]: %8.3f" % (corr))
             firstRun = False
