@@ -5,8 +5,8 @@ if [ -e corr.py ]
 then
     python corr.py "$@"
 else
-    if [ -e ~/bin/corr.py ]
+    if [ -e ~/Research/analyze/corr.py ]
     then
-       python ~/bin/corr.py "$@"
+       python ~/Research/analyze/corr.py "$@"
     fi     
 fi

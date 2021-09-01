@@ -1,6 +1,8 @@
+
 #Python Script to correlate samples in raw NSF events 
 #plot the self correlation values samples near an event
 #HISTORY
+#21AUG23 GIL add diagnostics
 #20FEB09 GIL update for python3
 #19DEC13 GIL add magnitude option
 #19DEC12 GIL try to signal from cross correlation
@@ -33,7 +35,9 @@ doDebug = False
 doMag = False
 doZero = False
 doOrder = False
+doExclude = False
 nChannel = 0
+printcount = 0
 
 if nargs < 2:
     print("CORR: Cross correlate Event Samples over a range in sample offsets")
@@ -46,6 +50,7 @@ if nargs < 2:
     print(" -A        Optionally plot the absolute value of the cross correlation")
     print(" -C <n>    Optionally only compute the correlation for the central <n> samples around an event.")
     print(" -D        Optionally print debugging Info")
+    print(" -X        Exclude self cross correllations")
     print(" -Z        Optionally Zero event before cross correlation")
     print("")
     print("Glen Langston - 2019 December 11")
@@ -55,25 +60,39 @@ nCenter = 0
 namearg = 1
 iarg = 1          # start searching for input flags
 
-def xcorr( center, nChannel, nCorr, yi1, yq1, yib, yqb):
+def xcorr( center, nSample, nCorr, yia, yqa, yib, yqb):
     """
     Cross correlation a pair of i,q values
+    The input IA and QA are not shifted and are a subset of
+    of all samples available.  
+    IB and QB are the entire event samples and sub-sets are selected
+    inputs:
+    center:  Offset from center cross correllation
+    nSample: Total (max) number of samples in event)
+    nCorr    Half size of cross correlation
+    yia, yqa:A event to cross correlate
+    yib, yqb:B event to cross correlate
     """
     printcount = 0
     center = int(center)
-    nChannel = int(nChannel)
+    nSample = int(nSample)
+    n2 = int(nSample/2)
     nCorr = int(nCorr)
+    nxcor = (2*nCorr)+1
+    xcori = np.zeros(nxcor)
+    xcorq = np.zeros(nxcor)
+    xsum  = np.zeros(nxcor)
 
+    if doDebug:
+        print("center, nSample, nCorr: %d, %d, %d: " % (center, nSample, nCorr))
+
+    yi1 = yia[nCorr:nSample-nCorr-1]
+    yq1 = yqa[nCorr:nSample-nCorr-1]
     # for all samples to cross correllate
-    for kkk in range((2*nCorr)+1):
-        jjj = kkk-nCorr
+    for kkk in range(nxcor):
         # select range for cross correllation
-        if (center - nChannel + jjj) <= 0:
-            ib = 0
-            ie = (2*nCorr) + 1
-        else:
-            ib = center - nChannel + jjj
-            ie = center + nChannel + jjj
+        ib = kkk
+        ie = kkk + nSample - nxcor
 
 # step through different correlation offsets
         yi2 = yib[ib:ie]
@@ -81,21 +100,23 @@ def xcorr( center, nChannel, nCorr, yi1, yq1, yib, yqb):
         if doMag:
             yi2 = yi2*yi2
             yq2 = yq2*yq2
-        y2 = pd.DataFrame({ 'i': yi2, 'q': yq2})
-        if doDebug:
-            print("y2.corr(): ", y2.corr())
+            sumi = yi2.sum()
+            sumq = yq2.sum()
+        else:
+            yix = yi1*yi2
+            yqx = yq1*yq2
+            sumi = yix.sum()
+            sumq = yqx.sum()
+        xcori[kkk] = sumi
+        xcorq[kkk] = sumq
+        xsum[kkk] = sumi - sumq
 
         # simultaneously multiple the two time vectors togethere
-        allcorr = (yi1*yi2) + (yq1*yq2)
-        allcorr = allcorr/ymax
-        if doDebug:
-            print(allcorr)
-        corrrms = np.std(allcorr[0:10])
-        sumall = allcorr.sum()
-        corrs[kkk] = sumall
+    if doDebug:
+        print( "Size yia, yqa: %d, %d" % (len(yia), len(yqa)))
+        print( "Size y1b, yqb: %d, %d" % (len(yib), len(yqb)))
 # end of xcorr()
-    return corrs
-
+    return xsum
 
 # for all arguments, read list and exit when no flag argument found
 while iarg < nargs:
@@ -103,6 +124,9 @@ while iarg < nargs:
         iarg = iarg+1
         mytitle = sys.argv[iarg]
         print('Plot title: ', mytitle)
+    elif sys.argv[iarg].upper() == '-X':   # if debugging
+        doExclude = True
+        print("-X Excluding plots of an antenna with itself.")
     elif sys.argv[iarg].upper() == '-D':   # if debugging
         doDebug = True
         print("-D Additional Debug printing.")
@@ -141,6 +165,7 @@ print("Cross correlating over a range of +/- %d samples" % (nCorr))
 
 note = "Events"
 nplot = 0
+nread = 0
 
 iname = namearg   # prepare to read the first file
 
@@ -185,7 +210,10 @@ for iii in range(nnames):
     gallat = rs.gallat
     ra = rs.ra
     dec = rs.dec
-    label = '%s R,D: %6.2f,%6.2f, Lon,Lat=%5.1f,%5.1f' % ( time,rs.ra,rs.dec,gallon,gallat)
+    namea = filename
+    nameparts = namea.split("-")
+    pia = nameparts[0]
+    timea = time
     xs = rs.xdata * 1.E6
     if rs.nTime < 1:
         print("Not an Event: ",filename)
@@ -193,108 +221,97 @@ for iii in range(nnames):
 
     center = int(rs.nSamples/2)
     if doZero:
-        print( "Zeroing Center sample: %d+/-5 %d " % (center, rs.nSamples))
-        rs.ydataA[(center-5):(center+5)] = 0.0
-        rs.ydataB[(center-5):(center+5)] = 0.0
+        ns2 = rs.nSamples/2
+        print( "Zeroing Center sample: %d+/-5 of %d " % (ns2, rs.nSamples))
+        rs.ydataA[(ns2-5):(ns2+5)] = 0.0
+        rs.ydataB[(ns2-5):(ns2+5)] = 0.0
 
-    if nChannel <= 0:
-        ib = nCorr
-        ie = rs.nSamples-nCorr
-    else:
-        ib = center - nChannel
-        ie = center + nChannel
-    n  = ie-ib
-    
-    if doDebug: 
-        print("ib: %d, ie: %d, n: %d" % ( ib, ie, n))
-    xv = np.zeros(n)
+    nsamp = rs.nSamples
     # optionally add an offset of samples
-    idelta = 9
+    idelta = 0
     # if first plot, must auto-correlate
-    if nplot == 0:
-        yib = rs.ydataA[(ib+idelta):(ie+idelta)]
-        yqb = rs.ydataB[(ib+idelta):(ie+idelta)]
+    yib = rs.ydataA[0:nsamp]
+    yqb = rs.ydataB[0:nsamp]
+    n = nsamp
+    yiarms = np.std( yib)
+    yqarms = np.std( yqb)
+    print("I rms: %7.4f;  Q rms: %7.4f;" % ( yiarms, yqarms))
+    nread = nread + 1
+    if nread < 2:
+        print( "First file read: n = %d, %d" % (len(yib), len(yqb)))
+        # save samples for next correlation
         yifirst = yib
         yqfirst = yqb
-        yi1 = yib
-        yq1 = yqb
-    else: # use last event to cross correlate
-        yi1 = yib
-        yq1 = yqb
-        # now save current file for next cross correllate
-        yib = rs.ydataA[(ib+idelta):(ie+idelta)]
-        yqb = rs.ydataB[(ib+idelta):(ie+idelta)]
-
-    yi1rms = np.std( yi1)
-    yq1rms = np.std( yq1)
-
-    y1 = pd.DataFrame({ 'i': yi1, 'q': yq1})
-    print("I rms: %7.4f;  Q rms: %7.4f; n: %d" % ( yi1rms, yq1rms, n))
-    #    print "y1.corr(): ", y1.corr()
-
-    # convert time offsets to micro-seconds
-    dt = 1.E6/rs.bandwidthHz
-    t = - dt * rs.refSample
-    if iii == -1:  # no op
-        print("First Time %12.9f (s); Delta T = %12.9f (s)" % (t, dt))
-    for i in range(n):
-        xv[i] = t
-        t = t + dt
+        pifirst = pia
+        timefirst = timea
+        # convert time offsets to micro-seconds
+        dt = 1.E6/rs.bandwidthHz
+        t = - dt * nCorr
+        if iii == -1:  # no op
+            print("First Time %12.9f (s); Delta T = %12.9f (s)" % (t, dt))
         # prepare to plot correlation time axis
-
-    dts = np.zeros( (2*nCorr)+1)
-    for i in range((2*nCorr)+1):
-        dts[i] = (i-(nCorr+1))*dt
-
-    # maximum correlation comes from the auto correlation
-    allcorr = (yi1*yi1) + (yq1*yq1)
-    ymax = allcorr.sum()
-    if doMag:
-        yi1 = yi1*yi1
-        yq1 = yq1*yq1
-
-    corrs = xcorr( center, nChannel, nCorr, yi1, yq1, yib, yqb)
-
-    # all cross correlations complete
-    ymax = max(corrs)
-    # if plotting absolute values of correllations
-    if doAbs:
-        corrs = np.abs( corrs)
-
-    ymin = min(corrs)
-
-    yrms1 = np.std( corrs[0:int(nCorr/3)])
-    yrms2 = np.std( corrs[int(2*nCorr/3):int(2*nCorr)])
-    yrms = (yrms1 + yrms2)/2.
-
-    print("Corr Max: %7.3f, Min: %7.3f Rms: %6.3f " % (ymax, ymin, yrms))
-    if mytitle == "":
-        mytitle = rs.site
-
-    ypeak = max( -ymin, ymax)
-    if yrms > 0:
-        snr = ypeak/yrms
+        dts = np.zeros( (2*nCorr)+1)
+        for i in range((2*nCorr)+1):
+            dts[i] = (i-(nCorr+1))*dt
+        yia = yib
+        yqa = yqb
+        nameb = namea
+        pib = pia
+        timeb = timea
+        continue
+    
     else:
-        snr = 0.
+        label = "%s %s X %s %s" % (pia, timea, pib, timeb)
+        # maximum correlation comes from the auto correlation
+        corrs = xcorr( center, nChannel, nCorr, yia, yqa, yib, yqb)
+        ymax = corrs.max()
+        ymin = corrs.min()
+        yrms1 = np.std( corrs[0:int(nCorr/3)])
+        yrms2 = np.std( corrs[int(2*nCorr/3):int(2*nCorr)])
+        yrms = (yrms1 + yrms2)/2.
+        print("Corr Max: %7.3f, Min: %7.3f Rms: %6.3f " % (ymax, ymin, yrms))
+        if mytitle == "":
+            mytitle = rs.site
+        # prepare for next cross
 
-#    print(' Ra: %6.2f Dec: %6.2f Max: %8.3f +/- %7.3f SNR: %6.1f ; %s' % (ra, dec, ypeak, yrms, snr, label))
-    if nplot <= 0:
-        title = mytitle + " Az,El: %6.1f,%6.1f" % (rs.telaz, rs.telel)
-        fig,ax1 = plt.subplots(figsize=(10,6))
-        fig.canvas.set_window_title(title)
-    nplot = nplot + 1
-    note = rs.noteA
-    yallmin = min(ymin,yallmin)
-    yallmax = max(ymax,yallmax)
-#    plt.ylim(yallmin,min(yallmax,0.5))
-    plt.ylim(yallmin,yallmax)
+        ypeak = max( -ymin, ymax)
+        if yrms > 0:
+            snr = ypeak/yrms
+        else:
+            snr = 0.
 
-    if (printcount % 10 == 0) or ((jjj > -3) and (jjj < 3)):
-        print("Self correlation offset: %4d, %10.3fus %8.5f +/- %7.5f" % (jjj, dts[kkk], corrs[kkk], corrrms))
-        printcount += 1
+        if nplot <= 0:
+            title = mytitle + " Az,El: %6.1f,%6.1f" % (rs.telaz, rs.telel)
+            fig,ax1 = plt.subplots(figsize=(10,6))
+            fig.canvas.set_window_title(title)
+            nplot = 1
+        note = rs.noteA
+        yallmin = min(ymin,yallmin)
+        yallmax = max(ymax,yallmax)
+#    plt.ylim(yallmin,yallmax)
 
+        if (not doExclude) or (pia != pib):
+            plt.plot(dts, corrs, colors[nplot], \
+                linestyle=linestyles[nplot],label=label)
+            nplot = nplot + 1
 
-    plt.plot(dts, corrs, colors[iii], linestyle=linestyles[iii],label=label)
+# now prepare for the next correlation    
+    nameb = namea
+    pib = pia
+    timeb = timea
+    yia = yib
+    yqa = yqb
+
+# now final cross correlation is between first and last
+# if more than 2 read
+if nread > 2:
+        # maximum correlation comes from the auto correlation
+    label = "%s %s X %s %s" % (pia, timea, pifirst, timefirst)
+    if (not doExclude) or (pia != pib):
+        corrs = xcorr( center, nChannel, nCorr, yia, yqa, yifirst, yqfirst)
+        plt.plot(dts, corrs, colors[nplot], \
+             linestyle=linestyles[nplot],label=label)
+
 plt.xlim(dts[0],dts[2*nCorr])
 plt.title(title)
 plt.xlabel('Correllation Time Offset (micro-seconds)')

@@ -1,5 +1,6 @@
 #Python find matchs in data directories
 #HISTORY
+#21Sep01 GIL ignore data for El < 0
 #21MAY10 GIL clean up sun plotting
 #21APR30 GIL fix sun azimuth when pointed north
 #21APR28 GIL fix case of absolutely no matches
@@ -58,13 +59,13 @@ if nargs < 2:
     print("Where: Optionally the user provides the maximum time offset (secs) to call a match")
     print("Where -C  Optionally provide a calendar date (ie 19Nov17) instead of directories")
     print("Where -D  Optionally print debugging info")
-    print("Where -E Optionally on show Events with elevation above zero")
+    print("Where -E Optionally only show Events with elevation above zero")
     print("Where -G Optionally plot +/- 10 degrees of galactic plane")
     print("Where -H Optionally plot histogram of events per parts of a day")
     print("Where -N <n> Optionally print matches when number is equal or greater to <n>")
     print("Where -P Plot matches")
     print("")
-    print("Glen Langston, 2020 Deember 03")
+    print("Glen Langston, 2021 September 1")
     sys.exit()
 
 # separate arguments form file names
@@ -188,7 +189,7 @@ def finddirs( calendar, ifile, nDir):
             dir[nDir] = sys.argv[ifile+3]
             nDir = nDir+1
     else:
-        for idir in range(1, 15):
+        for idir in range(1, 40):
             adir = "pi%d-events-" % idir
             adir = adir + calendar
             if os.path.isdir(adir):
@@ -198,7 +199,7 @@ def finddirs( calendar, ifile, nDir):
             if nDir >= MAXDIR:
                 break
 
-        for idir in range(1, 15):
+        for idir in range(1, 40):
             adir = "odroid%d-events-" % idir
             adir = adir + calendar
             if os.path.isdir(adir):
@@ -351,7 +352,9 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
         adir = EventDirs[ddd]['dir']
         nEve = EventDirs[ddd]['n']
         counts = copy.deepcopy( EventDirs[ddd]['counts'])
-        alabel = adir[0:3]
+        alabel = adir[0:5]
+        labelparts = alabel.split("-")
+        alabel = labelparts[0]
         # duplicate the last value to complete the plot
         counts = np.append( counts, counts[nday-1])
         
@@ -482,22 +485,23 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
     asite = EarthLocation(lat=lat*u.deg, lon=lon*u.deg, height=height*u.m)
 
     # prepare to draw +- 10 degrees of galactic plane
-    nGalactic = 100
+    nGalactic = 180
     nG4 = int(nGalactic/4)
     if doGalactic:
         utc = utc0
         dt = datetime.timedelta(seconds=(86400./nGalactic)) 
         minlat = 10.
-        for mmm in range(nGalactic):   # every minute of the day
-            azel = SkyCoord(az = float(rs.telaz)*u.deg, alt = float(rs.telel)*u.deg, \
-                                frame='altaz', location=asite, obstime=utc)  
+        for mmm in range(nGalactic):   # every so often during of the day
+            azel = SkyCoord(az = float(rs.telaz)*u.deg, \
+                            alt = float(rs.telel)*u.deg, unit='deg', \
+                            frame='altaz', location=asite, obstime=utc)  
             if mmm % nG4 == 0:
                 print( "MMM: %4d  %7.2f, %7.2f; %s" % \
                            (mmm, azel.galactic.l.degree, azel.galactic.b.degree, utc))
             bbb = azel.galactic.b.degree
             lll = azel.galactic.l.degree
             utc = utc + dt
-            ygal = -max0/50.
+            ygal = -3.*nDir
             if bbb < minlat and bbb > -minlat:
                 xgal = 24.*mmm/nGalactic
                 ax.annotate("*", xy=( xgal, ygal), color='orange')
