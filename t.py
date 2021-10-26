@@ -695,13 +695,12 @@ cv = copy.deepcopy(ave_cold.ydataA)
 # if keeping hot and cold files
 if doKeep:
     outname = radioastronomy.utcToName( ave_cold.utc)
-    outname = outname + ".cld"  # output in counts
+    outname = outname + ".ast"  # output in counts
     # add telescope index
     outname = ("T%d-" % cpuIndex)+outname
-#    ave_cold.count = 1
-#    ave_cold.nave = 1
     n = ave_cold.nChan
     print("Ave Cold: %d: %.6f" % (n, np.median( ave_cold.ydataA[int(n/3):int(2*n/3)])))
+    ave_cold.ydataA = ave_cold.ydataA * ave_cold.nave
     ave_cold.write_ascii_file("../", outname)
     print( "Wrote Average Cold Load File: %s%s" % ("../", outname))
     # now hot file
@@ -709,8 +708,7 @@ if doKeep:
     outname = outname + ".hot"  # output in counts
     # add telescope index
     outname = ("T%d-" % cpuIndex)+outname
-#    ave_hot.count = 1
-#    ave_hot.nave = 1
+    ave_hot.ydataA = ave_hot.ydataA * ave_hot.nave
     ave_hot.write_ascii_file("../", outname)                
     print( "Wrote Average Hot  Load File: %s%s" % ("../", outname))
 

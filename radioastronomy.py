@@ -3,6 +3,7 @@
 Class defining a Radio Frequency Spectrum
 Includes reading and writing ascii files
 HISTORY
+21Oct26 GIL merge in separating header from the data 
 21Oct02 GIL merge in writing of Velocities
 21SEP23 GIL Fix python3 version of ephem calculations
 21SEP15 GIL try PyEphem if pyephem is not available
@@ -489,24 +490,20 @@ class Spectrum(object):
         return
 
 ##################################################
-    def write_ascii_file(self, dirname, outname, doFreq = True, \
-                         doHeader = True, doComputeX = False):
+    def write_ascii_header(self, outfile, outname, doFreq = True, \
+                         doHeader = True):
         """
-        Write ascii file containing astronomy data
+        Write ascii header file containing astronomy data
         Inputs:  
         dirname    Directory where spectra/event will be written
         outname    Name of file to write
         doFreq     Flag writting frequency or velocity
         doHeader   Flag writting data header, or only intenisities
-        doComputeX Flag recomputing X axis ( needed for velocities)
         """
 
     # need the current time to update coordiantes
         if self.writecount > 0:
             print("File %4d: %s (%d)" % (self.writecount, outname, self.count))
-        fullname = dirname + outname
-        outfile = open(fullname, 'w')
-#        outfile.write('# File: ' + outname + '\n')
         outline = '# FILE      =  ' + outname + '\n'
         outfile.write(outline)
         self.noteA = self.noteA.replace('\n', '')
@@ -675,18 +672,54 @@ class Spectrum(object):
         outline = '# AST_VERS  = '  + str(self.version) + '\n'
         outfile.write(outline)
 
+        # end of write_ascii_header()
+        return
+
+    def write_ascii_file(self, dirname, outname, doFreq = True, \
+                         doHeader = True, doComputeX = False):
+        """
+        Write ascii file containing astronomy data
+        Inputs:  
+        dirname    Directory where spectra/event will be written
+        outname    Name of file to write
+        doFreq     Flag writting frequency or velocity
+        doHeader   Flag writting data header, or only intenisities
+        """
+        if self.writecount > 0:
+            print("File %4d: %s (%d)" % (self.writecount, outname, self.count))
+        fullname = dirname + outname
+        outfile = open(fullname, 'w')
+
+        # if writing the observation summary header
+        if doHeader:
+            self.write_ascii_header( outfile, outname, doFreq=doFreq)
+            
+    
         if self.nTime > 0:            # if an event
             self.nSpec = 0            # then not a spectrum
             
+        if doFreq:
+            outline = "# N  Frequency  Intensity \n"
+            outfile.write(outline)
+            outline = "#       (Hz)    (%s) \n" % (self.bunit)
+            outfile.write(outline)
+        else:
+            outline = "# N Velocity  Intensity \n"
+            outfile.write(outline)
+            outline = "#    (m/sec)  (%s) \n" % (self.bunit)
+            outfile.write(outline)
+
         # if a spectrum in this data stream
         if self.nSpec > 0:
             leny = len(self.ydataA)
             leny = min(self.nChan, leny)
             
+            dx = self.bandwidthHz/float(self.nChan)
+            if self.refChan <= 1:
+                print("Unusual Refchan: %d" % (self.refChan))
+            x = self.centerFreqHz - (dx * self.refChan)
             if doComputeX: # if recomputing x values
                 self.xdata = np.zeros(leny)
-                dx = self.bandwidthHz/float(self.nChan)
-                x = self.centerFreqHz - (dx * self.refChan)
 
                 # if not computing frequencies then computing velocities
                 if not doFreq:
@@ -698,6 +731,8 @@ class Spectrum(object):
                 for i in range(leny):
                     self.xdata[i] = x
                     x = x + dx
+                # end of recomputing x 
+            # if I/Q spectra
             if self.nSpec > 1:
                 pformat = "%04d %s %.4f %.4f\n"
                 for i in range(min(self.nChan, leny)):
@@ -712,6 +747,7 @@ class Spectrum(object):
                     outfile.write(outline)
                     x = x + dx
             del outline
+        # if this is an event
         if self.nTime > 0:
             dt = 1./self.bandwidthHz       # sample rate is inverse bandwidth
             t = -dt * self.refSample       # time tag relative to event sample
@@ -736,7 +772,6 @@ class Spectrum(object):
                     outline = outline.replace('-0.', '-.')
                     outfile.write(outline)
             else:                          # else writing sample #, time, I and Q
-                outline = "#       dt     I        Q\n"
                 outfile.write(outline)
                 pformat = "%04d %11.9f %7.5f %7.5f\n"
                 for i in range(self.nSamples):
