@@ -4,8 +4,8 @@
 
 # print only the angle of the TELLAT= line
 if [ -f /usr/bin/python3 ]; then
-    /usr/bin/python3 /home/pi/Research/analyze/iplatlon.py
+    /usr/bin/python3 ~/Research/analyze/iplatlon.py
 else
-    python /home/pi/Research/analyze/iplatlon.py
+    python ~/Research/analyze/iplatlon.py
 fi
 
