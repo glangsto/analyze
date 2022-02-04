@@ -3,6 +3,7 @@
 Class defining a Radio Frequency Spectrum
 Includes reading and writing ascii files
 HISTORY
+21Dec21 GIL remove extra print(), fix ephem help
 21Oct26 GIL merge in separating header from the data 
 21Oct02 GIL merge in writing of Velocities
 21SEP23 GIL Fix python3 version of ephem calculations
@@ -63,14 +64,11 @@ except ImportError:
     except:
         print('Ephemerous Python Code needed!')
         print('In Linux type:')
-        print('       sudo apt-get install python-dev')
-        print('       sudo apt-get install python-pip')
-        print('       sudo pip install ephem')
-        print(' - or - ')
-        print('       sudo pip3 install ephem')
+        print('       sudo apt-get install python3-dev')
+        print('       sudo apt-get install python3-pip')
+        print('       sudo apt-get install python3-ephem')
         print('')
         ephemOK = False
-#    exit()
 
 MAXCHAN = 4096
 OBSSURVEY = 0
@@ -685,15 +683,12 @@ class Spectrum(object):
         doFreq     Flag writting frequency or velocity
         doHeader   Flag writting data header, or only intenisities
         """
-        if self.writecount > 0:
-            print("File %4d: %s (%d)" % (self.writecount, outname, self.count))
         fullname = dirname + outname
         outfile = open(fullname, 'w')
 
         # if writing the observation summary header
         if doHeader:
             self.write_ascii_header( outfile, outname, doFreq=doFreq)
-            
     
         if self.nTime > 0:            # if an event
             self.nSpec = 0            # then not a spectrum
