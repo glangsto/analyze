@@ -5,15 +5,15 @@ export PYTHONPATH=~/bin:$PYTHONPATH
 # find the Local Sideral Time program
 if [ -f lstClock.py ]
 then
-    python lstClock.py
+    python3 lstClock.py
 else
     if [ -f ~/Research/analyze/lstClock.py ]
     then
-       python ~/Research/analyze/lstClock.py
+       python3 ~/Research/analyze/lstClock.py
     else
 	if [ -f ~/bin/lstClock.py ]
 	then
-	    python ~/bin/lstClock.py
+	    python3 ~/bin/lstClock.py
 	fi
     fi
 fi

@@ -10,7 +10,15 @@ Glen Langston,  2016 August 21
 ##################################################
 import datetime
 import angles
-import ephem
+try:
+    import ephem
+except:    
+    print("Must install ephem to compute coordinate locations")
+    print("Try:")
+    print("pip3 install ephem")
+    print("Good Luck!")
+    print("")
+    exit()
 
 def calclst(longitude=-79.8397, latitude=34.4331, elevation=0.):
     """
