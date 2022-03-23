@@ -24,23 +24,23 @@ from math import sin, cos, pi
 try: 
     import ephem
 except:
-    print "Must install pyephem to compute coordinate locations"
-    print "Try:"
-    print "pip install pyephem"
-    print "Good Luck!"
-    print ""
+    print("Must install ephem to compute coordinate locations")
+    print("Try:")
+    print("pip3 install ephem")
+    print("Good Luck!")
+    print("")
     exit()
 
 try: 
     import angles
 except:
-    print "Must include angles.py in your python search path"
+    print("Must include angles.py in your python search path")
     exit()
 
 try: 
     import radioastronomy
 except:
-    print "Must include radioastronomy.py in your python search path"
+    print("Must include radioastronomy.py in your python search path")
     exit()
 
 
@@ -51,7 +51,7 @@ except ImportError:
     try:
        from mtTkinter import *  # for thread safe
     except ImportError:
-       from Tkinter import *    # python 2
+       from tkinter import *    # python 2
 
 hasPIL = True
 # we need PIL for resizing the background image
@@ -142,12 +142,12 @@ def getlatestcoords():
     
     latestnote = os.popen("getlatest").read()
     if printOnce:
-        print 'Reading telescope parameters for the latest notes file.'
+        print('Reading telescope parameters for the latest notes file.')
     latestnote = latestnote.strip()
     if latestnote == "":
         if printOnce:
-            print "No Note File found in Current Directory"
-            print "Using default values"
+            print("No Note File found in Current Directory")
+            print("Using default values")
         tellon = '-79.8397'
         tellat = '38.4331' 
         telaz = '180'
@@ -158,11 +158,11 @@ def getlatestcoords():
         if True:
             latestnote = latestnote.strip()
             if printOnce:
-                print("About to read %s" % (latestnote))
+                print(("About to read %s" % (latestnote)))
                 
             rs.read_spec_ast(latestnote)
             if printOnce:
-                print("Successfully read %s" % (latestnote))
+                print(("Successfully read %s" % (latestnote)))
             tellon = str(rs.tellon)
             tellat = str(rs.tellat)
             telaz = str(rs.telaz)
@@ -217,12 +217,12 @@ class clock:
 
         telaz,telel,tellon,tellat = getlatestcoords()
         
-        print "Check Telescope Lon, Lat are correct!: ", tellon, tellat
+        print("Check Telescope Lon, Lat are correct!: ", tellon, tellat)
         self.me.lon = tellon
         self.me.lat = tellat
         self.me.elevation=800   # height in meters
 
-        print "Telescope Azimuth, Elevation: ", telaz, telel
+        print("Telescope Azimuth, Elevation: ", telaz, telel)
 
         self.az = telaz
         self.el = telel
@@ -251,7 +251,7 @@ class clock:
         dec = "%s" % radec.dec
         parts = dec.split(".")
         self.dec = parts[0]
-        print "Galactic Longitude, Latitude: ", self.gallon, self.gallat
+        print("Galactic Longitude, Latitude: ", self.gallon, self.gallat)
 
         if self.showImage:
            self.fluImg = Image.open(self.imgPath)
