@@ -2,6 +2,7 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#22Mar23 GIL pull out leading pi from file name
 #21Aug21 GIL deal with different length event files
 #21Aug05 GIL matplotlib updates
 #21Mar21 GIL initialize t variable for computing M
@@ -21,8 +22,10 @@ import radioastronomy
 import interpolate
 import numpy as np
 
+# set default offset
 dy = -1.
-
+# set default telescope index
+intel = 0
 nargs = len( sys.argv)
 
 linestyles = ['-','-.','-', '-', '--','-.','--','-','--','--','--','-.','-','--','-.','-','--','-.','-','--','-','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.']
@@ -54,6 +57,7 @@ if nargs < 2:
     print("  -P write PNG and PDF files instead of showing plot")
     print("  -A Show Az,El instead of Ra,Dec")
     print("  -B <sample> Set first sample to plot (default is 1/4 of samples)")
+    print("  -I <telescope index> Set the telescope identifier number")
     print("  -E <sample> Set last sample to plot (default is end of samples)")
     print("  -M Compute Magnitude")
     print("  -Y <offset> optionally add an offset to each plot")
@@ -83,6 +87,9 @@ while iarg < nargs:
     elif sys.argv[iarg].upper() == '-E':   # if setting ending sample
         iarg = iarg + 1
         xb = int( sys.argv[iarg])
+    elif sys.argv[iarg].upper() == '-I':   # if setting ending sample
+        iarg = iarg + 1
+        intel = int( sys.argv[iarg])
     elif sys.argv[iarg].upper() == '-M':   # if labeling AzEl
         doMag = True
     elif sys.argv[iarg].upper() == '-P':
@@ -132,6 +139,20 @@ for iii in range(namearg, min(nargs,25)):
     date  = parts[0]
     time  = parts[1]
 
+# if the pi??-events name is present get index
+    itel = intel
+    piparts = filename.split('-events')
+    # if '-events' in the file 
+    if len(piparts) > 0:
+        telparts = piparts[0]
+        print(telparts)
+        # if directory starts with pi
+        if telparts[0:2] == "pi":
+            # keep the integer value
+            telparts = telparts[2:]
+            print(telparts)
+            itel = int(telparts)
+            
     if firstdate == "":
         firstdate = date
     lastdate = date
@@ -157,9 +178,11 @@ for iii in range(namearg, min(nargs,25)):
     ra = rs.ra
     dec = rs.dec
     if doAzEl:
-        label = '%s A,E: %5.1f,%5.1f' % ( time,rs.telaz,rs.telel)
+       label = '%s A,E: %5.1f,%5.1f' % ( time,rs.telaz,rs.telel)
     else:
         label = '%s R,D: %6.2f,%6.2f, Lon,Lat=%5.1f,%5.1f' % ( time,rs.ra,rs.dec,gallon,gallat)
+    if itel > 0:
+        label = ("%d: " % (itel)) + label
     if (xa < 0) or (lastn != rs.nSamples):
           xa = int(rs.nSamples/4)
     if (xb < 0) or (lastn != rs.nSamples):
