@@ -1,5 +1,7 @@
 #Python find matchs in data directories
 #HISTORY
+#22Apr07 GIL fix histogram alignment
+#21Dec14 GIL color in the bars in the counts/hour plot
 #21Sep01 GIL ignore data for El < 0
 #21MAY10 GIL clean up sun plotting
 #21APR30 GIL fix sun azimuth when pointed north
@@ -348,6 +350,8 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
         calendar = strparts[0]
 
     yoffset = 0
+    barcolors = ["lightcyan", "wheat", "greenyellow", "mistyrose", \
+                 "wheat", "lightgrey", "mintcream"]
     for ddd in range( nDir):
         adir = EventDirs[ddd]['dir']
         nEve = EventDirs[ddd]['n']
@@ -357,9 +361,14 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
         alabel = labelparts[0]
         # duplicate the last value to complete the plot
         counts = np.append( counts, counts[nday-1])
-        
+        ybottom = yoffset + (0.* counts)
 # time epsilon to unhide multiple events
-        plt.step( utcparts, counts + yoffset, where='post', label=alabel)
+        plt.step( utcparts, counts + yoffset, where="post", label=alabel)
+#        plt.bar( utcparts, counts, bottom=ybottom, align="center", \
+#        plt.bar( utcparts, counts, bottom=ybottom, align="edge", \
+        plt.bar( utcparts, counts, bottom=ybottom, align="edge", \
+                  label=None, color=barcolors[ddd])
+        #                  where='post', label=alabel)
         maxcounts = np.max(counts)
         yoffset = yoffset + maxcounts
 # keep the maximum of all points for scaling plot labels
@@ -373,7 +382,7 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
     xa = utcOffsetHours
     ya = max0 - yoffset
     ax.annotate(alabel, xy=( xa, ya), xytext=(xa , ya) )
-    verticalcolors = ['r','g','b','c','m', 'k']
+    verticalcolors = ['pink','g','lightblue','c','m', 'k']
     # get Local Ra, Dec at UTC midnight
     utcstr = str(rs.utc)
     parts = utcstr.split()
@@ -485,7 +494,7 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
     asite = EarthLocation(lat=lat*u.deg, lon=lon*u.deg, height=height*u.m)
 
     # prepare to draw +- 10 degrees of galactic plane
-    nGalactic = 180
+    nGalactic = 90
     nG4 = int(nGalactic/4)
     if doGalactic:
         utc = utc0
@@ -501,15 +510,16 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
             bbb = azel.galactic.b.degree
             lll = azel.galactic.l.degree
             utc = utc + dt
-            ygal = -3.*nDir
+            ygal = ytop * 1.02    # set gold galactic line placement at top
             if bbb < minlat and bbb > -minlat:
                 xgal = 24.*mmm/nGalactic
-                ax.annotate("*", xy=( xgal, ygal), color='orange')
+                ax.annotate("*", xy=( xgal, ygal), color='gold')
 
     # now draw vertical lines for events
     iplot = 0
     for iii in range(nall):
-        x4 = match4times[iii] - mjdRef + (0.5/float(nday))
+#        x4 = match4times[iii] - mjdRef + (0.5/float(nday))
+        x4 = match4times[iii] - mjdRef
         x4 = (x4*24.) % 24.
         # now compute x position for this MJD 
         # MJD midnight = UTC midnight.
@@ -537,11 +547,11 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
     plt.legend()
     if nDir == 1:
         plt.title("%s   Events per Hour" % (calendar))
-        plt.xlabel("Time (UTC hours, %s offset: %2.0f hours)" % (timezone, utcOffsetHours))
+        plt.xlabel(("Time (UTC hours, %s offset: %2.0f hours)" % (timezone, utcOffsetHours)), fontsize=16)
     else:
         plt.title("%s   Events per Hour for %d Observations" % (calendar, nDir))
-        plt.xlabel("Time (UTC hours, %s offset: %2.0f hours) (Distinct Event Count: %d)" % (timezone, utcOffsetHours, nUnique))
-    plt.ylabel("Count of Events")
+        plt.xlabel("Time (UTC hours, %s offset: %2.0f hours) (Distinct Event Count: %d)" % (timezone, utcOffsetHours, nUnique), fontsize=16)
+    plt.ylabel("Count of Events/Hour", fontsize=16)
     plt.xlim(0.,24.) # 24 hours/per day
     plotfile = 'match-%s.png' % (calendar)
     fig = plt.gcf()
@@ -551,7 +561,21 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
 
     return
 # end of plotHistogram
-        
+
+def writeHornSummary( summaryFile, dirname, nShort, nLong, az, el):
+    """
+    write a summary of the events detected by one horn telescope
+    inputs:
+    summaryfile - an open file for write with append
+    dirname - telescope event directory, includes name and date
+    nShort - number of short events seen
+    nLong - number of long events seen
+    """
+    outstr = "%s %5d %5d %6.1f %6.1f" % (dirname, nShort, nLong, az, el)
+    
+    summaryFile.write(outstr)
+    return
+    
 def main():
     """
     Main executable for matching transient events

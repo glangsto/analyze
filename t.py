@@ -1,6 +1,9 @@
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#22MAR27 GIL median option for output vector
+#22FEB18 GIL Bucket Horn RFI lines
+#22FEB02 GIL add additional RFI lines temporarily
 #21JUN26 GIL add option to write velocities
 #21MAY09 GIL optionally flag 1422.0 MHz
 #21FEB23 GIL add a zero intensity line option
@@ -46,6 +49,7 @@ import datetime
 import radioastronomy
 import copy
 import interpolate
+import tsys
 
 # define a small number
 EPSILON = 1.E-10
@@ -56,12 +60,14 @@ fileTag = ""
 # default values
 avetimesec = 3600.
 # put your list of known RFI features here.  Must have at least two.
-linelist = [1400.00, 1418.21, 1420.0, 1422.0]  # RFI lines in MHz
-linewidth = [5, 15, 5, 7]
-#linelist = [1400.00, 1420.0]  # RFI lines in MHz
-#linewidth = [5, 5]
+#linelist = [1400.00, 1418.21, 1420.0, 1422.0]  # RFI lines in MHz
+linelist = [1400.00, 1419.92, 1420.0, 1421.24, 1421.39, 1421.54]  # RFI lines in MHz
+linelist = [1400.00, 1419.49, 1419.63, 1419.93, 1420.0, 1420.37, 1420.66, 1420.95, 1421.1, 1421.25, 1421.39, 1421.54]  # RFI lines in MHz
+linewidth = [5, 8, 7, 8, 8, 8]
+nlist = len (linelist)
+nwidth = len(linewidth)
 # min and maximum default velocities
-maxvel = 220.
+maxvel = 175.
 minvel = -maxvel
 # min and max velocities for intensity integration
 maxSVel = 150.  # symetric integration
@@ -125,6 +131,7 @@ nuRefFreq = nuh1
 thot = 285.0  # define hot and cold load temperatures
 #thot = 272.0  # 30 Farenheit = 272 K
 tcold = 10.0
+nwidth = 0
 
 iarg = 1
 if nargs < 3:
@@ -137,6 +144,7 @@ if nargs < 3:
     print("-D optionally print extra debugging info")
     print("-E optionally to not estimate Barycentric Velocity offset")
     print("-F <order> optionally do a polynomial baseline fit")
+    print("-G <halfwidth> median filter the output vector")
     print("-I optionally set Processor/Telescope Index on Plot Label")
     print("-H optionally set the high velocity region for baseline fit")
     print("-K optionally keep average hot and cold load calibration files")
@@ -196,6 +204,12 @@ while iarg < nargs:
             print("Fitting a linear baseline")
         else:
             print(("Fitting a %d-nd order polynomical baseline" % (fitOrder)))
+    elif sys.argv[iarg].upper() == '-G':
+        iarg = iarg+1
+        nwidth = int( sys.argv[iarg])
+        if nwidth < 2:
+            nwidth = 2
+        print("Median Filter Half Width: %d" % (nwidth))
     elif sys.argv[iarg].upper() == '-H':
         iarg = iarg+1
         maxvel = np.float( sys.argv[iarg])
@@ -302,6 +316,17 @@ except:
           sys.argv[timearg])
     exit()
     
+if nlist > nwidth and doDebug:
+    print("Increasing line width array size")
+    newwidth = (np.arange( 0, nlist) * 0)
+    newwidth = newwidth + linewidth[nwidth-1]
+    #copy over previously set values
+    newwidth[0:nwidth-1] = linewidth[0:nwidth-1]
+    linewidth = newwidth
+    print(linewidth)
+#linelist = [1400.00, 1420.0]  # RFI lines in MHz
+#linewidth = [5, 5]
+
 if plotFrequency:
     print(( "Plotting Intensity vs Frequency, Average time: %d (seconds)" % (avetimesec)))
 else:
@@ -345,7 +370,7 @@ dt = datetime.timedelta(seconds=0.)
 
 # rest of arguments are file names
 names = sys.argv[namearg:]
-names = sorted(names)
+#names = sorted(names)
 nFiles = len(names)
 if nFiles < 2:
     print(("Not enough names to calibrate: %s" % (nFiles)))
@@ -897,6 +922,8 @@ for filename in names:
         ncolor = min(nmax-1, nplot) 
 
         tsky, vel = compute_tsky_hotcold( xv, yv, hv, cv, thot, tcold)
+        if nwidth > 2:
+            tsky = tsys.medianfilter( tsky, nwidth)
         # get tsys from averages of ends of spectra
         tSys = np.median(tsky[n6:n56])
         tStdA = np.std(tsky[n6:n26])

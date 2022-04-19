@@ -10,15 +10,42 @@ Revised to store more data
 try:
     import statistics
 except ImportError:
-    print 'Missing statistics python Code!'
-    print 'If using Linux, type the following:'
-    print '  sudo pip install statistics'
+    print('Missing statistics python Code!')
+    print('If using Linux, type the following:')
+    print('  sudo pip install statistics')
     raise RuntimeError("Please Install statistics!")
     
 import radioastronomy
 import numpy as np
 
-MAXCHAN = 1024
+MAXCHAN = 4096
+
+def medianfilter(mydata, nwidth):
+    """
+    Compute median of a vector
+    """
+    ndata = len( mydata)
+    if nwidth < 2:
+        print(("Median Width too small: %d < 2" % (nwidth)))
+        return( mydata)
+    if ndata < nwidth:
+        print(("Data array too small: %d < width (%d)" % (ndata, nwidth)))
+        return( mydata)
+    # initialize the output array
+    outdata = mydata
+    for iii in range(ndata):
+        b = iii - nwidth
+        e = iii + nwidth + 1
+        if b < 0:
+            b = 0
+        if e >= ndata:
+            e = ndata-1
+#        if iii > ndata-(2*nwidth):
+#            print("%d (%d to %d)" % (iii, b, e))
+        a = statistics.median(mydata[b:e]) * .8
+        b = mydata[iii] * .2
+        outdata[iii] = a + b 
+    return outdata
 
 class Tsys(object):
     """
@@ -73,7 +100,7 @@ class Tsys(object):
         if (chot - ccold) != 0:
             tsys = ((self.dt * ccold))/(chot - ccold)
         else:
-            print "No differnce between hot and cold load counts"
+            print("No differnce between hot and cold load counts")
         return tsys
 
     def tcalc( self, yhot, ycold, yoff):
@@ -135,7 +162,7 @@ class Tsys(object):
         samples[indicies] = self.epsilon
         thot = statistics.median( samples[:MAXCHAN]*self.gain[:MAXCHAN])
         if thot > self.dt:
-            print "gaincalc: Hot Load Equivalent Temperature: %8.3f (K)" % (thot)
+            print("gaincalc: Hot Load Equivalent Temperature: %8.3f (K)" % (thot))
         self.gain = thot/samples[:MAXCHAN]
         return
 

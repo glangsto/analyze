@@ -2,6 +2,7 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#22Apr07 GIL clean up messages
 #22Mar23 GIL pull out leading pi from file name
 #21Aug21 GIL deal with different length event files
 #21Aug05 GIL matplotlib updates
@@ -145,12 +146,12 @@ for iii in range(namearg, min(nargs,25)):
     # if '-events' in the file 
     if len(piparts) > 0:
         telparts = piparts[0]
-        print(telparts)
+#        print(telparts)
         # if directory starts with pi
         if telparts[0:2] == "pi":
             # keep the integer value
             telparts = telparts[2:]
-            print(telparts)
+#            print(telparts)
             itel = int(telparts)
             
     if firstdate == "":
