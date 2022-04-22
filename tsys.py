@@ -12,7 +12,7 @@ try:
 except ImportError:
     print('Missing statistics python Code!')
     print('If using Linux, type the following:')
-    print('  sudo pip install statistics')
+    print('  sudo pip3 install statistics')
     raise RuntimeError("Please Install statistics!")
     
 import radioastronomy
@@ -22,7 +22,8 @@ MAXCHAN = 4096
 
 def medianfilter(mydata, nwidth):
     """
-    Compute median of a vector
+    Compute median filtered version of a vector
+    nwidth is the half width of the filter, in samples.
     """
     ndata = len( mydata)
     if nwidth < 2:

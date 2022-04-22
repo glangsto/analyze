@@ -1,6 +1,7 @@
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#22APR20 GIL find channels at the velocities identified
 #22MAR27 GIL median option for output vector
 #22FEB18 GIL Bucket Horn RFI lines
 #22FEB02 GIL add additional RFI lines temporarily
@@ -131,7 +132,7 @@ nuRefFreq = nuh1
 thot = 285.0  # define hot and cold load temperatures
 #thot = 272.0  # 30 Farenheit = 272 K
 tcold = 10.0
-nwidth = 0
+nmedian = 0
 
 iarg = 1
 if nargs < 3:
@@ -206,10 +207,10 @@ while iarg < nargs:
             print(("Fitting a %d-nd order polynomical baseline" % (fitOrder)))
     elif sys.argv[iarg].upper() == '-G':
         iarg = iarg+1
-        nwidth = int( sys.argv[iarg])
-        if nwidth < 2:
-            nwidth = 2
-        print("Median Filter Half Width: %d" % (nwidth))
+        nmedian = int( sys.argv[iarg])
+        if nmedian < 2:
+            nmedian = 2
+        print("Median Filter Half Width: %d" % (nmedian))
     elif sys.argv[iarg].upper() == '-H':
         iarg = iarg+1
         maxvel = np.float( sys.argv[iarg])
@@ -563,6 +564,8 @@ else:
 # convert to MHz
 xv = ave_hot.xdata * 1.E-6
 hv = copy.deepcopy(ave_hot.ydataA)
+if nmedian > 2:
+    hv = tsys.medianfilter( hv, nmedian)
 
 nData = len( xv)        # get data length and indicies for middle of spectra 
 n6 = int(nData/6)
@@ -716,6 +719,8 @@ else:
     ave_cold, ncold = read_cold( names, ave_cold, lowel, lowGlat)
 
 cv = copy.deepcopy(ave_cold.ydataA)
+if nmedian > 2:
+    cv = tsys.medianfilter( cv, nmedian)
 
 # if keeping hot and cold files
 if doKeep:
@@ -750,17 +755,30 @@ for iii in range(nData):
     trx[iii] = (cv[iii]/gainHC[iii]) - tcold
 
 #now prepare to compute tRx, which is based only on cold load observations
-tRxA = np.median(trx[n6:n26])
-tRxB = np.median(trx[n46:n56])
+#try to use the channels just outside the velocity ranges defined
+nrms = 25 # define the number of channels for RMS calculation
+xa0 = xa - nrms
+if xa0 < 0:
+    xa0 = 0
+    xa = nrms
+tRxA = np.median(trx[xa0:xa])
+xbe = xb + nrms
+if xbe > nData - 1:
+    xbe = nData - 1
+    xb = nData - nrms
+tRxB = np.median(trx[xb:xbe])
 tRxMiddle = (tRxA + tRxB)*.5
 
-tStdA = np.std(trx[n6:n26])
-tStdB = np.std(trx[n46:n56])
+tStdA = np.std(trx[xa0:xa])
+tStdB = np.std(trx[xb:xbe])
 tRms  = (tStdA + tStdB) * .5
 #after this point, only the hot load observations are used to compute sys
 #No cold observations are used for calibration, except for computing tRxMiddle
 
-print(( "Median Receiver Temp: %7.2f +/- %5.2f (%5.2f %5.2f) (K)" % ( tRxMiddle, tRms, tStdA, tStdB)))
+if nmedian > 2:
+    trx = tsys.medianfilter( trx, nmedian)
+    
+print(( "Median Receiver Temp: %7.3f +/- %6.3f (%6.3f %6.3f) (K)" % ( tRxMiddle, tRms, tStdA, tStdB)))
 
 # for remainder of calculations only use hot counts for calibration
 # Using hot load only reduces interference effects
@@ -770,8 +788,8 @@ for iii in range(nData):
     if gain[iii] < EPSILON:
         gain[iii] = EPSILON
 
-gainA = np.median(gain[n6:n26])
-gainB = np.median(gain[n46:n56])
+gainA = np.median(gain[xa0:xa])
+gainB = np.median(gain[xb:xbe])
 gainAve = 2.0/(gainA + gainB)  # Report gain in K per Count 
 
 def compute_tsky_hotcold( xv, yv, hv, cv, thot, tcold):
@@ -922,16 +940,18 @@ for filename in names:
         ncolor = min(nmax-1, nplot) 
 
         tsky, vel = compute_tsky_hotcold( xv, yv, hv, cv, thot, tcold)
-        if nwidth > 2:
-            tsky = tsys.medianfilter( tsky, nwidth)
+        if nmedian > 2:
+            tsky = tsys.medianfilter( tsky, nmedian)
         # get tsys from averages of ends of spectra
-        tSys = np.median(tsky[n6:n56])
-        tStdA = np.std(tsky[n6:n26])
-        tStdB = np.std(tsky[n46:n56])
-        cA = np.median(cv[n6:n26])
-        cB = np.median(cv[n46:n56])
+        tSysA = np.median(tsky[xa0:xa])
+        tSysB = np.median(tsky[xb:xbe])
+        tStdA = np.std(tsky[xa0:xa])
+        tStdB = np.std(tsky[xb:xbe])
+        cA = np.median(cv[xa0:xa])
+        cB = np.median(cv[xb:xbe])
         counts = (cA+cB)/2.
         tStd = (tStdA+tStdB)/2.
+        tSys = (tSysA+tSysB)/2.
         ave_spec.tSys = tSys
         ave_spec.tRx = tRxMiddle
         ave_spec.tRms = tStd
