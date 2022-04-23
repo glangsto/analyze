@@ -83,6 +83,31 @@ def fit_baseline( xs, ys, imin, imax, nchan, fitOrder, doDebug=False):
 
     return yout
 
+def fit_range( xs, ys, xa0, xa, xb, xbe, fitOrder, doDebug=False):
+    """
+    fit baseline does a polynomical fit over channels in a select range
+    The baseline is returned. 
+    Inputs: 
+    xs     x axis values
+    ys     y axis values
+    xa0, xa  one 
+    xb, xbe  2nd range of x,y channels to fit (maximum side)
+    nchan 
+    """
+    
+    xfit = np.concatenate( (xs[xa0: xa], xs[xb:xbe]))
+    yfit = np.concatenate( (ys[xa0: xa], ys[xb:xbe]))
+# calculate polynomial (0=constant, 1=linear, 2=2nd order, 3=3rd order
+    z = np.polyfit(xfit, yfit, fitOrder)
+    if doDebug:
+        print("2nd order Fit Coefficients: %s" % (z))
+    f = np.poly1d(z)   # f is a function that is used to compute y values
+
+# calculate y's from the xs
+    yout = f(xs)
+
+    return yout
+
 def compute_vbarycenter( spectrum, doDebug=False):
     """ 
     Compute the velocity correction to Barycentric for this date and direction

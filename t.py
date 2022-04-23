@@ -1,6 +1,12 @@
+"""
+t.py computes the calibrated temperature versus frequency or velocity
+spectrum of radio astronomy observations.
+Glen Langston National Scioence Foundation
+"""
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#22APR22 GIL put sun functions in hotcold.py
 #22APR20 GIL find channels at the velocities identified
 #22MAR27 GIL median option for output vector
 #22FEB18 GIL Bucket Horn RFI lines
@@ -19,7 +25,7 @@
 #20JUN02 GIL plot frequency if velocity out of range
 #20MAY06 GIL update help
 #20APR30 GIL update help
-#20APR28 GIL write hot and cold obs 
+#20APR28 GIL write hot and cold obs
 #20APR25 GIL use average_spec() and normalize_spec() for hot+cold
 #20APR24 GIL optionally save raw hot and cold load obs
 #20APR22 GIL improve estimate of integrated intensity
@@ -29,11 +35,10 @@
 #20APR14 GIL add log of calibration values
 #20APR01 GIL reduce printout
 #19DEC30 GIL add title option
-#19SEP23 GIL use function for averaging 
+#19SEP23 GIL use function for averaging
 #19SEP21 GIL fix finding extra spectrum
 #19SEP11 GIL do not use statistics, use numpy equivalent
-#18DEC11 GIL minor code cleanup 
-#18MAR05 GIL implement folding option
+#18DEC11 GIL minor code cleanup
 #18FEB06 GIL keep track of first az,el
 #17AUG18 GIL plot the last spectrum in the series
 #17AUG17 GIL Note elevation range
@@ -43,17 +48,18 @@
 #15AUG30 add option to plot range fo values
 #15JUL01 GIL Initial version
 #
-import matplotlib as mpl
-import numpy as np
 import sys
-import datetime
-import radioastronomy
 import copy
+import datetime
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import gainfactor as gf
+import radioastronomy
 import interpolate
 import tsys
+import hotcold
 
-# define a small number
-EPSILON = 1.E-10
 # Maximum number of Plots
 maxPlot = int(25)
 fileTag = ""
@@ -78,7 +84,6 @@ cpuIndex = 0
 # Keep/plot baseline Subtracted spectra
 doBaseline = False
 
-nargs = len(sys.argv)
 #first argument is the averaging time in seconds
 timearg = 1
 namearg = 2
@@ -91,8 +96,6 @@ flagRfi = False
 writeTsys = False
 # write calibrated intensities, Kelvin
 writeKelvin = False
-# to address an old problem, optionally allow folding spectra
-doFold = False
 # Usually writing file header, but optionally skip
 doWriteHeader = True
 # if limiting velocity output to specified min and max velocity
@@ -119,22 +122,22 @@ doScaleAve = False
 doZero = False
 
 # define reference frequency for velocities (MHz)
-nuh1 = 1420.40575 # neutral hydrogen frequency (MHz)
-nuoh1= 1612.231   # OH line
-nuoh2= 1665.402   # OH line
-nuoh3= 1667.359   # OH Line
-nuoh4= 1720.530   # OH Line
+NUH1 = 1420.40575 # neutral hydrogen frequency (MHz)
+NUOH1= 1612.231   # OH line
+NUOH2= 1665.402   # OH line
+NUOH3= 1667.359   # OH Line
+NUOH4= 1720.530   # OH Line
 
 # select the frequency for plotting velocities
-nuRefFreq = nuh1
+nuRefFreq = NUH1
 
 # define hot and cold load temperatures
 thot = 285.0  # define hot and cold load temperatures
-#thot = 272.0  # 30 Farenheit = 272 K
-tcold = 10.0
+tcold = 2.7
 nmedian = 0
 
 iarg = 1
+nargs = len(sys.argv)
 if nargs < 3:
     print("T: Comput Tsys calibrated horn observations")
     print("Usage: T [-F <order>] [-L <velocity>] [-H <velocity>] <_seconds> <files>")
@@ -146,8 +149,8 @@ if nargs < 3:
     print("-E optionally to not estimate Barycentric Velocity offset")
     print("-F <order> optionally do a polynomial baseline fit")
     print("-G <halfwidth> median filter the output vector")
-    print("-I optionally set Processor/Telescope Index on Plot Label")
     print("-H optionally set the high velocity region for baseline fit")
+    print("-I optionally set Processor/Telescope Index on Plot Label")
     print("-K optionally keep average hot and cold load calibration files")
     print("-L optionally set the low velocity region for baseline fit")
     print("-N <number> optionally set the number of spectra to plot")
@@ -168,8 +171,8 @@ if nargs < 3:
     print("-MINEL optionally set the lowest elevation allowed for calibration obs (default 60d)")
     print("Observation file list must include at least one hot load file")
     print("")
-    print("Glen Langston - NSF   June 27, 2021")
-    exit()
+    print("Glen Langston - NSF April 22, 2022")
+    sys.exit()
 
 # for all arguments, read list and exit when no flag argument found
 while iarg < nargs:
@@ -260,7 +263,7 @@ while iarg < nargs:
     elif sys.argv[iarg].upper() == '-V':   # limit velocity output
         doLimitVel = True
         print('Limiting Output Velocities to User Specified range')
-    elif sys.argv[iarg].upper() == '-X':   # if cold load temperature 
+    elif sys.argv[iarg].upper() == '-X':   # if cold load temperature
         iarg = iarg+1
         tcold = float(sys.argv[iarg])
         print('Cold Load Reference Temperature: %9.3f Kelvins' % (tcold))
@@ -268,7 +271,7 @@ while iarg < nargs:
         iarg = iarg+1
         thot = float(sys.argv[iarg])
         print(( 'Hot  Load Reference Temperature: %9.3f Kelvins' % (thot)))
-    elif sys.argv[iarg].upper() == '-MINEL':  # if min elevation 
+    elif sys.argv[iarg].upper() == '-MINEL':  # if min elevation
         iarg = iarg + 1
         lowel = float( sys.argv[iarg])
         print(( "Using elevations > %7.2f (d) for Cold load calculation" % \
@@ -292,12 +295,10 @@ while iarg < nargs:
 # to create plots in cronjobs, must use a different backend
 if doPlotFile:
     mpl.use('Agg')
-import matplotlib.pyplot as plt
-import gainfactor as gf
-if doBary: 
+if doBary:
     try:
         from PyAstronomy import pyasl
-        baryCenterAvailable = True
+        BARYCENTERAVAILABLE = True
     except:
         print("!!!! Unable to import PyAstronomy !!!!")
         print("Can not compute Bary Center velocity offset")
@@ -305,18 +306,18 @@ if doBary:
         print("sudo pip install PyAstronomy")
         print("or")
         print("sudo pip3 install PyAstronomy")
-        baryCenterAvailable = False
+        BARYCENTERAVAILABLE = False
 else:
-    baryCenterAvailable = False
-    
+    BARYCENTERAVAILABLE = False
+
 #first argument is the averaging time in seconds
-try: 
+try:
     avetimesec = float(sys.argv[timearg])
 except:
     print("Error: Can not parse %s as a valid average time (seconds)" % \
           sys.argv[timearg])
-    exit()
-    
+    sys.exit()
+
 if nlist > nwidth and doDebug:
     print("Increasing line width array size")
     newwidth = (np.arange( 0, nlist) * 0)
@@ -346,8 +347,7 @@ yallmax = ymax
 yallmin = ymin
 # velocities for fitting baselines
 
-c = 299792.458  # (Speed of light  km/sec)
-tmin = 20.0 
+tmin = 20.0
 tmax = 999.0 # define reasoanable value limits
 
 # prepare to remove a linear baseline
@@ -375,178 +375,13 @@ names = sys.argv[namearg:]
 nFiles = len(names)
 if nFiles < 2:
     print(("Not enough names to calibrate: %s" % (nFiles)))
-    
+
 # create the spectrum class/structure to receive spectra
 rs = radioastronomy.Spectrum()
-ave_hot  = radioastronomy.Spectrum()
 ave_cold = radioastronomy.Spectrum()
+ave_hot = radioastronomy.Spectrum()
 
-def average_spec( ave_spec, in_spec, nave, firstutc, lastutc):
-    """
-    Averages spectra and deal with issues of weighting functions by observing duration
-    input/output
-    ave_spec   spectrum structure containing weighted average
-    input:
-    in_spec    spectrum to be added to the average
-    in/out:
-    nave       Count of number of spectra averaged so far.
-               nave = 0 implies initializing the sum.
-    firstutc   date of first observation averaged
-    lastutc    date of current last date of spectrum to be averaged
-    """
-
-    if doDebug:
-        medianData = np.median( in_spec.ydataA[n6:n56])
-    # remove number of spectra averaged scaling.
-    if doDebug:
-        medianScale = np.median( in_spec.ydataA[n6:n56])
-        print(( "Input: %8.3f, count: %6d; Scale: %8.3f" % (medianData, in_spec.count, medianScale)))
-
-    # if restarting the sum
-    if nave == 0:
-        ave_spec = copy.deepcopy(in_spec)  # initial spectrum is one just read
-        firstutc = in_spec.utc
-        lastutc = in_spec.utc
-        nave = 1
-        # print( 'Xmin: ', min(ave_spec.xdata)/1e6, 'Xmax: ', max(ave_spec.xdata),' MHz')
-        # sums are weighted by durations
-        ave_spec.ydataA = (in_spec.ydataA * in_spec.durationSec)  # replace with duration scaleing
-        # keep track of observing time for weighted sum
-        ave_spec.durationSec = in_spec.durationSec
-    else: # else not enough time yet, average ave_spec data
-        if in_spec.utc < firstutc:
-            firstutc = in_spec.utc
-        elif in_spec.utc > lastutc:
-            lastutc = in_spec.utc
-#        ave_spec.count = ave_spec.count + in_spec.count
-        nave = nave + 1
-        ave_spec.ydataA = ave_spec.ydataA + (in_spec.ydataA * in_spec.durationSec)
-        # keep track of observing time for weighted sum
-        ave_spec.durationSec = ave_spec.durationSec + in_spec.durationSec
-        
-    return ave_spec, nave, firstutc, lastutc
-
-def normalize_spec( ave_spec, firstutc, lastutc):
-    """
-    Normaize the average after completing sum
-    input/output
-    ave_spec   input raw sum of observation 
-               output normalized sum of observations
-    input      first and last utcs in observation
-    Note:  The count of observations is not used, rather the integration
-    is weighted by durations.  This corrects for observations with 
-    different integration times.
-    """
-    # now renormalize for total integration time
-    ave_spec.ydataA = ave_spec.ydataA/float(ave_spec.durationSec)
-    # compute average time from first and last utcs
-    aveutc, duration = radioastronomy.aveutcs( firstutc, lastutc)
-    ave_spec.utc = aveutc
-    #need to re-calculate representative RA,Dec for average time
-    ave_spec.azel2radec()
-    return ave_spec
-
-# record the time range of hot load observations and count of observations
-firstutc = 0
-lastutc = 0    
-nhot = 0
-
-def read_hot( names, ave_hot):
-    """
-    read_hot() reads in all files in the names list and averages hot load
-    observations.   The hot load file is returned.
-    While reading the files, the minmum elevation and galactic latitudes are recorded
-    """
-
-    rs = radioastronomy.Spectrum()
-    nhot = 0       # init count of hot files
-    minGlat = +90.
-    maxGlat = -90.
-    minel = 200.
-    maxel = -200.
-
-    # now run through and find hot and cold loads obs
-    for filename in names:
-
-        parts = filename.split('/')
-        nparts = len(parts)
-        if nparts == 1:
-            aname = parts[0]
-        else:
-            aname = parts[nparts-1]
-        parts = aname.split('.')
-        nparts = len(parts)
-        if nparts < 2:
-            print(( 'File is not an astronomy file: %s' % (filename)))
-            continue
-        else:
-            extension = parts[nparts-1]
-        extension = extension.upper()
-        if (extension != 'HOT') and (extension != 'AST') and (extension != 'CLD'):
-            print(( 'Extension not recognized : %s' % ( parts[nparts-1])))
-            continue
-
-        rs.read_spec_ast(filename)
-        if doScaleAve:
-            rs.ydataA = rs.ydataA/rs.count
-        else:
-            rs.ydataA = rs.ydataA/rs.nave
-        
-        nChan = len( rs.ydataA)
-        if nChan != 32 and nChan != 64 and nChan != 128 and nChan != 256 and \
-           nChan != 512 and nChan != 1024 and nChan != 2048 and nChan != 4096:
-            print("Unusual data length (%d) for file %s" % (nChan, filename))
-            print("Skipping use in averages")
-            continue
-        rs.azel2radec()    # compute ra,dec from az,el
-
-        # if a hot load observation
-        if rs.telel < 0:
-            if nhot == 0:
-                firstutc = rs.utc
-                lastutc = rs.utc
-        # accumulate spectra, nhot is updated also
-            ave_hot, nhot, firstutc, lastutc = \
-                average_spec( ave_hot, rs, nhot, firstutc, lastutc)
-            if rs.gallat > maxGlat:
-                maxGlat = rs.gallat
-            if rs.gallat < minGlat:
-                minGlat = rs.gallat
-            if minel > rs.telel:
-                minel = rs.telel
-            if maxel < rs.telel:
-                maxel = rs.telel
-        else: # else above horizon, find min, max galactic latitudes
-            if rs.gallat > maxGlat:
-                maxGlat = rs.gallat
-            if rs.gallat < minGlat:
-                minGlat = rs.gallat
-            if minel > rs.telel:
-                minel = rs.telel
-            if maxel < rs.telel:
-                maxel = rs.telel
-        # end for all files
-
-    if nhot > 0:
-        print(( "Found %3d Hot load observations" % (nhot)))
-        ave_hot = normalize_spec( ave_hot, firstutc, lastutc)
-    else:
-        print( "No Hot load data, can not calibrate")
-        exit()
-
-    # do more cleanup on spectra for RFI
-    if flagRfi:
-        yv = copy.deepcopy(ave_hot.ydataA)
-        xv = ave_hot.xdata * 1.E-6
-        hv = interpolate.lines( linelist, linewidth, xv, yv) # interpolate rfi
-        ave_hot.ydataA = hv
-
-    # now obsolete option to fold spectra, when a problem with SDR I-Q balance 
-    if doFold:
-        ave_hot.foldfrequency()
-
-    return ave_hot, minel, maxel, minGlat, maxGlat
-
+# comput the hot and cold spectra from the input names
 if hotFileName != "":
     ave_hot.read_spec_ast(hotFileName)
     if doScaleAve:
@@ -554,31 +389,33 @@ if hotFileName != "":
     else:
         ave_hot.ydataA = ave_hot.ydataA/ave_hot.nave
 else:
-    ave_hot, minel, maxel, minGlat, maxGlat = read_hot( names, ave_hot)
+    ave_hot, minel, maxel, minGlat, maxGlat = \
+        hotcold.read_hot( names, ave_hot, doScaleAve)
 
     print(("Min, Max Galactic Latitude: %7.1f,%7.1f" % (minGlat, maxGlat)))
     print(("Min, Max Elevation:         %7.1f,%7.1f" % (minel, maxel)))
 
-# now, min and max elevations are known
 
 # convert to MHz
 xv = ave_hot.xdata * 1.E-6
+# do more cleanup on spectra for RFI
+if flagRfi:
+    yv = copy.deepcopy(ave_hot.ydataA)
+    hv = interpolate.lines( linelist, linewidth, xv, yv) # interpolate rfi
+    ave_hot.ydataA = hv
+
 hv = copy.deepcopy(ave_hot.ydataA)
+nData = len(hv)
+if flagCenter:             # if flagging spike in center of plot
+    hotcold.flagCenter( hv, nData)
+
 if nmedian > 2:
     hv = tsys.medianfilter( hv, nmedian)
 
-nData = len( xv)        # get data length and indicies for middle of spectra 
-n6 = int(nData/6)
-n26 = int(2*n6)
-n46 = int(4*n6)
-n56 = int(5*n6)
-
-vel = np.zeros(nData)
-# create index array
-for jjj in range (0, nData):
-    vel[jjj] = c * (nuRefFreq - xv[jjj])/nuRefFreq
-
-xa, xb = gf.velocity_to_indicies( vel, minvel, maxvel)
+# input number of channels to use for commputing average and rms
+NRMS = 25
+vel, xa0, xa, xb, xbe = \
+    hotcold.velocity_indecies( ave_hot, NRMS, minvel, maxvel)
 
 if doDebug:
     print(( 'Min Vel  %7.1f, Max Vel  %7.1f' % ( minvel, maxvel)))
@@ -589,109 +426,13 @@ if doDebug:
 # not range about +/-60.
 use60Range = False
 
+lowGlat = 0.
 # if any high galactic latitude data,
 # then all galactic latitudes above +/-30d can be used
 if minGlat < -30. or maxGlat > 30.:
     minGlat = -30.
     maxGlat = 30.
-
-def read_angles( names, lowel):
-    """
-    read_angles() reads all files and counts number of files with 
-    high elevation and high galactic latitude
-    Inputs:
-       lowel   minimum elevation to accept for cold load 
-    """
-
-    # flag starting a new sum of cold (high elevation and galactic latitude) obs
-    ncold = 0
-    rs = radioastronomy.Spectrum()
-    nName = len(names)
-    minel = 90.
-    maxel = -90.
-    minGlat = 90
-    maxGlat = -90
-    # now average coldest data for calibration
-    for filename in names:
-
-        rs.read_spec_ast(filename)
-        if doScaleAve:
-            rs.ydataA = rs.ydataA/rs.count
-        else:
-            rs.ydataA = rs.ydataA/rs.nave
-
-        rs.azel2radec()    # compute ra,dec from az,el
-
-        if rs.telel < lowel:  #if elevation too low for a cold load obs
-            continue
-        if rs.gallat > maxGlat:
-            maxGlat = rs.gallat
-        if rs.gallat < minGlat:
-            minGlat = rs.gallat
-        if minel > rs.telel:
-            minel = rs.telel
-        if maxel < rs.telel:
-            maxel = rs.telel
-        
-        # count number of high elevation files
-        if rs.telel > lowel:
-            ncold = ncold + 1
-
-    print(( "Found %d high elevation spectra in %d files" % (ncold, nName)))
-    return ncold, minel, maxel, minGlat, maxGlat
-    
-def read_cold( names, ave_cold, lowel, lowGlat):
-    """
-    read_cold() reads all files, averages selected files
-    (high elevation and galactic Latitude).
-    Inputs:
-       lowel   minimum elevation to accept for cold load 
-       lowGlat minimum galactic latitude
-    """
-
-    # flag starting a new sum of cold (high elevation and galactic latitude) obs
-    ncold = 0
-    rs = radioastronomy.Spectrum()
-    nName = len(names)
-    # now average coldest data for calibration
-    for filename in names:
-
-        rs.read_spec_ast(filename)
-        if doScaleAve:
-            rs.ydataA = rs.ydataA/rs.count
-        else:
-            rs.ydataA = rs.ydataA/rs.nave
-        rs.azel2radec()    # compute ra,dec from az,el
-
-        if rs.telel < lowel:  #if elevation too low for a cold load obs
-            continue
-
-        # note this test excludes low galactic latitude ranges
-        if rs.gallat > lowGlat or rs.gallat < -lowGlat:
-            if ncold == 0:
-                firstutc = rs.utc
-                lastutc = rs.utc
-            ave_cold, ncold, firstutc, lastutc = \
-                average_spec( ave_cold, rs, ncold, firstutc, lastutc)
-
-    # end of all files to average
-    if ncold < 1:
-        print( "No high elevation data: can not calibrate")
-        exit()
-    else:
-        ave_cold = normalize_spec( ave_cold, firstutc, lastutc)
-
-    if flagRfi:
-        yv = ave_cold.ydataA
-        xv = ave_cold.xdata*1.E-6
-        cv = interpolate.lines( linelist, linewidth, xv, yv) # interpolate rfi
-        ave_cold.ydataA = cv
-
-    if doFold:
-        ave_cold.foldfrequency()
-
-#   print( "Found %3d High Galactic Latitude spectra" % (ncold))
-    return ave_cold, ncold 
+    lowGlat = maxGlat
 
 if coldFileName != "":
     ave_cold.read_spec_ast( coldFileName)
@@ -705,129 +446,43 @@ if coldFileName != "":
     maxel = ave_cold.telel
     minGlat = ave_cold.gallat
 else:
-    ncold, minel, maxel, minGlat, maxGlat = read_angles( names, lowel)
-    
-    # if no high galactic latitude data, use all latitudes
-    if maxGlat > 40. or minGlat < -40.:
-        lowGlat = 40.
-    else:
-        if maxGlat < 0.:
-            lowGlat = -0.9 * maxGlat
-        else:
-            lowGlat = 0.9 * maxGlat
 
-    ave_cold, ncold = read_cold( names, ave_cold, lowel, lowGlat)
+    ave_cold, ncold = \
+        hotcold.read_cold( names, ave_cold, lowel, lowGlat, doScaleAve)
+
+# convert to MHz
+xv = ave_cold.xdata*1.E-6
+if flagRfi:    # if flaggin RFI
+    yv = ave_cold.ydataA
+    cv = interpolate.lines( linelist, linewidth, xv, yv) # interpolate rfi
+    ave_cold.ydataA = cv
+
+if flagCenter:             # if flagging spike in center of plot
+    hotcold.flagCenter( cv, nData)
 
 cv = copy.deepcopy(ave_cold.ydataA)
 if nmedian > 2:
     cv = tsys.medianfilter( cv, nmedian)
 
-# if keeping hot and cold files
-if doKeep:
-    outname = radioastronomy.utcToName( ave_cold.utc)
-    outname = outname + ".ast"  # output in counts
-    # add telescope index
-    outname = ("T%d-" % cpuIndex)+outname
-    n = ave_cold.nChan
-    print("Ave Cold: %d: %.6f" % (n, np.median( ave_cold.ydataA[int(n/3):int(2*n/3)])))
-    ave_cold.ydataA = ave_cold.ydataA * ave_cold.nave
-    ave_cold.write_ascii_file("../", outname)
-    print( "Wrote Average Cold Load File: %s%s" % ("../", outname))
-    # now hot file
-    outname = radioastronomy.utcToName( ave_hot.utc)
-    outname = outname + ".hot"  # output in counts
-    # add telescope index
-    outname = ("T%d-" % cpuIndex)+outname
-    ave_hot.ydataA = ave_hot.ydataA * ave_hot.nave
-    ave_hot.write_ascii_file("../", outname)                
-    print( "Wrote Average Hot  Load File: %s%s" % ("../", outname))
+# finally compute gains
 
-# compute gain on a channel by channel basis for tRx calculation
-gainHC = np.zeros(nData)
-for iii in range(nData):
-    gainHC[iii] = (hv[iii] - cv[iii])/(thot - tcold)
-    if gainHC[iii] < EPSILON:
-        gainHC[iii] = EPSILON
+gain, gainAve, tRxMiddle, tRms, tStdA, tStdB = \
+    hotcold.compute_gain( hv, cv, xa0, xa, xb, xbe, thot, tcold)
 
-# the hot/cold gain ratios are only used to compute tRxMiddle
-trx = np.zeros(nData)
-for iii in range(nData):
-    trx[iii] = (cv[iii]/gainHC[iii]) - tcold
-
-#now prepare to compute tRx, which is based only on cold load observations
-#try to use the channels just outside the velocity ranges defined
-nrms = 25 # define the number of channels for RMS calculation
-xa0 = xa - nrms
-if xa0 < 0:
-    xa0 = 0
-    xa = nrms
-tRxA = np.median(trx[xa0:xa])
-xbe = xb + nrms
-if xbe > nData - 1:
-    xbe = nData - 1
-    xb = nData - nrms
-tRxB = np.median(trx[xb:xbe])
-tRxMiddle = (tRxA + tRxB)*.5
-
-tStdA = np.std(trx[xa0:xa])
-tStdB = np.std(trx[xb:xbe])
-tRms  = (tStdA + tStdB) * .5
-#after this point, only the hot load observations are used to compute sys
-#No cold observations are used for calibration, except for computing tRxMiddle
-
-if nmedian > 2:
-    trx = tsys.medianfilter( trx, nmedian)
-    
 print(( "Median Receiver Temp: %7.3f +/- %6.3f (%6.3f %6.3f) (K)" % ( tRxMiddle, tRms, tStdA, tStdB)))
-
-# for remainder of calculations only use hot counts for calibration
-# Using hot load only reduces interference effects
-gain = np.zeros(nData)
-for iii in range(nData):
-    gain[iii] = hv[iii]/(thot + tRxMiddle)
-    if gain[iii] < EPSILON:
-        gain[iii] = EPSILON
 
 gainA = np.median(gain[xa0:xa])
 gainB = np.median(gain[xb:xbe])
-gainAve = 2.0/(gainA + gainB)  # Report gain in K per Count 
-
-def compute_tsky_hotcold( xv, yv, hv, cv, thot, tcold):
-    """
-    Compute TSky based on hot and coold load observations
-    Note that here the yv[], hv[] and cv[] values are normalized by the 
-    total number of integrations.  The raw data, read in, are increased 
-    linearly by the number of spectra averaged.
-    """
-    nData = len(xv)
-    vel = np.zeros(nData)
-    tsky  = np.zeros(nData)    # initialize arrays
-
-    for jjj in range (0, nData):
-        vel[jjj] = c * (nuRefFreq - (xv[jjj]))/nuRefFreq
-        tsky[jjj] = yv[jjj]/gain[jjj]
-
-    if flagCenter:             # if flagging spike in center of plot
-        # remove spike in center of the plot
-        icenter = int(nData/2)
-        tsky[icenter] = (tsky[icenter-2] + tsky[icenter+2])*.5
-        tsky[icenter-1] = (3.*tsky[icenter-2] + tsky[icenter+2])*.25
-        tsky[icenter+1] = (tsky[icenter-2] + 3.*tsky[icenter+2])*.25
-
-    return tsky, vel
-# end of compute_tsky_hotcold()
+gainAve = 2.0/(gainA + gainB)  # Report gain in K per Count
 
 # if plotting
 if maxPlot > 0:
     fig, ax1 = plt.subplots(figsize=(10, 6))
 
-# compute the reciever temperature
-trx = np.zeros(nData)
-zeros = np.zeros(nData)
-
+# convert the average time in seconds into datetime format
 avetime = datetime.timedelta(seconds=avetimesec)
-
-nRead = 0        
+# cound number of spectra read and averaged
+nRead = 0
 nave = 0
 
 rs = radioastronomy.Spectrum()
@@ -859,9 +514,6 @@ for filename in names:
     if rs.telel < 0. and (not allFiles):
         continue
 
-    if doFold:
-        rs.foldfrequency()
-
     # track if multiple azimuths
     if firstaz < 0:
         firstaz = rs.telaz
@@ -886,7 +538,7 @@ for filename in names:
 
 # if first time reading data, set obs parameters
     if lastfreq == 0.:
-        lastfreq = rs.centerFreqHz 
+        lastfreq = rs.centerFreqHz
         lastbw = rs.bandwidthHz
         lastgain = rs.gains[0]
         lastaz = rs.telaz
@@ -898,7 +550,7 @@ for filename in names:
 
     if nave > 0:
         # time difference is between mid-points of integrations
-        dt = rs.utc - ave_spec.utc 
+        dt = rs.utc - ave_spec.utc
         # add the time since midpoint of latests
         dt = dt + datetime.timedelta(seconds=rs.durationSec)
         lastdate = date
@@ -906,40 +558,38 @@ for filename in names:
     newAzEl = (lastaz != rs.telaz) or (lastel != rs.telel)
     newObs = (lastfreq != rs.centerFreqHz) or (lastbw != rs.bandwidthHz) or \
                           (lastgain != rs.gains[0]) or newAzEl
-    # if this is the last file and there was not a change in observing setup 
+    # if this is the last file and there was not a change in observing setup
     if allFiles and (not newObs):
         if rs.nChan != ave_spec.nChan:
             print(("File Size Error: %d != %d for file %s; Skipping ..." % \
                    (rs.nChan, ave_spec.nChan, filename)))
         else:
-            ave_spec, nave, firstutc, lastutc = average_spec( ave_spec, rs, nave, firstutc, lastutc)
+            ave_spec, nave, firstutc, lastutc = \
+                hotcold.average_spec( ave_spec, rs, nave, firstutc, lastutc)
 
     # if time to average (or end of all files)
     if (dt > avetime) or newObs or allFiles:
-        if doDebug:
-            medianData = np.median( ave_spec.ydataA[n6:n56])
-            print("Average duration: %7.1f, Median:  %8.3f" % \
-                  (ave_spec.durationSec, medianData))
 
         # not calibrating hot load observations.
         if ave_spec.telel < 0.:
             # Reset the ncold count and restart sum
             nave = 0
             continue
-        ave_spec = normalize_spec( ave_spec, firstutc, lastutc)
+        ave_spec = hotcold.normalize_spec( ave_spec, firstutc, lastutc)
         xv = ave_spec.xdata * 1.E-6  # covert to MHz
-        yv = ave_spec.ydataA 
+        yv = ave_spec.ydataA
         if flagRfi:  # if interpolating over regions with rfi
-            yv = interpolate.lines( linelist, linewidth, xv, yv) 
+            yv = interpolate.lines( linelist, linewidth, xv, yv)
         xmin = min(xv)
         xmax = max(xv)
         xallmin = min(xmin, xallmin)
         xallmax = max(xmax, xallmax)
         count = ave_spec.count
         note = ave_spec.noteA
-        ncolor = min(nmax-1, nplot) 
+        ncolor = min(nmax-1, nplot)
 
-        tsky, vel = compute_tsky_hotcold( xv, yv, hv, cv, thot, tcold)
+        tsky = hotcold.tsky_gain( yv, gain)
+
         if nmedian > 2:
             tsky = tsys.medianfilter( tsky, nmedian)
         # get tsys from averages of ends of spectra
@@ -959,35 +609,22 @@ for filename in names:
         ave_spec.bunit = 'Kelvins'
         ave_spec.KperC = gainAve
         ave_spec.azel2radec()    # compute ra,dec from az,el and average utc
-            
+
         # compute velocity correction for this direction and date
-        if baryCenterAvailable:
+        if BARYCENTERAVAILABLE:
             corr = gf.compute_vbarycenter( ave_spec)
-            velcorr = vel + corr            
+            velcorr = vel + corr
         else:
             velcorr = vel
             corr = 0
 
-
-        # compute indicies for min and max velocity
-        imin, imax = gf.velocity_to_indicies( velcorr, minvel, maxvel)
-        if imin < 20 or imin > (nData - 20):
-            plotFrequency = True
-            print(("Min velocity index out of range: %d, plotting vs Frequency" % (imin)))
-            imin = 20
-        if imax < 20 or imax > (nData - 20):
-            plotFrequency = True
-            print(("Max velocity index out of range: %d, plotting vs Frequency" % (imax)))
-            imax = nData - 20
-                
-        # keep the average time, but use the duration from the integration times.
         # pull out coordinates for labeling
         az = ave_spec.telaz
         el = ave_spec.telel
         gallon = ave_spec.gallon
         gallat = ave_spec.gallat
         label = 'L,L=%5.1f,%6.1f' % (gallon, gallat)
-            
+
         nChan2 = int(ave_spec.nChan/2)
         dV = (velcorr[nChan2] - velcorr[nChan2 - 4])*.25
         if dV < 0:
@@ -995,9 +632,9 @@ for filename in names:
 
         # Computes and subtracts baseline for source intensities
 
-        iVmin, iVmax = gf.velocity_to_indicies( velcorr, minSVel, maxSVel)
         # next compute the integrated intensities after baseline subtraction
-        baseline = gf.fit_baseline( velcorr[0:nData], tsky[0:nData], imin, imax, 10, fitOrder)
+        baseline = gf.fit_range( velcorr[0:nData], tsky[0:nData], \
+                                 xa0, xa, xb, xbe, fitOrder)
 
         # remove baseline to get the source spectrum
         tSource = tsky[0:nData] - baseline[0:nData]
@@ -1008,14 +645,11 @@ for filename in names:
 
         if not plotFrequency:
             # now compute integrated intensity and noise estimates
-            nv = iVmax - iVmin
-            if nv < 0:
-                print(("Velocity Index Error: %d > %d" % (iVmin, iVMax)))
-                nv = -nv
+            nv = xb - xa
 
             # create sub-arrays of intensity and velocity
-            tSs = tSource[iVmin:iVmax]
-            vSs = velcorr[iVmin:iVmax]
+            tSs = tSource[xa:xb]
+            vSs = velcorr[xa:xb]
             tSourcemin = min(tSs)
             tSourcemax = max(tSs)
             # get index to maximum value; then get velocity
@@ -1043,7 +677,9 @@ for filename in names:
             tSumKmSec = 0.
             dTSumKmSec = 0.
             tSum = 0.
-                
+
+        # doppler shift in velocities channges chanels to plot
+        imin, imax = gf.velocity_to_indicies( velcorr, minvel, maxvel)
         # set min and max y for plotting (only)
         ymin = min(tsky[imin:imax])
         ymax = max(tsky[imin:imax])
@@ -1057,9 +693,9 @@ for filename in names:
             tVSum=0.
 
         # print diagnostic of integration
-        if (doDebug):
+        if doDebug:
             print(("Min, max Velocity   : %7.1f  to %6.1f; %d,%d" % (minvel,maxvel, imin, imax)))
-            print(("Min, max Velocity I : %7.1f  to %6.1f; %d,%d" % (minSVel,maxSVel, iVmin, iVmax)))
+            print(("Min, max Velocity I : %7.1f  to %6.1f; %d,%d" % (minSVel,maxSVel, xa, xb)))
             print(("Average Intensity(K): %7.3f +/- %6.3f K (%d)" % (tSum/nv, tSumRms/nv, nv)))
             print(("Int.  Vel.  K km/s  : %7.0f +/- %6.0f K*km/sec" % (tSumKmSec,  dTSumKmSec)))
             print(("Peak    Velocity    : %7.1f +/- %6.1f km/sec (%d)" % (velSource,  dV, iSourcemax)))
@@ -1079,7 +715,7 @@ for filename in names:
                 (tSourcemax, tSys, tStd, nave, label)))
         # if plotting frequency overwrite the corrected velocities
         if plotFrequency:
-            velcorr = xv 
+            velcorr = xv
         if int(nplot) < int(maxPlot):
             yallmin = min(ymin,yallmin)
             yallmax = max(ymax,yallmax)
@@ -1106,10 +742,6 @@ for filename in names:
             outname = outname + ".kel"  # output in Kelvins
             write_spec.count = 1
             write_spec.nave = 1
-            if plotFrequency:
-                doFreq = True
-            else:
-                doFreq = False
             doComputeX = False  # x-axis already computed
             if doLimitVel:
                 print("Limiting File Output to selected channels")
@@ -1124,17 +756,17 @@ for filename in names:
                 write_spec.centerFreqHz = ave_spec.xdata[i2]
                 write_spec.bandwidthHz = ave_spec.bandwidthHz*float(nOut/nChan)
                 write_spec.ydataA = tsky[imin:imax]
-                if doFreq:
+                if plotFrequency:
                     write_spec.xdata = ave_spec.xdata[imin:imax]
                 else:
-                    write_spec.xdata = velcorr[imin:imax] * 1000. 
+                    write_spec.xdata = velcorr[imin:imax] * 1000.
                 write_spec.nChan = nOut
             else:
                 write_spec.ydataA = tsky
-                if not doFreq:
+                if not plotFrequency:
                     write_spec.xdata = velcorr * 1000. # km/sec -> m/sec
             # finally write the calibrated spectrum
-            write_spec.write_ascii_file("../", outname, doFreq, \
+            write_spec.write_ascii_file("../", outname, plotFrequency, \
                                        doWriteHeader, doComputeX)
         # flag restarting the sum
         nave = 0
@@ -1167,7 +799,8 @@ for filename in names:
         if rs.nChan != ave_spec.nChan:
             print(("File Size Error: %d != %d for file %s; Skipping ..." % (rs.nChan, ave_spec.nChan, filename)))
         else:
-            ave_spec, nave, firstutc, lastutc = average_spec( ave_spec, rs, nave, firstutc, lastutc)
+            ave_spec, nave, firstutc, lastutc = \
+                hotcold.average_spec( ave_spec, rs, nave, firstutc, lastutc)
 
     #end for all files to sum
 # end of all files to read
@@ -1190,7 +823,7 @@ else:
 if cpuIndex > 0:
     myTitle = myTitle + ("T:%d " % (cpuIndex))
 
-if (firstaz == otheraz):
+if firstaz == otheraz:
     myTitle = myTitle + "Az = %6.1f, " % (firstaz)
 else:
     myTitle = myTitle + "Az = %6.1f to %6.1f, " % (firstaz, otheraz)
@@ -1202,21 +835,19 @@ else:
 
 if (maxPlot < 1) or (nplot < 1):
     print("No Plots, exiting")
-    exit()
+    sys.exit()
 fig.canvas.set_window_title(myTitle)
 for tick in ax1.xaxis.get_major_ticks():
-    tick.label.set_fontsize(14) 
+    tick.label.set_fontsize(14)
     # specify integer or one of preset strings, e.g.
-    #tick.label.set_fontsize('x-small') 
+    #tick.label.set_fontsize('x-small')
     #tick.label.set_rotation('vertical')
 for tick in ax1.yaxis.get_major_ticks():
-    tick.label.set_fontsize(14) 
+    tick.label.set_fontsize(14)
 #plt.xlim(xallmin,xallmax)  # normal plot range
 #plt.xlim(-150., 300.)
+
 # select the relevant range of velocities (km/sec) for plotting
-#plt.xlim(-400., 250.)      # set velocity range for particular investigation
-#plt.xlim(-600., 300.)
-#plt.xlim(-350., 350.)
 #plt.xlim(-250., 250.)
 if not plotFrequency:
     plt.xlim(minvel, maxvel)
@@ -1243,7 +874,6 @@ else:
         plt.xlabel('Velocity (km/sec)', fontsize=16)
 
 plt.ylabel('Intensity (Kelvins)', fontsize=16)
-#plt.legend(loc='upper left')
 plt.legend(loc='upper right')
 # if writing files
 if doPlotFile:
