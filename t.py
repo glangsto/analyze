@@ -6,7 +6,8 @@ Glen Langston National Scioence Foundation
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
-#22APR22 GIL put sun functions in hotcold.py
+#22Apr28 GIL debug median filtering
+#22APR22 GIL put some functions in hotcold.py
 #22APR20 GIL find channels at the velocities identified
 #22MAR27 GIL median option for output vector
 #22FEB18 GIL Bucket Horn RFI lines
@@ -410,6 +411,7 @@ if flagCenter:             # if flagging spike in center of plot
     hotcold.flagCenter( hv, nData)
 
 if nmedian > 2:
+    print("Median Filtering hot-load Obs")
     hv = tsys.medianfilter( hv, nmedian)
 
 # input number of channels to use for commputing average and rms
@@ -462,6 +464,7 @@ if flagCenter:             # if flagging spike in center of plot
 
 cv = copy.deepcopy(ave_cold.ydataA)
 if nmedian > 2:
+    print("Median Filtering cold-load Obs")
     cv = tsys.medianfilter( cv, nmedian)
 
 # finally compute gains
@@ -580,6 +583,9 @@ for filename in names:
         yv = ave_spec.ydataA
         if flagRfi:  # if interpolating over regions with rfi
             yv = interpolate.lines( linelist, linewidth, xv, yv)
+        if nmedian > 2:
+            yv = tsys.medianfilter( yv, nmedian)
+
         xmin = min(xv)
         xmax = max(xv)
         xallmin = min(xmin, xallmin)
@@ -590,8 +596,6 @@ for filename in names:
 
         tsky = hotcold.tsky_gain( yv, gain)
 
-        if nmedian > 2:
-            tsky = tsys.medianfilter( tsky, nmedian)
         # get tsys from averages of ends of spectra
         tSysA = np.median(tsky[xa0:xa])
         tSysB = np.median(tsky[xb:xbe])

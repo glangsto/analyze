@@ -43,9 +43,9 @@ def medianfilter(mydata, nwidth):
             e = ndata-1
 #        if iii > ndata-(2*nwidth):
 #            print("%d (%d to %d)" % (iii, b, e))
-        a = statistics.median(mydata[b:e]) * .8
-        b = mydata[iii] * .2
-        outdata[iii] = a + b 
+        a = statistics.median(mydata[b:e]) 
+        b = statistics.median(mydata[(b+1):(e-1)]) 
+        outdata[iii] = (a + b)/2.
     return outdata
 
 class Tsys(object):
