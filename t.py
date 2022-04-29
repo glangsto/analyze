@@ -6,6 +6,7 @@ Glen Langston National Scioence Foundation
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#22Apr28 GIL fix use of cv array before initialization
 #22Apr28 GIL debug median filtering
 #22APR22 GIL put some functions in hotcold.py
 #22APR20 GIL find channels at the velocities identified
@@ -458,6 +459,8 @@ if flagRfi:    # if flaggin RFI
     yv = ave_cold.ydataA
     cv = interpolate.lines( linelist, linewidth, xv, yv) # interpolate rfi
     ave_cold.ydataA = cv
+else:
+    cv = ave_cold.ydataA
 
 if flagCenter:             # if flagging spike in center of plot
     hotcold.flagCenter( cv, nData)
