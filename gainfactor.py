@@ -1,21 +1,24 @@
-#Python function to compute gain factor for different processor indicies, dates and elevations
+"""
+functions to compute gain factors for different processor indicies, dates 
+and elevations.  This module also finds the local times of galactic plane
+Crossings.
+"""
 #HISTORY
+#22May02 GIL revise save file; add telescope location
 #21AUG20 GIL enable passing of the debug flag
 #21JAN07 GIL add help, update for changes
 #20APR30 GIL add pointing offset model
 #20APR29 GIL add read savefile function
 #20APR22 GIL clean up save labels
-#20APR21 GIL add intensity weighted velocity error 
+#20APR21 GIL add intensity weighted velocity error
 #20APR20 GIL add intensity weighted velocity moment
 #20APR17 GIL add peak source in velocity range to log
 #20APR16 GIL add reading and writing of gain factor logs
 #20APR06 GIL initial version based on holdcold.py
 #
-import sys
-import datetime
-import numpy as np
-import radioastronomy
 import os.path
+import numpy as np
+import datetime
 
 try:
     from PyAstronomy import pyasl
@@ -58,18 +61,26 @@ gainFactors = np.zeros((nObs, nProcessors))
 normalized = False
 firstRun = True
 
+# save global position variables
+lastaz = -100.
+lastel = -100.
+lastId = 0
+tellon = 0.
+tellat = 0.
+telelev = 0.
+
 def fit_baseline( xs, ys, imin, imax, nchan, fitOrder, doDebug=False):
     """
     fit baseline does a polynomical fit over channels in a select range
-    The baseline is returned. 
-    Inputs: 
+    The baseline is returned.
+    Inputs:
     xs     x axis values
     ys     y axis values
-    imin   index to center location of iminimum side fit 
-    imax   index to center location of imaximum side fit 
-    nchan 
+    imin   index to center location of iminimum side fit
+    imax   index to center location of imaximum side fit
+    nchan
     """
-    
+
     xfit = np.concatenate( (xs[imin-nchan:imin+nchan],xs[imax-nchan:imax+nchan]))
     yfit = np.concatenate( (ys[imin-nchan:imin+nchan],ys[imax-nchan:imax+nchan]))
 # calculate polynomial (0=constant, 1=linear, 2=2nd order, 3=3rd order
@@ -86,15 +97,15 @@ def fit_baseline( xs, ys, imin, imax, nchan, fitOrder, doDebug=False):
 def fit_range( xs, ys, xa0, xa, xb, xbe, fitOrder, doDebug=False):
     """
     fit baseline does a polynomical fit over channels in a select range
-    The baseline is returned. 
-    Inputs: 
+    The baseline is returned.
+    Inputs:
     xs     x axis values
     ys     y axis values
-    xa0, xa  one 
+    xa0, xa  one
     xb, xbe  2nd range of x,y channels to fit (maximum side)
-    nchan 
+    nchan
     """
-    
+
     xfit = np.concatenate( (xs[xa0: xa], xs[xb:xbe]))
     yfit = np.concatenate( (ys[xa0: xa], ys[xb:xbe]))
 # calculate polynomial (0=constant, 1=linear, 2=2nd order, 3=3rd order
@@ -109,12 +120,12 @@ def fit_range( xs, ys, xa0, xa, xb, xbe, fitOrder, doDebug=False):
     return yout
 
 def compute_vbarycenter( spectrum, doDebug=False):
-    """ 
+    """
     Compute the velocity correction to Barycentric for this date and direction
     """
-    global firstRun 
+    global firstRun
 
-    if baryCenterAvailable: 
+    if baryCenterAvailable:
         longitude = spectrum.tellon
         latitude = spectrum.tellat
         altitude = spectrum.telelev
@@ -142,7 +153,7 @@ def velocity_to_indicies( vel, minvel, maxvel):
 
     nData = len(vel)
     iref = int(nData/2)
-    
+
     vref = vel[iref]
     dv   = (vel[iref+2]-vel[iref-2])/4.
     imin = int(((minvel - vref)/dv) + iref)
@@ -176,7 +187,7 @@ def velocity_to_indicies( vel, minvel, maxvel):
     return imin, imax
 
 def saveTsysValues( saveFile, cSpec, cpuIndex, tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec):
-    """ 
+    """
     saveTsysValues - saves the calibration values for this calibrated observation
     where
     saveFile - Name of file used for recording observations
@@ -184,15 +195,17 @@ def saveTsysValues( saveFile, cSpec, cpuIndex, tSourcemax, velSource, dV, tVSum,
     cpuIndex - index number of horn/cpu used to make the measurements
     tSourcemax - peak of intensity in identified velocity range
 
-    The Tsys values are logged in 3 parts,  
+    The Tsys values are logged in 3 parts,
     1. Tsys value for the observation.
     2. The Counts per Kevin Value for the observation
     3. The normalization factor to put all horns on the same scale.
-    The first 2 values are determined by hot and cold load observations. 
-    That the hot ground and empty sky.
-    The normaization factor (3) is measured by comparison of simultaneous astronomical observations 
+    The first 2 values are determined by hot and cold load observations.
+    The hot ground and empty sky.
+    The normaization factor (3) is measured by comparison of simultaneous astronomical observations
     of the same region of the sky.   This can be done by a 24 hour drift scan with all horns.
     """
+    global lastaz, lastel
+    global tellon, tellat, telelev
 
     autc = str(cSpec.utc) # ascii version of UTC
     parts = autc.split(' ')
@@ -205,45 +218,76 @@ def saveTsysValues( saveFile, cSpec, cpuIndex, tSourcemax, velSource, dV, tVSum,
     parts = time.split('.')  # trim off seconds part of time
     time = parts[0]
     if saveFile == "":
-        saveFile = "../" + date + ".sav"
+        saveFile = "../" + date + "-" + str(cpuIndex),strip() + ".sav"
 
     # determine if the file exists already
     oldFile = os.path.isfile(saveFile)
 
     f = open(saveFile, "a+")
 
+    # update coordinates and position every time an az,el change
+    if lastaz != cSpec.telaz or lastel != cSpec.telel:
+        f.write( "#LONLAT %02d %15.9f %15.9f %9.3f \r\n" % \
+                 (cpuIndex, cSpec.tellon, cSpec.tellat, cSpec.telelev))
+        f.write( "#AZEL   %02d %7.2f %7.2f \r\n" % \
+                 (cpuIndex, cSpec.telaz, cSpec.telel))
+        lastaz = cSpec.telaz
+        lastel = cSpec.telel
+        lastid = cpuIndex
+        
     # if a new file, then need to add the header
     if not oldFile:
         f.write( "#  Date    Time   Tel  Az     El     Tsys    Trx    Trms     Time  K/Count    Peak    Peak  Vel.     Sum Vel.   ")
         f.write( "Sum Intensity   Scale \r\n")
         f.write( "#                  #   (d)    (d)     (K)     (K)    (K)     (s)              (K)     (km/s) +/-    (km/s) +/-  ")
         f.write( " (K km/s) +/-   Factor\r\n")
-        
+
     #          1 2   3   4     5     6    7      8       9    10     11    11    12     13    14      15    16     17
     #         Date   cpu  az    el  tSys  tRx   tRms   tint   K/C   tPeak, vel    dv   VSum   Vrms,  KInt  dKInt factor
-    f.write( "%s %s %2d %6.1f %6.1f %7.2f %7.2f %6.2f %7.0f %7.1f %7.3f %7.1f %5.1f %7.1f %5.1f %7.0f %7.0f %7.3f\r\n" % 
-             (date, time, cpuIndex, cSpec.telaz, cSpec.telel, cSpec.tSys, cSpec.tRx, cSpec.tRms, cSpec.tint, cSpec.KperC, 
+    f.write( "%s %s %2d %6.1f %6.1f %7.2f %7.2f %6.2f %7.0f %7.1f %7.3f %7.1f %5.1f %7.1f %5.1f %7.0f %7.0f %7.3f\r\n" %
+             (date, time, cpuIndex, cSpec.telaz, cSpec.telel, cSpec.tSys, cSpec.tRx, cSpec.tRms, cSpec.tint, cSpec.KperC,
               tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec, cSpec.gainFactor))
     f.close()
     # end of saveTsysValues()
 
+def azElOffsets( cpuIndex, date, time, az, el):
+    """
+    azElOffsets returns the pointing offsets for a telescope for a date and time
+    """
+    dAz = 0
+    dEl = 0
+
+# rudimentary pointing offset correction:
+    if cpuIndex == 2:
+        dEl = -4.
+    elif cpuIndex == 3:
+        dEl = -3.
+    elif cpuIndex == 4:
+        dEl = -2.
+    elif cpuIndex == 5:
+        dEl = -1.
+    else:
+        dEl = -0.5
+
+    return dAz, dEl
+
 def readSaveValues( f):
-    """ 
-    saveTsysValues - saves the calibration values for this calibrated observation
+    """
+    readSaveValues - saves the calibration values for this calibrated observation
     where
     f - Open file
     outputs:
 
-    The Tsys values are logged in 3 parts,  
+    The Tsys values are logged in 3 parts,
     1. Tsys value for the observation.
     2. The Counts per Kevin Value for the observation
     3. The normalization factor to put all horns on the same scale.
-    The first 2 values are determined by hot and cold load observations. 
+    The first 2 values are determined by hot and cold load observations.
     That the hot ground and empty sky.
-    The normaization factor (3) is measured by comparison of simultaneous astronomical observations 
+    The normaization factor (3) is measured by comparison of simultaneous astronomical observations
     of the same region of the sky.   This can be done by a 24 hour drift scan with all horns.
     """
-    
+
 #    f = open(saveFile, "r")
 
 #    print("Entering Read Save Values")
@@ -271,63 +315,137 @@ def readSaveValues( f):
     #   f.write( "Sum Intensity   Scale \r\n")
     #   f.write( "#                  #   (d)    (d)     (K)     (K)    (K)     (s)              (K)     (km/s) +/-    (km/s) +/-  ")
     #   f.write( " (K km/s) +/-   Factor\r\n")
-        
+
     #          1 2   3   4     5     6    7      8       9    10     11    11    12     13    14      15    16     17
     #         Date   cpu  az    el  tSys  tRx   tRms   tint   K/C   tPeak, vel    dv   VSum   Vrms,  KInt  dKInt factor
     aline = f.readline()
     aline = aline.strip()
-    alen = len(aline)
-    if alen < 1:
+    count = 0
+    while len(aline) < 1 and count < 5:
+        aline = f.readline()
+        aline = aline.strip()
+        count = count + 1
+    if len(aline) < 1:
         date = ""
-        return date, time, cpuIndex, telaz, telel, tSys, tRx, tRms, tint, KperC, tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec, gainFactor        
-    if aline[0] == "#":
-        #print("%d %s" % (alen, aline))
-        date = "#"
-    else:
-        parts = aline.split()
-        nparts = len(parts)
-        date = parts[0]
-        time = parts[1]
-        cpuIndex = int( parts[2])
-        telaz = float( parts[3])
-        telel = float( parts[4])
-        tSys = float( parts[5])
-        tRx = float( parts[6])
-        tRms = float( parts[7])
-        tint = float( parts[8])
-        Kperc = float( parts[9])
-        tSourcemax = float( parts[10])
-        velSource = float( parts[11])
-        dV = float( parts[12])
-        tVSum = float( parts[13])
-        tVSumRms = float( parts[14])
-        tSumKmSec = float( parts[15])
-        dTSumKmSec = float( parts[16])
-        gainFactor = float( parts[17])
-# rudimentary pointing offset correction:
-        if cpuIndex == 2:
-            dEl = -4.
-        elif cpuIndex == 3:
-            dEl = -3.
-        elif cpuIndex == 4:
-            dEl = -2.
-        elif cpuIndex == 5:
-            dEl = -1.
-        else:
-            dEl = -0.5
+        return date, time, cpuIndex, telaz, telel, tSys, tRx, tRms, tint, KperC, tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec, gainFactor
+    
+    while aline[0] == "#":
+        alen = len(aline)
+        if aline[1:6] == "LONLAT":
+            values = aline[7:]
+            parts = values.split(' ')
+            if len(parts) == 4:
+                cpuIndex = int(parts[0])
+                tellon = float(parts[1])
+                tellat = float(parts[2])
+                telelev = flaot(parts[3])
+            else:
+                print("Invalid Telescope Lon lat values:")
+                print(aline)
+        if aline[1:4] == "AZEL":
+            values = aline[6:]
+            parts = values.split(' ')
+            if len(parts) == 3:
+                cpuIndex = int(parts[0])
+                telaz = float(parts[1])
+                telel = float(parts[2])
+            else:
+                print("Invalid Telescope Az,El values:")
+                print(aline)
+        aline = f.readline()
+        aline = aline.strip()
+    # if hear, not a comment
+    parts = aline.split()
+    nparts = len(parts)
+    if nparts < 17:
+        return date, time, cpuIndex, telaz, telel, tSys, tRx, tRms, tint, KperC, tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec, gainFactor
 
-        # all telescopes sag a bit, some more than others.
-        telel = telel + dEl
+    date = parts[0]
+    time = parts[1]
+    cpuIndex = int( parts[2])
+    telaz = float( parts[3])
+    telel = float( parts[4])
+    tSys = float( parts[5])
+    tRx = float( parts[6])
+    tRms = float( parts[7])
+    tint = float( parts[8])
+    Kperc = float( parts[9])
+    tSourcemax = float( parts[10])
+    velSource = float( parts[11])
+    dV = float( parts[12])
+    tVSum = float( parts[13])
+    tVSumRms = float( parts[14])
+    tSumKmSec = float( parts[15])
+    dTSumKmSec = float( parts[16])
+    gainFactor = float( parts[17])
 
-#        sd( "%s %s %2d %6.1f %6.1f %7.2f %7.2f %6.2f %7.0f %6.1f %7.3f %7.1f %5.1f %7.1f %5.1f %7.0f %7.0f %7.3f\r\n" % 
-#             (date, time, cpuIndex, telaz, telel, tSys, tRx, tRms, tint, KperC, 
+#        sd( "%s %s %2d %6.1f %6.1f %7.2f %7.2f %6.2f %7.0f %6.1f %7.3f %7.1f %5.1f %7.1f %5.1f %7.0f %7.0f %7.3f\r\n" %
+#             (date, time, cpuIndex, telaz, telel, tSys, tRx, tRms, tint, KperC,
 #              tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec, gainFactor))
 
     return date, time, cpuIndex, telaz, telel, tSys, tRx, tRms, tint, KperC, tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec, gainFactor
     # end of readSaveValues()
 
+def readAllValues( filename):
+    """
+    readAllValues - reads one file of saved values and return arrays
+    input is a file name for a horn radio telescope summary file 
+    (Usually created by the 'T' program)
+    Outputs are:
+    date     - ascii string date of the summary data (ie 20-05-03)
+    utcs     - array of utc seconds past midnight of the first date
+    tSums    - array of integrated intensity for the provided spectrum
+    dTs      - array of uncertainty estimates for the integrated intensities
+    """
+
+    f = open( filename, "r")
+
+#    timefmt = "%Y-%m-%d %H:%M:%S"
+    timefmt = "%Y-%m-%d %H:%M:%S"
+    global lastId, lastaz, lastel
+    count = 0
+    utcs = []
+    tSums = []
+    dTs = []
+    firstdate = ""
+
+    # read though all values in the summary file
+    while True:
+        date, time, cpuIndex, telaz, telel, tSys, tRx, tRms, tint, KperC, tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec, gainFactor = \
+            readSaveValues( f)
+        if date == "":
+            break
+        if firstdate == "":
+            firstdate = date
+            lastId = cpuIndex
+            lastaz = telaz
+            lastel = telel
+        if count == 0:
+            utcmidnight = datetime.datetime.strptime("20" + date + " 00:00:00",
+                                                     timefmt)
+            
+        utc = datetime.datetime.strptime("20" + date + " " + time, timefmt)
+        dUtc = utc - utcmidnight
+        utcs.append( dUtc.total_seconds())
+        tSums.append( tSumKmSec)
+        dTs.append( dTSumKmSec)
+        if count > 1:
+            if telel != lastel:
+                print("Telescope Elevation Changed %8.1f => %8.1f" % (lastel, telel))
+                break
+        lastel = telel
+        
+        count = count + 1
+        if count < 3:
+            print("%d: %s %9.3f %7.3f" % (count, utc, tSumKmSec, dTSumKmSec))
+        
+    utcs = np.asarray( utcs)
+    tSums = np.asarray( tSums)
+    dTs = np.asarray( dTs)
+    return firstdate, utcs, tSums, dTs
+
 def readTsysValues( saveFile, utc, cpuIndex, az, el):
-    """ 
+    """
     readTsysValues - read the calibration values for this calibrated observation
     where
     saveFile - Name of file used for recording observations
@@ -344,14 +462,28 @@ def readTsysValues( saveFile, utc, cpuIndex, az, el):
     time = time.replace('_', ':')  # put time back in normal hh:mm:ss format
     parts = time.split('.')  # trim off seconds part of time
     time = parts[0]
-    az = rs.telaz 
-    el = rs.telel 
+    az = rs.telaz
+    el = rs.telel
     if saveFile == "":
         saveFile = date + ".sav"
 
     f = open(saveFile, "w+")
     f.write( "%s %s %2d %7.2f %7.2f\r\n" % (date, time, cpuIndex, az, el))
     f.close()
+
+def lonlatelev():
+    """
+    latlonel() returns the last read telescope geographic location
+    """
+    global tellon, tellat, telelev
+    return tellon, tellat, telelev
+
+def lastazel():
+    """
+    latlonel() returns the last read telescope geographic location
+    """
+    global lastId, lastaz, lastel
+    return lastId, lastaz, lastel
 
 def normalizemeasures( iObs):
     """
@@ -362,7 +494,7 @@ def normalizemeasures( iObs):
     gainSum = 0.
     if (iObs < 0 or iObs >= nObs):
         print ("Invalid measurement index: %d)" % (iObs))
-        return n
+        return 0
     n = int(nMeas[iObs])
     count = 0       # count total number of measurements
     for jP in range (nProcessors):
@@ -372,7 +504,7 @@ def normalizemeasures( iObs):
                 count = count + 1
     # if any measurements, compute average for all measurements
     if count > 0:
-        gainAve = gainSum/float(count)  
+        gainAve = gainSum/float(count)
     else:
         print ("No Measurements for observation Index %d" % (iObs))
 
@@ -385,13 +517,13 @@ def normalizemeasures( iObs):
                 gainSum = gainSum + measurements[iObs, jP, iN]
                 count = count + 1
         if count > 0:
-            gainSum = gainSum/float(count)  
+            gainSum = gainSum/float(count)
             gainFactors[ iObs, jP] = gainAve/gainSum
             print ("Obs %d, Processor %d factor: %7.2f" % (iObs, jP, gainFactors[iObs, jP]))
-        else:        
+        else:
             gainFactors[ iObs, jP] = 1.0      # default is unity gain
 
-    return
+    return n
 
 def compute_gain_factor( pIndex, aveutc, az, el):
     """
@@ -402,7 +534,7 @@ def compute_gain_factor( pIndex, aveutc, az, el):
     az              Azimuth (degrees) for which the factor is computed
     el              Elevation (degrees) for which the factor is computed
     """
-    global normalized 
+    global normalized
 
     # temporarily just use one set of values
     if not normalized:
@@ -426,7 +558,7 @@ def gainfactor( aveutc, pIndex, az, el):
     Output:
     gain_factor     in Kelvins/Count
     """
-    global normalized 
+    global normalized
 
     # temporarily just use one set of values
     if not normalized:
@@ -456,9 +588,11 @@ def listSave( savefile):
         dlen = len(date)
         if dlen < 1:
             break
-        if date[0] != "#":
+        if (date[0] != "#") and (count < 3):
             print( "%3d: %s %d %8.2f %7.2f %5.2f %7.0f" % (count, date, cpuIndex, tSys, tRx, tRms, tint))
         count = count + 1
-    
+
     f.close()
     return count
+
+
