@@ -119,6 +119,7 @@ myTitle = ""      # Default no input title
 saveFile = ""     # Default no saveFileName
 hotFileName = ""
 coldFileName = ""
+keepDirectory = ""
 plotFrequency = False
 doScaleAve = False
 doZero = False
@@ -153,7 +154,7 @@ if nargs < 3:
     print("-G <halfwidth> median filter the output vector")
     print("-H optionally set the high velocity region for baseline fit")
     print("-I optionally set Processor/Telescope Index on Plot Label")
-    print("-K optionally keep average hot and cold load calibration files")
+    print("-K <directory> keep average hot and cold load calibration files")
     print("-L optionally set the low velocity region for baseline fit")
     print("-N <number> optionally set the number of spectra to plot")
     print("-M Skip writing header for .kel files")
@@ -226,7 +227,10 @@ while iarg < nargs:
         print(('Telescope Index: %2d' % (cpuIndex)))
     elif sys.argv[iarg].upper() == '-K':
         doKeep = True
-        print('Keeping Average hot and cold load files')
+        iarg = iarg+1
+        keepDirectory = sys.argv[iarg]
+        print('Keeping Average hot and cold files in directory: %s' % \
+              (keepDirectory))
     elif sys.argv[iarg].upper() == '-L':
         iarg = iarg+1
         minvel = np.float( sys.argv[iarg])
@@ -475,6 +479,13 @@ if nmedian > 2:
 gain, gainAve, tRxMiddle, tRms, tStdA, tStdB = \
     hotcold.compute_gain( hv, cv, xa0, xa, xb, xbe, thot, tcold)
 
+# if keeping hot and cold file names
+if doKeep:
+    # code for keeping hot and cold avefrage spectra
+    ave_hot.ydataA = hv
+    ave_cold.ydataA = cv
+    hotcold.keep_hotcold( ave_hot, ave_cold, cpuIndex, keepDirectory)
+    
 print(( "Median Receiver Temp: %7.3f +/- %6.3f (%6.3f %6.3f) (K)" % ( tRxMiddle, tRms, tStdA, tStdB)))
 
 gainA = np.median(gain[xa0:xa])
