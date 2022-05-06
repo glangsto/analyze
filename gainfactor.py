@@ -4,6 +4,7 @@ and elevations.  This module also finds the local times of galactic plane
 Crossings.
 """
 #HISTORY
+#22May04 GIL fix reading LONLAT etc
 #22May02 GIL revise save file; add telescope location
 #21AUG20 GIL enable passing of the debug flag
 #21JAN07 GIL add help, update for changes
@@ -291,6 +292,8 @@ def readSaveValues( f):
 #    f = open(saveFile, "r")
 
 #    print("Entering Read Save Values")
+    global lastaz, lastel
+    global tellon, tellat, telelev
     date = ""
     time = ""
     cpuIndex = int(0)
@@ -331,20 +334,21 @@ def readSaveValues( f):
     
     while aline[0] == "#":
         alen = len(aline)
-        if aline[1:6] == "LONLAT":
+        if "LONLAT" in aline[1:8]:
             values = aline[7:]
-            parts = values.split(' ')
+            parts = values.split()
             if len(parts) == 4:
                 cpuIndex = int(parts[0])
                 tellon = float(parts[1])
                 tellat = float(parts[2])
-                telelev = flaot(parts[3])
+                telelev = float(parts[3])
             else:
                 print("Invalid Telescope Lon lat values:")
                 print(aline)
-        if aline[1:4] == "AZEL":
+                print(parts)
+        if "AZEL" in aline[1:8]:
             values = aline[6:]
-            parts = values.split(' ')
+            parts = values.split()
             if len(parts) == 3:
                 cpuIndex = int(parts[0])
                 telaz = float(parts[1])
@@ -352,6 +356,7 @@ def readSaveValues( f):
             else:
                 print("Invalid Telescope Az,El values:")
                 print(aline)
+                print(parts)
         aline = f.readline()
         aline = aline.strip()
     # if hear, not a comment
