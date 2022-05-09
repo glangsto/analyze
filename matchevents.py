@@ -936,8 +936,10 @@ def main():
         plotHistogram( nDir, rs, nday, mjdRef, EventDirs, 0, [ 0., 0.], [ 0, 0], [ 0., 0.], [0., 0.], 0)
         exit() 
 
-    for iii in range(nDir): 
-            # now compare all pairs of matches
+#    for iii in range(nDir): 
+    for lll in range(nMatch):
+
+        # now compare all pairs of matches
         matcha = matchs[ lll]
         lista = matcha['list']
         counta = matcha['count']
