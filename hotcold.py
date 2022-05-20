@@ -68,7 +68,8 @@ def normalize_spec( ave_spec, firstutc, lastutc):
     different integration times.
     """
     # now renormalize for total integration time
-    ave_spec.ydataA = ave_spec.ydataA/float(ave_spec.durationSec)
+    if float(ave_spec.durationSec) > 0.:
+        ave_spec.ydataA = ave_spec.ydataA/float(ave_spec.durationSec)
     # compute average time from first and last utcs
     aveutc, duration = radioastronomy.aveutcs( firstutc, lastutc)
     ave_spec.utc = aveutc
@@ -265,10 +266,7 @@ def read_cold( names, ave_cold, lowel, lowGlat, doScaleAve):
                 average_spec( ave_cold, rs, ncold, firstutc, lastutc)
 
     # end of all files to average
-    if ncold < 1:
-        print( "No high elevation data: can not calibrate")
-        sys.exit()
-    else:
+    if ncold > 0:
         ave_cold = normalize_spec( ave_cold, firstutc, lastutc)
 
     return ave_cold, ncold

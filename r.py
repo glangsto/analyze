@@ -1,6 +1,7 @@
 #Python Script to plot raw NSF record data.
 #plot the raw data from the observation
 #HISTORY
+#22May20 GIL if file not recognized skip
 #20Dec24 GIL remove 20 from plot file names
 #20Aug28 GIL update plotting to a file
 #20Jun16 GIL add plotting to a file
@@ -221,7 +222,10 @@ for iii in range(namearg, min(nargs,30)):
     time  = time.replace('_',':')
     parts  = time.split('.')
     time = parts[0]
-    
+
+    if rs.nChan < 1:
+        print("Skipping file: %s" % (filename))
+        continue
     gallon = rs.gallon
     gallat = rs.gallat
     label = '%s, AZ,EL: %5s,%5s, Lon,Lat=%5.1f,%5.1f' % ( time,rs.telaz,rs.telel,gallon,gallat)
@@ -305,6 +309,8 @@ for iii in range(namearg, min(nargs,30)):
         plt.plot(xv[xa:xb], yv[xa:xb], colors[nplot], linestyle=linestyles[iii-1],label=label, lw=2)
     else:
         plt.plot(xv[xa:xb], yv[xa:xb], colors[nplot], linestyle=linestyles[iii-1],label=label, lw=2)
+
+# end for all names loop
 if (maxPlot < 1) or (nplot < 1):
     print("No Plots, exiting")
     exit()
