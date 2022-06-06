@@ -456,6 +456,19 @@ else:
 
     ave_cold, ncold = \
         hotcold.read_cold( names, ave_cold, lowel, lowGlat, doScaleAve)
+    # if no cold obs found, first try all galactic latitudes
+    if ncold < 1:
+        print( "No high galactic latitude obs, trying all galactic latitudes")
+        ave_cold, ncold = \
+            hotcold.read_cold( names, ave_cold, lowel, 0., doScaleAve)
+        if ncold < 1:
+            print( "No high elevation obds, using all obs > 10.")
+            lowel = 10.
+            ave_cold, ncold = \
+                hotcold.read_cold( names, ave_cold, lowel, 0., doScaleAve)
+            if ncold < 1:
+                print( "No high elevation data: can not calibrate")
+                sys.exit()
 
 # convert to MHz
 xv = ave_cold.xdata*1.E-6

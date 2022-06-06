@@ -1,5 +1,6 @@
 #Python find matchs in data directories
 #HISTORY
+#22May20 GIL fix MATCH plotting the 5th telecope, fix UTC offset to timezone
 #22Apr07 GIL fix histogram alignment
 #21Dec14 GIL color in the bars in the counts/hour plot
 #21Sep01 GIL ignore data for El < 0
@@ -336,9 +337,11 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
     except:
         timezone = str(parts[0])
 
-    # prepart to compute local time 
-    utcOffsetHours = time.timezone/3600. 
-    utcOffsetDays = time.timezone/86400.
+    # prepart to compute local time
+    utcOffset = datetime.datetime.utcnow() - datetime.datetime.now()
+    utcOffsetSecs = utcOffset.total_seconds() + 1.
+    utcOffsetSecs = int(utcOffsetSecs)
+    utcOffsetHours = utcOffsetSecs/3600.
     utcparts = np.zeros(nday+1)
     for iDay in range(nday):
         utcparts[iDay] = np.float(iDay*24./np.float(nday))
@@ -391,12 +394,12 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
     utc0 = datetime.datetime.strptime( dateHour, "%Y-%m-%d %H")
     # get utc of local midnight
     dateHour = "%s %5d" % (parts[0],utcOffsetHours)
+#    print("dateHour: %s" % (dateHour))
     utcmidnight = datetime.datetime.strptime( dateHour, "%Y-%m-%d %H")
-#    print("Utc: %s, Local Midnight Utc: %s" % (utcstr, utcmidnight))
+    print("Utc: %s, Local Midnight Utc: %s" % (utcstr, utcmidnight))
     # prepart to compute local time 
-    utcOffsetHours = time.timezone/3600. 
-    utcOffsetDays = time.timezone/86400.
-#    print( "Time zone %s is offset %5.1f hours from UTC" % (timezone, utcOffsetHours))
+#    utcOffsetHours = time.timezone/3600. 
+    print( "Time zone %s is offset %5.1f hours from UTC" % (timezone, utcOffsetHours))
 
     # annoate plot for local midnight
     rs.utc = utcmidnight
@@ -427,6 +430,7 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
 
     # utc time of noon
     dateHour = "%s %5d" % (parts[0],utcOffsetHours+12.)
+#    print("dateHour: %s" % (dateHour))
     utcnoon = datetime.datetime.strptime( dateHour, "%Y-%m-%d %H")
     rs.utc = utcnoon
     print( "          Utc Noon : %s" % (str(rs.utc)))
@@ -688,7 +692,9 @@ def main():
         counts5 = np.zeros(nday)
 
     print("Hour        Telescope/Day  ")
-    if nDir > 3:
+    if nDir > 4:
+        print("Hour      1     2     3     4     5")
+    elif nDir > 3:
         print("Hour      1     2     3     4")
     elif nDir > 2:
         print("Hour      1     2     3")
@@ -701,7 +707,10 @@ def main():
         utcparts[iDay] = np.float(iDay*24./np.float(nday))
         if counts0[iDay] != 0 or counts1[iDay] != 0 or counts2[iDay] != 0 \
                 or counts3[iDay] != 0 or counts4[iDay] != 0:
-            if nDir == 4:
+            if nDir == 5:
+                print("%5.1f  %5d %5d %5d %5d %5d" % (utcparts[iDay], \
+                                                  counts0[iDay],counts1[iDay], counts2[iDay], counts3[iDay], counts4[iDay]))
+            elif nDir == 4:
                 print("%5.1f  %5d %5d %5d %5d" % (utcparts[iDay], \
                                                counts0[iDay],counts1[iDay], counts2[iDay], counts3[iDay]))
             elif nDir == 3:
@@ -1076,7 +1085,7 @@ def main():
             file4 = ""
         else:
             files4 = EventDirs[4]['events']
-            file4 = files3[i4]
+            file4 = files4[i4]
             print("%3d 4 %s" %  (lll, file4))
         if doPlot:
             plotcmd = "~/Research/analyze/E %s %s %s %s %s" % (file0, file1, file2, file3, file4)
