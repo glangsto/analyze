@@ -6,6 +6,7 @@ Glen Langston National Scioence Foundation
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#22Jun11 GIL Write .kel (vins) file with channel/velocity/freq units of plot
 #22Apr28 GIL fix use of cv array before initialization
 #22Apr28 GIL debug median filtering
 #22APR22 GIL put some functions in hotcold.py
@@ -251,6 +252,8 @@ while iarg < nargs:
         plotFileDir = sys.argv[iarg]
     elif sys.argv[iarg].upper() == '-Q':
         plotFrequency = True
+        doLimitVel = False
+        print("Limiting Velocities in the plot")
     elif sys.argv[iarg].upper() == '-R':
         flagRfi = True
     elif sys.argv[iarg].upper() == '-S':   # if save file name provided
@@ -359,6 +362,7 @@ tmax = 999.0 # define reasoanable value limits
 # prepare to remove a linear baseline
 
 nplot = 0
+nwrite = 0       # count files written out 
 nhot = 0         # number of obs with el < 0
 minGlat = +90.
 maxGlat = -90.
@@ -491,6 +495,15 @@ if nmedian > 2:
 
 gain, gainAve, tRxMiddle, tRms, tStdA, tStdB = \
     hotcold.compute_gain( hv, cv, xa0, xa, xb, xbe, thot, tcold)
+
+# strip out white space and add / to directory name
+keepDirectory = keepDirectory.strip()
+nKeep = len(keepDirectory)
+if nKeep < 1:
+    keepDirectory = "../"
+else:
+    if keepDirectory[nKeep - 1] != '/':
+        keepDirectory = keepDirectory + "/"
 
 # if keeping hot and cold file names
 if doKeep:
@@ -744,7 +757,7 @@ for filename in names:
             label = '%s L,L=%5.1f,%5.1f A,E=%4.0f,%4.0f' % (labeltime, gallon, gallat, az, el)
         print(( ' Max: %9.1f  Median: %8.2f +/- %5.2f %3d %s' % \
                 (tSourcemax, tSys, tStd, nave, label)))
-        # if plotting frequency overwrite the corrected velocities
+        # if plotting frequency overwrite velocities with frequency
         if plotFrequency:
             velcorr = xv
         if int(nplot) < int(maxPlot):
@@ -773,13 +786,15 @@ for filename in names:
             outname = outname + ".kel"  # output in Kelvins
             write_spec.count = 1
             write_spec.nave = 1
-            doComputeX = False  # x-axis already computed
+            doComputeX = False  # x-axis already computed 
             if doLimitVel:
-                print("Limiting File Output to selected channels")
                 nOut = imax - imin
                 nChan = ave_spec.nChan
-                print("Writing Channels %d to %d (%d total)" % \
-                      (imin, imax, nOut))
+                if nwrite < 1:
+                    print("Limiting File Output to selected channels")
+                    print("Writing Channels %d to %d (%d total)" % \
+                          (imin, imax, nOut))
+                nwrite = nwrite + 1
                 write_spec.nChan = nOut
                 # adjust x axis indicies
                 i2 = int((imax+imin)/2)
@@ -797,7 +812,13 @@ for filename in names:
                 if not plotFrequency:
                     write_spec.xdata = velcorr * 1000. # km/sec -> m/sec
             # finally write the calibrated spectrum
-            write_spec.write_ascii_file("../", outname, plotFrequency, \
+            if plotFrequency:
+                print("Writing Intensities vs Frequency to %s%s" %
+                      (keepDirectory,outname))
+            else:
+                print("Writing Intensities vs Velocity to %s%s" %
+                      (keepDirectory,outname))
+            write_spec.write_ascii_file(keepDirectory, outname, plotFrequency, \
                                        doWriteHeader, doComputeX)
         # flag restarting the sum
         nave = 0

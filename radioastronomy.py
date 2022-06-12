@@ -3,6 +3,7 @@
 Class defining a Radio Frequency Spectrum
 Includes reading and writing ascii files
 HISTORY
+22Jun11 GIL if doComputeX is false, use pre-calculated X values
 21Dec21 GIL remove extra print(), fix ephem help
 21Oct26 GIL merge in separating header from the data 
 21Oct02 GIL merge in writing of Velocities
@@ -699,9 +700,9 @@ class Spectrum(object):
             outline = "#       (Hz)    (%s) \n" % (self.bunit)
             outfile.write(outline)
         else:
-            outline = "# N Velocity  Intensity \n"
+            outline = "# N Velocity Intensity \n"
             outfile.write(outline)
-            outline = "#    (m/sec)  (%s) \n" % (self.bunit)
+            outline = "#   (m/sec)  (%s) \n" % (self.bunit)
             outfile.write(outline)
 
         # if a spectrum in this data stream
@@ -730,17 +731,31 @@ class Spectrum(object):
             # if I/Q spectra
             if self.nSpec > 1:
                 pformat = "%04d %s %.4f %.4f\n"
-                for i in range(min(self.nChan, leny)):
-                    outline = pformat % (i, str(int(x)), self.ydataA[i], self.ydataB[i])
-                    outfile.write(outline)
-                    x = x + dx
+                if doComputeX:
+                    for i in range(min(self.nChan, leny)):
+                        outline = pformat % (i, str(int(x)), self.ydataA[i], self.ydataB[i])
+                        outfile.write(outline)
+                        x = x + dx
+                else:
+                    for i in range(min(self.nChan, leny)):
+                        outline = pformat % (i, str(int(self.xdata[i])), self.ydataA[i], self.ydataB[i])
+                        outfile.write(outline)
+                        x = x + dx
             else:
+                # else just a spectrum
                 pformat = "%04d %s %.4f\n"
-                for i in range(min(self.nChan, leny)):
-                    outline = pformat % (i, str(int(x)), self.ydataA[i])
-                    outline = outline.replace('  ', ' ')
-                    outfile.write(outline)
-                    x = x + dx
+                if doComputeX:
+                    for i in range(min(self.nChan, leny)):
+                        outline = pformat % (i, str(int(x)), self.ydataA[i])
+                        outline = outline.replace('  ', ' ')
+                        outfile.write(outline)
+                        x = x + dx
+                else:
+                    # else not recompute X, velocities need a couple digitx
+                    for i in range(min(self.nChan, leny)):
+                        outline = pformat % (i, str(int(self.xdata[i])), self.ydataA[i])
+                        outline = outline.replace('  ', ' ')
+                        outfile.write(outline)
             del outline
         # if this is an event
         if self.nTime > 0:
