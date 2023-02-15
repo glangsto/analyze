@@ -1,5 +1,6 @@
 #Python find matchs in data directories
 #HISTORY
+#23Feb15 GIL numpy revisions
 #22May20 GIL fix MATCH plotting the 5th telecope, fix UTC offset to timezone
 #22Apr07 GIL fix histogram alignment
 #21Dec14 GIL color in the bars in the counts/hour plot
@@ -93,13 +94,13 @@ minEl = -100.
 while iii < nargs:
     anarg = sys.argv[iii].upper()
     if str(anarg[0:3]) == "-OF":
-        offset = np.float(sys.argv[iii+1])
+        offset = float(sys.argv[iii+1])
         iii = iii + 1
         print("Maximum Time Offset: %8.6f s for Match: " % (offset))
         offset = offset/86400.   # convert to MJDs
         ifile = ifile + 2
     if str(anarg[0:3]) == "-N":
-        nPrint = np.int(sys.argv[iii+1])
+        nPrint = int(sys.argv[iii+1])
         iii = iii + 1
         if nPrint <= 0:
             nPrint = 2
@@ -118,13 +119,13 @@ while iii < nargs:
         print("Marking observations within 10 degrees of the galatic plane with *")
         ifile = ifile + 1
     if str(anarg[0:3]) == "-ND":
-        nday = np.int(sys.argv[iii+1])
+        nday = int(sys.argv[iii+1])
         iii = iii + 1
         print("Divide Day into N Parts:  %d" % (nday))
         aFix = True
         ifile = ifile + 2
     if str(anarg[0:3]) == "-SI":
-        sigma = np.float(sys.argv[iii+1])
+        sigma = float(sys.argv[iii+1])
         iii = iii + 1
         print("Keeping Events > %7.2f Sigma " % (sigma))
         aFix = True
@@ -344,7 +345,7 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
     utcOffsetHours = utcOffsetSecs/3600.
     utcparts = np.zeros(nday+1)
     for iDay in range(nday):
-        utcparts[iDay] = np.float(iDay*24./np.float(nday))
+        utcparts[iDay] = float(iDay*24./float(nday))
     # to finish plot need to duplicate last point
     utcparts[nday] = 24.
     if calendar == "":
@@ -704,7 +705,7 @@ def main():
     utcparts = np.zeros(nday)
     # now print matches as a function of time 
     for iDay in range(nday):
-        utcparts[iDay] = np.float(iDay*24./np.float(nday))
+        utcparts[iDay] = float(iDay*24./float(nday))
         if counts0[iDay] != 0 or counts1[iDay] != 0 or counts2[iDay] != 0 \
                 or counts3[iDay] != 0 or counts4[iDay] != 0:
             if nDir == 5:
@@ -802,7 +803,7 @@ def main():
         # if any matches to this event
         if matchcount > 1:
             # a match has at least two partners
-            mjdave = mjdave / np.float(matchcount)
+            mjdave = mjdave / float(matchcount)
 #            if matchcount == nDir:
 #                print( "MJD Ave: %12.6f; %12.6f %12.6f %12.6f, %12.6f" % (mjdave, mjd0s[i0], mjd1s[i1], mjd2s[i2], mjd3s[i3]))
             # currently can only compare 4 directories/telescopes
@@ -834,7 +835,7 @@ def main():
         if matchcount > 1:
             match['nmatch'] = nMatch
             match['count'] = matchcount
-            match['mjd'] = mjdave / np.float(matchcount)
+            match['mjd'] = mjdave / float(matchcount)
             match['list'] = [ i0, i1, i2, i3]
             matchs[ nMatch ] = match
             nMatch = nMatch + 1
@@ -857,7 +858,7 @@ def main():
         if matchcount > 1:
             match['nmatch'] = nMatch
             match['count'] = matchcount
-            match['mjd'] = mjdave / np.float(matchcount)
+            match['mjd'] = mjdave / float(matchcount)
             match['list'] = [ i0, i1, i2, i3]
             matchs[ nMatch ] = match
             nMatch = nMatch + 1
