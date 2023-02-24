@@ -68,6 +68,7 @@ if nargs < 2:
     print("Where -H Optionally plot histogram of events per parts of a day")
     print("Where -N <n> Optionally print matches when number is equal or greater to <n>")
     print("Where -P Plot matches")
+    print("Where -Y <offset> Optionally adds an offset to the event plots (-P option)")
     print("")
     print("Glen Langston, 2021 September 1")
     sys.exit()
@@ -86,6 +87,8 @@ doPlot = False
 doHistogram = False
 flagGroups = False
 doDebug = False
+doOffset = False
+yoffset = 0.0
 doGalactic = False
 nPrint = 4
 minEl = -100.
@@ -154,6 +157,11 @@ while iii < nargs:
         doDebug = True
         print("Debugging")
         ifile = ifile + 1
+    if anarg[0:2] == "-Y":
+        doOffset = True
+        iii = iii + 1
+        yoffset = float(sys.argv[iii])
+        ifile = ifile + 2
     iii = iii + 1
 
 nplot = 0
@@ -213,7 +221,7 @@ def finddirs( calendar, ifile, nDir):
             if nDir >= MAXDIR:
                 break
 
-        for idir in range(1, 15):
+        for idir in range(1, 20):
             adir = "od%d-events-" % idir
             adir = adir + calendar
             if os.path.isdir(adir):
@@ -289,7 +297,7 @@ def findpairs( EventDir1, EventDir2):
     # extract number of events in each directory
     n1 = EventDir1['n']
     n2 = EventDir2['n']
-    # make sure there are plenty of indicies
+    # make sure there are plenty of indicies, set to no-match
     ii12s = np.zeros(n1+n2) + NOMATCH
     # init minimum time offsets
     dt12s = np.zeros(n1+n2) + MAXDT
@@ -523,8 +531,8 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
     # now draw vertical lines for events
     iplot = 0
     for iii in range(nall):
-#        x4 = match4times[iii] - mjdRef + (0.5/float(nday))
-        x4 = match4times[iii] - mjdRef
+        x4 = match4times[iii] - mjdRef + (0.5/float(nday))
+#        x4 = match4times[iii] - mjdRef
         x4 = (x4*24.) % 24.
         # now compute x position for this MJD 
         # MJD midnight = UTC midnight.
@@ -784,7 +792,7 @@ def main():
             i1 = int(ii01s[i0])
             mjdave = mjdave + mjd1s[i1]
             matchcount = matchcount + 1
-        if nDir > 3:
+        if nDir > 2:
             if abs(dt02s[i0]) < offset:
                 i2 = int(ii02s[i0])
             #            print("0: %5d, 1: %5d 2: %5d" % (i0, i1, i2))
@@ -981,9 +989,12 @@ def main():
             continue
         # must have one directory, but others might not be present
         i0 = lista[0]
-        if i0 < 0 or i0 >= nEve0:
+        if i0 < 0:
+            continue
+        if i0 >= nEve0:
             print("Error reading telescope 0 index %d not in range 0 to %d" % \
                   ( i0, len(files0)))
+            print(lista)
             continue
         file0 = files0[i0]
         rs.read_spec_ast(file0)
@@ -1089,7 +1100,10 @@ def main():
             file4 = files4[i4]
             print("%3d 4 %s" %  (lll, file4))
         if doPlot:
-            plotcmd = "~/Research/analyze/E %s %s %s %s %s" % (file0, file1, file2, file3, file4)
+            if doOffset:
+                plotcmd = "~/Research/analyze/E -Y %.2f %s %s %s %s %s" % (yoffset, file0, file1, file2, file3, file4)
+            else:
+                plotcmd = "~/Research/analyze/E %s %s %s %s %s" % (file0, file1, file2, file3, file4)
             os.system(plotcmd)
 
     print( "Count of Events and Event Groups: %d" % (nUnique))

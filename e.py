@@ -2,6 +2,8 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#23Feb24 GIL keep track of min and max
+#23Feb17 GIL fix np deletion of np.int and np.float
 #22Apr07 GIL clean up messages
 #22Mar23 GIL pull out leading pi from file name
 #21Aug21 GIL deal with different length event files
@@ -9,7 +11,7 @@
 #21Mar21 GIL initialize t variable for computing M
 #20Dec10 GIL optionally shift plots in y 
 #20Aug28 GIL optionally on plot to files
-#20Mar24 GIL increment color in plot order
+#20Mar24 GIL increment coyalllor in plot order
 #20Feb08 GIL date to title
 #19NOV08 GIL add title option, switch to micro-seconds
 #19OCT10 GIL also show ra and dec
@@ -97,7 +99,7 @@ while iarg < nargs:
         doPlotFile = True
     elif sys.argv[iarg].upper() == '-Y':   # if offsetting in Y
         iarg = iarg + 1
-        yoffset = np.float( sys.argv[iarg])
+        yoffset = float( sys.argv[iarg])
     elif sys.argv[iarg].upper() == '-Z':     # label written files
         iarg = iarg+1
         fileTag = str(sys.argv[iarg])
@@ -255,8 +257,8 @@ for iii in range(namearg, min(nargs,25)):
 #        fig.set_window_title(title)
     nplot = nplot + 1
     note = rs.noteA
-    yallmin = min(ymin,yallmin)
-    yallmax = max(ymax,yallmax)
+    yallmin = min(ymin+y0,yallmin)
+    yallmax = max(ymax+y0,yallmax)
 
     plt.plot(xv, yv+y0, colors[nplot-1], linestyle=linestyles[nplot-1],label=label)
     y0 = y0 + yoffset
@@ -266,12 +268,12 @@ plt.ylabel('Intensity (Counts)')
 plt.legend(loc='upper right')
 plt.xlim(xallmin,xallmax)
 if not doMag:
-    if y0 > 0.:
-        plt.ylim(yallmin,yallmax+y0*.666)
-    elif y0 < 0.:
-        plt.ylim(yallmin+y0*.666,yallmax)
-    else:
-        plt.ylim(yallmin,(1.2*yallmax)+y0)
+#    if y0 > 0.:
+#        plt.ylim(yallmin,yallmax+y0*.666)
+#    elif y0 < 0.:
+#        plt.ylim(yallmin+y0*.666,yallmax)
+#    else:
+    plt.ylim(yallmin,(1.1*yallmax))
 if doPlotFile:
     if fileTag == "":
         fileTag = "E-" + firstdate
