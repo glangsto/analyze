@@ -1,6 +1,7 @@
 #Python Script to plot raw NSF record data.
 #plot the raw data from the observation
 #HISTORY
+#23Mar04 GIL fix matplot lib changes/deprications.   Short label if el < 0
 #22May20 GIL if file not recognized skip
 #20Dec24 GIL remove 20 from plot file names
 #20Aug28 GIL update plotting to a file
@@ -179,7 +180,9 @@ else:
     print( "Ploting Intensity versus Velocity")
 
 linestyles = ['-','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.','-','--','-.']
-colors = ['g', 'b', 'r', '-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g']
+colors = ['g', 'b', 'r', 'b','r','g','b','r','g','b','r','g','b','r','g','b','r','g','b','r','g','b','r','g','b','r','g','b','r','g','b','r','g','b','r','g','b','r','g']
+colors =  ['b','r','g', 'b','r','g','b','r','g','c','m','y','c','m','y','c','m','y','b','r','g','b','r','g','b','r','g','b','r','g','b','r','g','b','r','g']
+#colors = ['g', 'b', 'r', '-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g']
 
 scalefactor = 1.0
 xallmax = -9.e9
@@ -228,7 +231,10 @@ for iii in range(namearg, min(nargs,30)):
         continue
     gallon = rs.gallon
     gallat = rs.gallat
-    label = '%s, AZ,EL: %5s,%5s, Lon,Lat=%5.1f,%5.1f' % ( time,rs.telaz,rs.telel,gallon,gallat)
+    if rs.telel > 0:
+        label = '%s, AZ,EL: %5s,%5s, Lon,Lat=%5.1f,%5.1f' % ( time,rs.telaz,rs.telel,gallon,gallat)
+    else:
+        label = '%s, AZ,EL: %5s,%5s' % ( time,rs.telaz,rs.telel)
     xv = rs.xdata  * 1.E-6 # convert to MHz
     nData = len( xv)
     n6 = int(nData/6)
@@ -288,8 +294,10 @@ for iii in range(namearg, min(nargs,30)):
 
     print(' Max: %9.1f  Median: %9.1f SNR: %6.2f ; %s %s' % (ymax, ymed, ymax/ymed, count, label))
     if nplot <= 0 and maxPlot > 0:
+#        fig = plt.figure(date)
         fig,ax1 = plt.subplots(figsize=(10,6))
-        fig.canvas.set_window_title(date)
+#        fig.canvas.set_window_title(date)
+#        plt.manager.canvas.set_window_title(date)
         for tick in ax1.xaxis.get_major_ticks():
             tick.label.set_fontsize(14) 
         for tick in ax1.yaxis.get_major_ticks():

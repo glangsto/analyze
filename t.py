@@ -346,7 +346,7 @@ newObs = False
 allFiles = False
 
 linestyles = ['-','-','-', '-.','-.','-.','--','--','--','-','-','-', '-.','-.','-.','--','--','--','-','-','-', '-.','-.','-.','--','--','--','-','-','-', '-.','-.','-.','--','--','--']
-colors =  ['-b','-r','-g', '-b','-r','-g','-b','-r','-g','-c','-m','-y','-c','-m','-y','-c','-m','-y','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g','-b','-r','-g']
+colors =  ['b','r','g', 'b','r','g','b','r','g','c','m','y','c','m','y','c','m','y','b','r','g','b','r','g','b','r','g','b','r','g','b','r','g','b','r','g']
 nmax = len(colors)
 xallmax = -9.e9
 xallmin = 9.e9
@@ -888,7 +888,7 @@ else:
 if (maxPlot < 1) or (nplot < 1):
     print("No Plots, exiting")
     sys.exit()
-fig.canvas.set_window_title(myTitle)
+#fig.canvas.set_window_title(myTitle)
 for tick in ax1.xaxis.get_major_ticks():
     tick.label.set_fontsize(14)
     # specify integer or one of preset strings, e.g.

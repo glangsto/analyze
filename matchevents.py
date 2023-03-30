@@ -1,5 +1,8 @@
 #Python find matchs in data directories
 #HISTORY
+#23Mar31 GIL fix plotting of more than 4 directories
+#23Mar03 GIL Fix matching with only 2 directories
+#23Feb24 GIL minor plotting improvements
 #23Feb15 GIL numpy revisions
 #22May20 GIL fix MATCH plotting the 5th telecope, fix UTC offset to timezone
 #22Apr07 GIL fix histogram alignment
@@ -67,7 +70,9 @@ if nargs < 2:
     print("Where -G Optionally plot +/- 10 degrees of galactic plane")
     print("Where -H Optionally plot histogram of events per parts of a day")
     print("Where -N <n> Optionally print matches when number is equal or greater to <n>")
+    print("Where -ND <n> Optionally divide the day into <n> parts, default 24")
     print("Where -P Plot matches")
+    print("Where -Q Quiet processing, no showing plots, only save .pdf, .svg")
     print("Where -Y <offset> Optionally adds an offset to the event plots (-P option)")
     print("")
     print("Glen Langston, 2021 September 1")
@@ -84,6 +89,7 @@ kpercount = 1.0       # calibration into Kelvin units
 note = ""             # optional note for top of plot
 calendar = ""
 doPlot = False
+doQuiet = False
 doHistogram = False
 flagGroups = False
 doDebug = False
@@ -92,6 +98,8 @@ yoffset = 0.0
 doGalactic = False
 nPrint = 4
 minEl = -100.
+# temporarily turn on/off debugging
+verbose = False
 
 # read through arguments extracting parameters
 while iii < nargs:
@@ -149,6 +157,10 @@ while iii < nargs:
         doPlot = True
         print("Plotting Matching events")
         ifile = ifile + 1
+    if anarg[0:2] == "-Q":
+        doQuiet = True
+        print("Quit running, without showing plots")
+        ifile = ifile + 1
     if anarg[0:2] == "-H":
         doHistogram = True
         print("Plotting Histogram of events per day")
@@ -167,9 +179,6 @@ while iii < nargs:
 nplot = 0
 if nday < 1:
     nday = 24
-
-#print("Counting Events in blocks of %5.2f hours" % (24./nday))
-# 
 nDir = nargs-ifile
 # 
 MAXDIR = 10
@@ -336,6 +345,7 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
     fig, ax = plt.subplots( figsize=(12,6))
 
     rs = copy.deepcopy(rs_in)
+
     # get local timezon and utc offset
     batcmd="/bin/date +%Z"
     timezone = subprocess.check_output(batcmd, shell=True)
@@ -352,8 +362,10 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
     utcOffsetSecs = int(utcOffsetSecs)
     utcOffsetHours = utcOffsetSecs/3600.
     utcparts = np.zeros(nday+1)
+    deltat = 24./float(nday)
     for iDay in range(nday):
         utcparts[iDay] = float(iDay*24./float(nday))
+    
     # to finish plot need to duplicate last point
     utcparts[nday] = 24.
     if calendar == "":
@@ -364,21 +376,27 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
     yoffset = 0
     barcolors = ["lightcyan", "wheat", "greenyellow", "mistyrose", \
                  "wheat", "lightgrey", "mintcream"]
+    # now for all directorys with events
     for ddd in range( nDir):
         adir = EventDirs[ddd]['dir']
         nEve = EventDirs[ddd]['n']
         counts = copy.deepcopy( EventDirs[ddd]['counts'])
+        if verbose:
+            for iDay in range(nday):
+                if counts[iDay] > 0:
+                    print("%5d %8.2f %5d" % ( iDay, utcparts[iDay], counts[iDay]))
+                
         alabel = adir[0:5]
         labelparts = alabel.split("-")
-        alabel = labelparts[0]
+        alabel = "%s:%4d" % (labelparts[0], nEve)
         # duplicate the last value to complete the plot
         counts = np.append( counts, counts[nday-1])
-        ybottom = yoffset + (0.* counts)
+        ybottom = yoffset
 # time epsilon to unhide multiple events
         plt.step( utcparts, counts + yoffset, where="post", label=alabel)
 #        plt.bar( utcparts, counts, bottom=ybottom, align="center", \
 #        plt.bar( utcparts, counts, bottom=ybottom, align="edge", \
-        plt.bar( utcparts, counts, bottom=ybottom, align="edge", \
+        plt.bar( utcparts, counts, width=deltat, bottom=ybottom, align="edge", \
                   label=None, color=barcolors[ddd])
         #                  where='post', label=alabel)
         maxcounts = np.max(counts)
@@ -434,8 +452,9 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
         lststr = lstparts[nparts - 1]
     lstparts = lststr.split(".")
     lststr = lstparts[0]
-    alabel = " LST: %s" % (lststr)
-    ax.annotate(alabel, xy=( xa, yoffset*.25), xytext =( xa, yoffset*.25))
+# had trouble with LST offset across daylight savings time changes
+#    alabel = " LST: %s" % (lststr)
+#    ax.annotate(alabel, xy=( xa, yoffset*.25), xytext =( xa, yoffset*.25))
 
     # utc time of noon
     dateHour = "%s %5d" % (parts[0],utcOffsetHours+12.)
@@ -526,13 +545,14 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
             ygal = ytop * 1.02    # set gold galactic line placement at top
             if bbb < minlat and bbb > -minlat:
                 xgal = 24.*mmm/nGalactic
-                ax.annotate("*", xy=( xgal, ygal), color='gold')
+                ax.annotate("*", xy=( xgal, ygal), color='orange')
 
     # now draw vertical lines for events
     iplot = 0
+    # for all matched events
     for iii in range(nall):
-        x4 = match4times[iii] - mjdRef + (0.5/float(nday))
-#        x4 = match4times[iii] - mjdRef
+        x4 = match4times[iii] - mjdRef
+        # if date is beyond 0-24 hour range, move in range
         x4 = (x4*24.) % 24.
         # now compute x position for this MJD 
         # MJD midnight = UTC midnight.
@@ -559,19 +579,35 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
 #    plt.legend(title="Set of Obs.")
     plt.legend()
     if nDir == 1:
-        plt.title("%s   Events per Hour" % (calendar))
-        plt.xlabel(("Time (UTC hours, %s offset: %2.0f hours)" % (timezone, utcOffsetHours)), fontsize=16)
+        plt.title("%s   Event Rate" % (calendar),fontsize=18)
+        plt.xlabel("Time (UTC hours)", fontsize=18)
     else:
-        plt.title("%s   Events per Hour for %d Observations" % (calendar, nDir))
-        plt.xlabel("Time (UTC hours, %s offset: %2.0f hours) (Distinct Event Count: %d)" % (timezone, utcOffsetHours, nUnique), fontsize=16)
-    plt.ylabel("Count of Events/Hour", fontsize=16)
-    plt.xlim(0.,24.) # 24 hours/per day
-    plotfile = 'match-%s.png' % (calendar)
+        plt.title("%s   Event Rate for %d Observations" % (calendar, nDir),
+                  fontsize=18)
+#        plt.xlabel("Time (UTC hours, %s offset: %2.0f hours) (Distinct Event Count: %d)" % (timezone, utcOffsetHours, nUnique), fontsize=18)
+        plt.xlabel("Time (UTC hours) (Distinct Event Count: %d)" % (nUnique), fontsize=18)
+
+    if nday == 24:
+        plt.ylabel("Count of Events/Hour", fontsize=18)
+    elif nday == 1440:
+        plt.ylabel("Count of Events/Minute", fontsize=18)
+    else:
+        nminute = int(1440.001/float(nday))
+        plt.ylabel("Count of Events/%d Minutes" % (nminute), fontsize=18)
+
+    plt.xlim(0.,24.05) # 24 hours/per day
+    plt.tick_params(axis='x', labelsize=14)
+    plt.tick_params(axis='y', labelsize=14)
+    plt.xticks( [0., 4., 8., 12., 16., 20., 24.])
+
+    plotfile = 'match-%s.pdf' % (calendar)
     fig = plt.gcf()
     fig.savefig(plotfile, bbox_inches='tight')
-    
-    plt.show()
-
+    plotfile = 'match-%s.svg' % (calendar)
+    fig = plt.gcf()
+    fig.savefig(plotfile, bbox_inches='tight')
+    if not doQuiet:
+        plt.show()    
     return
 # end of plotHistogram
 
@@ -647,7 +683,8 @@ def main():
         counts = np.zeros(nday)
         # now count events in each range
         for iEve in range(nEve):
-            dMjd = mjds[iEve] - mjdRef + (0.5/float(nday))
+#            dMjd = mjds[iEve] - mjdRef + (0.5/float(nday))
+            dMjd = mjds[iEve] - mjdRef
             iDay = int((dMjd*nday))
             # wrap around day fraction
             iDay = iDay % nday
@@ -764,6 +801,12 @@ def main():
         ii14s, dt14s = findpairs( EventDirs[1], EventDirs[4])
         ii24s, dt24s = findpairs( EventDirs[2], EventDirs[4])
         ii34s, dt34s = findpairs( EventDirs[3], EventDirs[4])
+    if nDir > 5:
+        mjd5s = EventDirs[5]['mjds']
+        ii05s, dt04s = findpairs( EventDirs[0], EventDirs[4])
+        ii15s, dt14s = findpairs( EventDirs[1], EventDirs[4])
+        ii25s, dt24s = findpairs( EventDirs[2], EventDirs[4])
+        ii35s, dt34s = findpairs( EventDirs[3], EventDirs[4])
 
     # now report out the minimum time offsets and times less than 1 second off
     OneMjdSec = 1./86400.
@@ -781,8 +824,9 @@ def main():
         i2 = NOMATCH
         i3 = NOMATCH
         i4 = NOMATCH
+        i5 = NOMATCH
         if i0 == 0:
-            match = { 'nmatch': nMatch, 'count': matchcount, 'mjd': mjdRef, 'list': [ i0, i1, i2, i3] }
+            match = { 'nmatch': nMatch, 'count': matchcount, 'mjd': mjdRef, 'list': [ i0, i1, i2, i3, i4, i5] }
             matchs = { nMatch: match }
             
             
@@ -815,7 +859,7 @@ def main():
 #            if matchcount == nDir:
 #                print( "MJD Ave: %12.6f; %12.6f %12.6f %12.6f, %12.6f" % (mjdave, mjd0s[i0], mjd1s[i1], mjd2s[i2], mjd3s[i3]))
             # currently can only compare 4 directories/telescopes
-            match = { 'nmatch': nMatch, 'count': matchcount, 'mjd': mjdave, 'list': [ i0, i1, i2, i3] }
+            match = { 'nmatch': nMatch, 'count': matchcount, 'mjd': mjdave, 'list': [ i0, i1, i2, i3, i4, i5] }
             if nMatch == 0:
                 matchs = { nMatch: match }
             else:
@@ -829,7 +873,9 @@ def main():
         mjdave = mjd1s[0]
         i2 = NOMATCH
         i3 = NOMATCH
-        if nDir < 2:
+        i4 = NOMATCH
+        i5 = NOMATCH
+        if nDir < 3:
             continue
         if abs(dt12s[i1]) < offset:
             i2 = int(ii12s[i1])
@@ -844,7 +890,7 @@ def main():
             match['nmatch'] = nMatch
             match['count'] = matchcount
             match['mjd'] = mjdave / float(matchcount)
-            match['list'] = [ i0, i1, i2, i3]
+            match['list'] = [ i0, i1, i2, i3, i4, i5]
             matchs[ nMatch ] = match
             nMatch = nMatch + 1
 
@@ -858,6 +904,8 @@ def main():
         matchcount = 1
         mjdave = mjd2s[0]
         i3 = NOMATCH
+        i4 = NOMATCH
+        i5 = NOMATCH
         if nDir > 3:
             if abs(dt23s[i2]) < offset:
                 i3 = int(ii23s[i2])
@@ -867,7 +915,7 @@ def main():
             match['nmatch'] = nMatch
             match['count'] = matchcount
             match['mjd'] = mjdave / float(matchcount)
-            match['list'] = [ i0, i1, i2, i3]
+            match['list'] = [ i0, i1, i2, i3, i4, i5]
             matchs[ nMatch ] = match
             nMatch = nMatch + 1
 
@@ -884,7 +932,7 @@ def main():
         if nDir < 2:
             continue
         # first pass, only look at 4 matches
-        if counta < 4:
+        if counta < 5:
             continue
         for nnn in range((nMatch-lll-1)):
             kkk = lll + nnn + 1
@@ -900,6 +948,10 @@ def main():
             if lista[2] == listb[2]:
                 paircount = paircount+1
             if lista[3] == listb[3]:
+                paircount = paircount+1
+            if lista[4] == listb[4]:
+                paircount = paircount+1
+            if lista[5] == listb[5]:
                 paircount = paircount+1
             # if the number of matchs in 2nd matches all in first
             if paircount == countb:
@@ -926,11 +978,25 @@ def main():
             counts[2] = counts[2] + 1
         if lista[3] != NOMATCH:
             counts[3] = counts[3] + 1
+        if lista[4] != NOMATCH:
+            counts[4] = counts[4] + 1
+        if lista[5] != NOMATCH:
+            counts[5] = counts[5] + 1
 
 
     print( " Matches of Events with other telescopes")
-    print( " Tel:     2     3     4     5")
-    nCheck = min( nDir, 4)
+    if nDir == 2:
+        print( " Tel:     2 ")
+    elif nDir == 3:
+        print( " Tel:     2     3 ")
+    elif nDir == 4:
+        print( " Tel:     2     3     4 ")
+    elif nDir == 5:
+        print( " Tel:     2     3     4     5 ")
+    else:
+        print( " Tel:     2     3     4     5     6 ")
+        
+    nCheck = min( nDir, 5)
     for iii in range(nCheck): 
         counttypes = np.zeros(max(nDir,4))
         for lll in range(nMatch):
@@ -1030,10 +1096,10 @@ def main():
                     match4count[kkk] = -1
                     match4index[kkk] = -1
 
-    for iii in range(nall):
-        # if an already counted match
-        if match4count[iii] < 1:
-            continue
+#    for iii in range(nall):
+#        # if an already counted match
+#        if match4count[iii] < 1:
+#            continue
 #        print( "Event: %8.2f %5.1f %5.1f %3d" % (match4times[iii], \
 #                                                      match4gallon[iii], match4gallat[iii], match4count[iii]))
     # print multiple, isolated events
@@ -1067,6 +1133,8 @@ def main():
         i2 = lista[2]
         if nDir > 3:
             i3 = lista[3]
+        if nDir > 4:
+            i4 = lista[4]
         if i0 == NOMATCH:
             file0 = ""
         else:
@@ -1116,3 +1184,4 @@ def main():
 if __name__ == "__main__":
     main()
 
+    
