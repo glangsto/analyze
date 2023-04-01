@@ -2,6 +2,9 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#23Apr01 GIL - keeping only for historical purposes do not update
+#23Apr01 GIL - all functionality moved to "t.py"  
+#23Mar31 GIL upgrade to python 3
 #19apr19 GIL fix averages crossing RA=0 boundary
 #17Sep22 GIL enable/disable plotting
 #16Aug02 GIL test for finding az,el offsets
@@ -33,8 +36,8 @@ firstfilearg = 2
 
 if nargs < 2:
     print("SUM: Summarize a set of observations, computing the intensity integrals")
-    print("usage: SUM [plot] <aveTimeSeconds> <file names>")
-    print("where plot           optional string indicating the average spectra should be plotted")
+    print("usage: SUM [-P] [-H <hotfile>] [-C coldfile]  <aveTimeSeconds> <file names>")
+    print("where -P             optionally string indicating the average spectra should be plotted")
     print("where aveTimeSeconds time range of data to be averaged before output, in seconds")
     print("where file names     list of files to examine.  This list must include hot load files")
     print("")

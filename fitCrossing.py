@@ -6,6 +6,8 @@ telescope pointing.  Then compute the azimuth and elevation offsets
 # Functions to create a grid and place astronomical data on that
 # grid with a convolving function
 # HISTORY
+# 23Apr01 GIL test using 1/2 maximum times to get dAz
+# 23Mar31 GIL check dAz
 # 22May06 GIL iteratively fit peaks
 # 22May04 GIL get azimuth, elevation and telescope position
 # 22May02 GIL initial version
@@ -13,7 +15,6 @@ telescope pointing.  Then compute the azimuth and elevation offsets
 import sys
 import os
 import numpy as np
-#from numba import jit
 from matplotlib import pyplot as plt
 from pylab import *
 from scipy.optimize import curve_fit
@@ -24,7 +25,7 @@ import radioastronomy
 
 # ine file paths
 offsetfilename = "/home/glen/GalacticPlaneCrossingOffsets.txt"
-dazdelfilename = "/home/glen//2022-DazDel.txt"
+dazdelfilename = "/home/glen/2023-DazDel.txt"
 doTwo = True
 doThree = True
 doFour = True
@@ -488,6 +489,7 @@ def main():
         founddec = decFromCrossingDelta( dRa, decs, ra1s, ra2s, dRas)
         # can't determine el offset if dec > 55.
         avera = (ra1 + ra2)/2.
+        dAz = 0
         if rs.dec > 55.:
             dEl = 0.
             if ng == 5:

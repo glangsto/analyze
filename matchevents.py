@@ -1,6 +1,7 @@
 #Python find matchs in data directories
 #HISTORY
-#23Mar31 GIL fix plotting of more than 4 directories
+#23Mar30 GIL change histogram plot order to have label match plot order
+#23Mar21 GIL fix plotting of more than 4 directories
 #23Mar03 GIL Fix matching with only 2 directories
 #23Feb24 GIL minor plotting improvements
 #23Feb15 GIL numpy revisions
@@ -159,7 +160,7 @@ while iii < nargs:
         ifile = ifile + 1
     if anarg[0:2] == "-Q":
         doQuiet = True
-        print("Quit running, without showing plots")
+        print("Quiet running, without showing plots")
         ifile = ifile + 1
     if anarg[0:2] == "-H":
         doHistogram = True
@@ -290,7 +291,8 @@ def readEventsInDir( directory):
 dirs = finddirs( calendar, ifile, nDir)
 
 if nday != 24:
-    print("Counting Events in blocks of %5.2f hours" % (24./nday))
+    nminutes = int(1440.001/nday)
+    print("Counting Events in blocks of %5d minutes" % (nminutes))
 
 if doDebug:
     nDir = len(dirs)
@@ -373,7 +375,26 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
         strparts = utcstr.split()
         calendar = strparts[0]
 
+    countmax = np.zeros( nDir)
+    yoffsets = np.zeros( nDir)
     yoffset = 0
+    for ddd in range( nDir):
+        counts = copy.deepcopy( EventDirs[ddd]['counts'])
+        countmax[ddd] = np.max(counts)
+        yoffset = yoffset + countmax[ddd]
+        if verbose:
+            print( "%d: Max Counts %5d (%d)" % (ddd,countmax[ddd],yoffset))
+
+    ytop = yoffset
+    # now back down from the top for each plot
+    for ddd in range(nDir):
+        yoffset = yoffset - countmax[ddd]
+        yoffsets[ddd] = yoffset
+        if verbose:
+            print( "%d: Y offset %5d %5d" % (ddd,yoffsets[ddd], yoffset))
+
+    yoffsets[nDir-1] = 0
+        
     barcolors = ["lightcyan", "wheat", "greenyellow", "mistyrose", \
                  "wheat", "lightgrey", "mintcream"]
     # now for all directorys with events
@@ -391,26 +412,24 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
         alabel = "%s:%4d" % (labelparts[0], nEve)
         # duplicate the last value to complete the plot
         counts = np.append( counts, counts[nday-1])
-        ybottom = yoffset
+        ybottom = yoffsets[ddd]
 # time epsilon to unhide multiple events
-        plt.step( utcparts, counts + yoffset, where="post", label=alabel)
+        plt.step( utcparts, counts + yoffsets[ddd], where="post", label=alabel)
 #        plt.bar( utcparts, counts, bottom=ybottom, align="center", \
 #        plt.bar( utcparts, counts, bottom=ybottom, align="edge", \
         plt.bar( utcparts, counts, width=deltat, bottom=ybottom, align="edge", \
                   label=None, color=barcolors[ddd])
         #                  where='post', label=alabel)
         maxcounts = np.max(counts)
-        yoffset = yoffset + maxcounts
-# keep the maximum of all points for scaling plot labels
-    max0 = yoffset
-# put 20 annotation lines vertically
-    yoffset = yoffset / 20
+
+# Redefine yoffset as step between printing lines
+    yoffset = ytop / 30
     y0 = 2*yoffset
 
 # now annoated Az, El, Ra Dec
     alabel = " AZ,El:  %5.1f,%5.1f" % (rs.telaz, rs.telel)
     xa = utcOffsetHours
-    ya = max0 - yoffset
+    ya = ytop
     ax.annotate(alabel, xy=( xa, ya), xytext=(xa , ya) )
     verticalcolors = ['pink','g','lightblue','c','m', 'k']
     # get Local Ra, Dec at UTC midnight
@@ -434,16 +453,15 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
     alabel = " RA,Dec: %5.1f,%5.1f" % (rs.ra, rs.dec)
     xa = utcOffsetHours % 24.
     xmidnight = xa
-    ytop = max0
-    ya = ytop
+    ya = ytop - yoffset
     ax.annotate(alabel, xy=( xa, ya), xytext=( xa, ya) )
     epsilon = 3./1440
     # now draw vertical lines for midnight local time
     plt.axvline( xa, color='b', linestyle='dotted')
     alabel = " Local Midnight"
     xa = utcOffsetHours % 24.
-    ybottom = -yoffset*.75
-    ax.annotate(alabel, xy=( xa, ybottom), xytext =( xa, ybottom))
+#    ybottom = -yoffset*.75
+#    ax.annotate(alabel, xy=( xa, ybottom), xytext =( xa, ybottom))
     lst = datetime.timedelta(seconds=(86400.*rs.lst/360.))
     lststr = str(lst)
     lstparts = lststr.split(" ")
@@ -500,15 +518,13 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
     ax.annotate(alabel, xy=( xa, ya), xytext =( xa, ya))
     # set elevation back to horn elevaiton
     alabel = " AZ,El: %5.1f, %5.1f" % (rs.az_sun, rs.altsun)
-    ya = ytop-yoffset
+    ya = ytop - yoffset
     ax.annotate(alabel, xy=( xtransit, ya), xytext =( xtransit, ya))
     # restore telescope az and el
     rs.telaz = telaz
     rs.telel = telel
-    ya = ytop
-    xa = xtransit
     alabel = "Sun:"
-    ya = ytop - (yoffset/2.)
+    ya = ytop - (0.5*yoffset)
     xa = xtransit - 1.
     ax.annotate(alabel, xy=( xa, ya), xytext =( xa, ya))
 
@@ -542,7 +558,7 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
             bbb = azel.galactic.b.degree
             lll = azel.galactic.l.degree
             utc = utc + dt
-            ygal = ytop * 1.02    # set gold galactic line placement at top
+            ygal = yoffset/2.    # set gold galactic line placement at top
             if bbb < minlat and bbb > -minlat:
                 xgal = 24.*mmm/nGalactic
                 ax.annotate("*", xy=( xgal, ygal), color='orange')
@@ -562,18 +578,18 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
         plt.axvline( x4, color=verticalcolors[icolor], linestyle='dashed')
         # if a single match
         if match4count[iii] == 1:
-            alabel = "%5.1f,%5.1f" % (match4gallon[iii],match4gallat[iii])
+            alabel = "  %5.1f,%5.1f" % (match4gallon[iii],match4gallat[iii])
             ax.annotate(alabel, xy=( x4, y0), xytext=(x4 , y0), \
                             arrowprops=dict(facecolor='black', shrink=.003),)
         elif match4count[iii] > 1:
-            alabel = "%5.1f,%5.1f (%d)" % (match4gallon[iii],match4gallat[iii], match4count[iii])
+            alabel = "  %5.1f,%5.1f (%d)" % (match4gallon[iii],match4gallat[iii], match4count[iii])
             ax.annotate(alabel, xy=( x4, y0), xytext=(x4 , y0), \
                             arrowprops=dict(facecolor='black', shrink=.003),)
         if match4count[iii] >= 1:
             y0 = y0 + yoffset
             iplot = iplot + 1
             # keep from going off the plot
-        if y0 > max0 - (2 * yoffset):
+        if y0 > ytop - (2 * yoffset):
             y0 = 2 * yoffset
     # now finish up labels
 #    plt.legend(title="Set of Obs.")

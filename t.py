@@ -536,6 +536,10 @@ for filename in names:
     nparts = len(parts)
     aname = parts[nparts-1]
     parts = aname.split('.')
+    nparts = len(parts)
+    if nparts < 2:
+        print("Skipping Non Astronomy file: %s" % (filename))
+        continue
     aname = parts[0]
     extension = parts[1]
     nRead = nRead + 1

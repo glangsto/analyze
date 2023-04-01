@@ -2,6 +2,7 @@
 #The list of header items to fix is given in help.
 #These include El (elevation) and Az (azimuth)
 #HISTORY
+#23MAR31 GIL add count of files fixed, add gain1
 #21APR09 GIL deal with note files add fix telescope altitude
 #19NOV22 GIL don't plot spectra
 #19SEP24 GIL turn off plotting by default
@@ -39,6 +40,9 @@ newRefSample = NOVALUE
 newRefChan = NOVALUE
 newNChan = NOVALUE
 newNTime = -200
+newGain1 = NOVALUE
+newGain2 = NOVALUE
+newGain3 = NOVALUE
 observer = ""
 note = ""
 telescope = ""
@@ -148,6 +152,24 @@ while iii < nargs:
         print("Reference Sample ", newRefSample, " ")
         ifile = ifile + 2
         aFix = True
+    if anarg[0:6] == "-GAIN1":
+        newGain1 = float(sys.argv[iii+1])
+        iii = iii + 1
+        print("Gain 1: %7.2f" % (newGain1))
+        ifile = ifile + 2
+        aFix = True
+    if anarg[0:6] == "-GAIN2":
+        newGain2 = float(sys.argv[iii+1])
+        iii = iii + 1
+        print("Gain 2: %7.2f" % (newGain2))
+        ifile = ifile + 2
+        aFix = True
+    if anarg[0:6] == "-GAIN3":
+        newGain3 = float(sys.argv[iii+1])
+        iii = iii + 1
+        print("Gain 3: %7.2f" % (newGain3))
+        ifile = ifile + 2
+        aFix = True
     if anarg[0:3] == "-RE":
         replace = True 
         print("Replacing original file")
@@ -181,6 +203,7 @@ if aFix == False:
     exit()
 
 nplot = 0
+nFix = 0
 nfiles = nargs-ifile
 for iii in range(nfiles):
 
@@ -197,6 +220,14 @@ for iii in range(nfiles):
         rs.tellat = newLat
     if newLon != NOVALUE:
         rs.tellon = newLon
+    if newAlt != NOVALUE:
+        rs.telelev = newAlt
+    if newGain1 != NOVALUE:
+        rs.gains[0] = newGain1
+    if newGain2 != NOVALUE:
+        rs.gains[1] = newGain2
+    if newGain3 != NOVALUE:
+        rs.gains[2] = newGain3
     if newAlt != NOVALUE:
         rs.telelev = newAlt
     if observer != "":
@@ -268,7 +299,7 @@ for iii in range(nfiles):
         else:
             extension = parts[nparts-1]
             outname = parts[0] + "-fix." + extension
- 
+    
 # now if a spectrum, fix name for elevation above zero 
 # Spectra do not have time series.
     if rs.nTime <= 0:
@@ -296,6 +327,7 @@ for iii in range(nfiles):
             outname = outname + filetype
 #    print "Output file name: ", outname
     rs.write_ascii_file( dirname, outname)
+    nFix = nFix + 1
 
 # only plot the first few events
     gallon = rs.gallon
@@ -364,3 +396,5 @@ if doPlot:
     plt.ylabel('Intensity (Counts)')
     plt.legend(loc='upper right')
     plt.show()
+
+print("Fixed %d Files" % (nFix))
