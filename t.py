@@ -6,6 +6,7 @@ Glen Langston National Scioence Foundation
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#23Apr21 GIL debug spectral line obs at 1612 MHz
 #22Jun11 GIL Write .kel (vins) file with channel/velocity/freq units of plot
 #22Apr28 GIL fix use of cv array before initialization
 #22Apr28 GIL debug median filtering
@@ -126,7 +127,7 @@ doScaleAve = False
 doZero = False
 
 # define reference frequency for velocities (MHz)
-NUH1 = 1420.40575 # neutral hydrogen frequency (MHz)
+NUH1 = 1420.405751768 # neutral hydrogen frequency (MHz)
 NUOH1= 1612.231   # OH line
 NUOH2= 1665.402   # OH line
 NUOH3= 1667.359   # OH Line
@@ -192,6 +193,7 @@ while iarg < nargs:
         doBaseline = True
     elif sys.argv[iarg].upper() == '-C':
         flagCenter = True
+        print("Flagging Center of Spectrum")
     elif sys.argv[iarg].upper() == '-D':
         print( 'Adding Debug Printing')
         doDebug = True
@@ -425,6 +427,7 @@ if nmedian > 2:
 
 # input number of channels to use for commputing average and rms
 NRMS = 25
+ave_hot.refFreqHz = nuRefFreq * 1.e6
 vel, xa0, xa, xb, xbe = \
     hotcold.velocity_indecies( ave_hot, NRMS, minvel, maxvel)
 
@@ -473,6 +476,9 @@ else:
             if ncold < 1:
                 print( "No high elevation data: can not calibrate")
                 sys.exit()
+
+# match frequency for plotting
+ave_cold.refFreqHz = nuRefFreq * 1.e6
 
 # convert to MHz
 xv = ave_cold.xdata*1.E-6
@@ -627,6 +633,7 @@ for filename in names:
         yv = ave_spec.ydataA
         if flagRfi:  # if interpolating over regions with rfi
             yv = interpolate.lines( linelist, linewidth, xv, yv)
+
         if nmedian > 2:
             yv = tsys.medianfilter( yv, nmedian)
 
@@ -637,6 +644,9 @@ for filename in names:
         count = ave_spec.count
         note = ave_spec.noteA
         ncolor = min(nmax-1, nplot)
+
+        if flagCenter:
+            hotcold.flagCenter( yv, nData)
 
         tsky = hotcold.tsky_gain( yv, gain)
 
@@ -691,10 +701,9 @@ for filename in names:
         if doBaseline:
             tsky = tSource
 
+        # now compute integrated intensity and noise estimates
+        nv = xb - xa
         if not plotFrequency:
-            # now compute integrated intensity and noise estimates
-            nv = xb - xa
-
             # create sub-arrays of intensity and velocity
             tSs = tSource[xa:xb]
             vSs = velcorr[xa:xb]
@@ -729,6 +738,18 @@ for filename in names:
         # doppler shift in velocities channges chanels to plot
         imin, imax = gf.velocity_to_indicies( velcorr, minvel, maxvel)
         # set min and max y for plotting (only)
+        nsky = len(tsky)
+        if nsky < 128:
+            print("Sky array too small: %d" % (nsky))
+        if imin < 0:
+            imin = int(nsky/8)
+        if imax < imin:
+            imax = int( 7*nsky/8)
+        if imin > nsky:
+            imin = int(nsky/8)
+        if imin  > imax:
+            imax = int( 7*nsky/8)
+            
         ymin = min(tsky[imin:imax])
         ymax = max(tsky[imin:imax])
 
@@ -741,7 +762,7 @@ for filename in names:
             tVSum=0.
 
         # print diagnostic of integration
-        if doDebug:
+        if doDebug and (not plotFrequency):
             print(("Min, max Velocity   : %7.1f  to %6.1f; %d,%d" % (minvel,maxvel, imin, imax)))
             print(("Min, max Velocity I : %7.1f  to %6.1f; %d,%d" % (minSVel,maxSVel, xa, xb)))
             print(("Average Intensity(K): %7.3f +/- %6.3f K (%d)" % (tSum/nv, tSumRms/nv, nv)))

@@ -218,7 +218,8 @@ def velocity_indecies( in_spec, nrms, minvel, maxvel):
     # to the minimum and maximum velocities
     xa, xb = gf.velocity_to_indicies( vel, minvel, maxvel)
     #try to use the channels just outside the velocity ranges defined
-    nrms = 25 # define the number of channels for RMS calculation
+    if nrms < 5:
+        nrms = 25 # define the number of channels for RMS calculation
     xa0 = xa - nrms
     if xa0 < 1:   # if before end beging of spectra, must use first channels
         xa0 = 1
@@ -326,9 +327,9 @@ def flagCenter( tsky, nData):
     """
 
     icenter = int(nData/2)
-    tsky[icenter] = (tsky[icenter-2] + tsky[icenter+2])*.5
-    tsky[icenter-1] = (3.*tsky[icenter-2] + tsky[icenter+2])*.25
-    tsky[icenter+1] = (tsky[icenter-2] + 3.*tsky[icenter+2])*.25
+    tsky[icenter] = (tsky[icenter-4] + tsky[icenter+4])*.5
+    tsky[icenter-1] = (3.*tsky[icenter-4] + tsky[icenter+4])*.25
+    tsky[icenter+1] = (tsky[icenter-4] + 3.*tsky[icenter+4])*.25
     return tsky
 
 # code for keeping hot and cold avefrage spectra
