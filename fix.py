@@ -2,6 +2,7 @@
 #The list of header items to fix is given in help.
 #These include El (elevation) and Az (azimuth)
 #HISTORY
+#23APR25 GIL if fixing center frequency also update xdata
 #23MAR31 GIL add count of files fixed, add gain1
 #21APR09 GIL deal with note files add fix telescope altitude
 #19NOV22 GIL don't plot spectra
@@ -31,6 +32,8 @@ yallmin =  9.e9
 NOVALUE = -200.
 newEl = NOVALUE
 newAz = NOVALUE
+newdEl = NOVALUE
+newdAz = NOVALUE
 newLat = NOVALUE
 newLon = NOVALUE
 newAlt = NOVALUE
@@ -63,12 +66,24 @@ while iii < nargs:
         print("New El: %7.2f" % (newEl))
         aFix = True
         ifile = ifile + 2
+    if str(anarg[0:4]) == "-DEL":
+        newdEl = float( sys.argv[iii+1])
+        iii = iii + 1
+        print("New El Offset: %7.2f" % (newdEl))
+        aFix = True
+        ifile = ifile + 2
     if anarg[0:3] == "-AZ":
         newAz = float( sys.argv[iii+1])
         iii = iii + 1
         print("New Az: %7.2f" % (newAz))
         ifile = ifile + 2
         aFix = True
+    if str(anarg[0:4]) == "-DAZ":
+        newdAz = float( sys.argv[iii+1])
+        iii = iii + 1
+        print("New Az Offset: %7.2f" % (newdAz))
+        aFix = True
+        ifile = ifile + 2
     if anarg[0:3] == "-LA":
         newLat = float( sys.argv[iii+1])
         iii = iii + 1
@@ -116,7 +131,7 @@ while iii < nargs:
         print("Telescope: ", telescope)
         ifile = ifile + 2
         aFix = True
-    if anarg[0:3] == "-DE":
+    if anarg[0:4] == "-DEV":
         device = sys.argv[iii+1]
         iii = iii + 1
         print("Device: ", device)
@@ -183,8 +198,10 @@ if aFix == False:
     print("FIX: Fix observing file parameters")
     print("Usage: Fix [-el elevation] [-az azimuth]... <file 1> [<file 2>] ... [<file N>]")
     print("Where optionally the following paramters may be fixed")
-    print(" -az Telescope azimuth in degrees")
-    print(" -el Telescope elevation in degrees")
+    print(" -az  Telescope azimuth in degrees")
+    print(" -el  Telescope elevation in degrees")
+    print(" -daz Telescope azimuth offset in degrees")
+    print(" -del Telescope elevation offset in degrees")
     print(" -lat Telescope latitude in degrees")
     print(" -lon Telescope longitude in degrees")
     print(" -alt Telescope altitude above sea level in meters")
@@ -216,6 +233,10 @@ for iii in range(nfiles):
         rs.telaz = newAz
     if newEl != NOVALUE:
         rs.telel = newEl
+    if newdAz != NOVALUE:
+        rs.teldaz = newdAz
+    if newdEl != NOVALUE:
+        rs.teldel = newdEl
     if newLat != NOVALUE:
         rs.tellat = newLat
     if newLon != NOVALUE:
@@ -253,6 +274,15 @@ for iii in range(nfiles):
 
     rs.azel2radec()    # compute ra,dec from az,el and telescope location
 
+    # if changing center frequency or bandwidth, must also update X data
+    if newCen > 0 or newBan > 0:
+        nData = len(rs.xdata)
+        dX = rs.bandwidthHz / float(nData)
+        X0 = rs.centerFreqHz - (rs.refChan*dX)
+        for iii in range( rs.nChan):
+            rs.xdata[iii] = X0
+            X0 = X0 + dX
+    # now prepare to write
     parts = filename.split('/')
     nparts = len(parts)
     # get the file name without directory name
