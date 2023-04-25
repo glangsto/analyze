@@ -245,18 +245,25 @@ def read_cold( names, ave_cold, lowel, lowGlat, doScaleAve):
     ncold = 0
     rs = radioastronomy.Spectrum()
     nName = len(names)
+    minel = 100.
+    maxel = -100.
     # now average coldest data for calibration
     for filename in names:
 
         rs.read_spec_ast(filename)
+        if rs.telel < lowel:  #if elevation too low for a cold load obs
+            continue
+
+        if rs.telel < minel:
+            minel = rs.telel
+        if rs.telel > maxel:
+            maxel = rs.telel
+            
         if doScaleAve:
             rs.ydataA = rs.ydataA/rs.count
         else:
             rs.ydataA = rs.ydataA/rs.nave
         rs.azel2radec()    # compute ra,dec from az,el
-
-        if rs.telel < lowel:  #if elevation too low for a cold load obs
-            continue
 
         # note this test excludes low galactic latitude ranges
         if rs.gallat > lowGlat or rs.gallat < -lowGlat:
@@ -270,7 +277,7 @@ def read_cold( names, ave_cold, lowel, lowGlat, doScaleAve):
     if ncold > 0:
         ave_cold = normalize_spec( ave_cold, firstutc, lastutc)
 
-    return ave_cold, ncold
+    return ave_cold, minel, maxel, ncold
 
 def compute_gain( hv, cv, xa0, xa, xb, xbe, thot, tcold):
     """
