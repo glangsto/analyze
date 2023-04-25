@@ -140,9 +140,11 @@ def compute_vbarycenter( spectrum, doDebug=False):
 # various intermediate results)
         corr, hjd = pyasl.helcorr(longitude, latitude, altitude, \
                                       ra2000, dec2000, jd, debug=False)
-        if doDebug or firstRun:
+        if doDebug:
             print("Barycentric correction [km/s]: %8.3f" % (corr))
-            firstRun = False
+        elif firstRun:
+            print("1st Barycentric correction [km/s]: %8.3f" % (corr))
+        firstRun = False
     else:
         corr = 0.
     return corr
