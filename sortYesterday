@@ -1,0 +1,9 @@
+#/bin/sh
+# sort all data from yesterday's observations
+
+export analyze=/home/glen/Research/analyze
+export dateToSort=`$analyze/Yesterday`
+
+cd /media/karl
+
+python $analyze/sortdate.py $dateToSort
