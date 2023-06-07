@@ -1,5 +1,6 @@
 #Python find matchs in data directories
 #HISTORY
+#23Jun07 GIL enable flagging transit of a specific location
 #23Mar30 GIL change histogram plot order to have label match plot order
 #23Mar21 GIL fix plotting of more than 4 directories
 #23Mar03 GIL Fix matching with only 2 directories
@@ -68,8 +69,11 @@ if nargs < 2:
     print("Where -C  Optionally provide a calendar date (ie 19Nov17) instead of directories")
     print("Where -D  Optionally print debugging info")
     print("Where -E Optionally only show Events with elevation above zero")
+    print("Where -F Optionally flag groups of events")
+    
     print("Where -G Optionally plot +/- 10 degrees of galactic plane")
     print("Where -H Optionally plot histogram of events per parts of a day")
+    print("Where -M <ra> <dec> Optionally mark the transit of a coordiante")
     print("Where -N <n> Optionally print matches when number is equal or greater to <n>")
     print("Where -ND <n> Optionally divide the day into <n> parts, default 24")
     print("Where -P Plot matches")
@@ -97,6 +101,9 @@ doDebug = False
 doOffset = False
 yoffset = 0.0
 doGalactic = False
+doTransit = False
+raTransit = 0.0
+decTransit = 0.0
 nPrint = 4
 minEl = -100.
 # temporarily turn on/off debugging
@@ -136,6 +143,15 @@ while iii < nargs:
         print("Divide Day into N Parts:  %d" % (nday))
         aFix = True
         ifile = ifile + 2
+    if str(anarg[0:2]) == "-M":   # if marking transit of a location
+        doTransit = True
+        iii = iii + 1
+        raTransit = float(sys.argv[iii])
+        iii = iii + 1
+        decTransit = float(sys.argv[iii])
+        print("Marking Transit of RA, Dec: %7.2f,%7.2f (deg)" % \
+              (raTransit, decTransit))
+        ifile = ifile + 3
     if str(anarg[0:3]) == "-SI":
         sigma = float(sys.argv[iii+1])
         iii = iii + 1
@@ -337,7 +353,7 @@ def findpairs( EventDir1, EventDir2):
     return ii12s, dt12s
 # end of find pairs of matches
 
-def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, match4count, match4gallon, match4gallat, nUnique):
+def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, EventDirs, nall, match4times, match4count, match4gallon, match4gallat, nUnique):
     """
     plot several histograms of the event count versus time of day
     """
@@ -450,10 +466,11 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
     # annoate plot for local midnight
     rs.utc = utcmidnight
     rs.azel2radec()
-    alabel = " RA,Dec: %5.1f,%5.1f" % (rs.ra, rs.dec)
     xa = utcOffsetHours % 24.
+    ramidnight = rs.ra   # keep ra (degrees) of midnight
     xmidnight = xa
     ya = ytop - yoffset
+    alabel = " RA,Dec: %5.1f,%5.1f" % (rs.ra, rs.dec)
     ax.annotate(alabel, xy=( xa, ya), xytext=( xa, ya) )
     epsilon = 3./1440
     # now draw vertical lines for midnight local time
@@ -513,7 +530,7 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
     xtransit = 24.*dt
 #    print("dt: %s dt=%7.3f  %7.3f" % (transit, dt, xtransit))
     alabel = " RA,Dec: %5.1f, %5.1f" % (rs.ra, rs.dec)
-    ya = ytop
+    ya = ytop 
     xa = xtransit
     ax.annotate(alabel, xy=( xa, ya), xytext =( xa, ya))
     # set elevation back to horn elevaiton
@@ -531,6 +548,7 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
     # now draw vertical lines for Sun cross horn
     plt.axvline( xtransit, color='b', linestyle='dotted')
 
+
     # next draw galactic az - 10 and galactic z + 10 vertial lines
     lat = rs.tellat
     lon = rs.tellon
@@ -538,8 +556,45 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, EventDirs, nall, match4times, matc
         height = rs.telelev
     except:
         height = 1000.
-    # first need site clcation to get coordinates of galaxy
+    # first need site location to get coordinates of galaxy
     asite = EarthLocation(lat=lat*u.deg, lon=lon*u.deg, height=height*u.m)
+    tutc = utc0   # start at beginning of day to find transit utc
+    target = SkyCoord( ra=raTransit*u.deg, dec=decTransit*u.deg,
+                       unit='deg', \
+                       frame='icrs', location=asite, obstime=tutc)
+    # must convert ras from degrees to hours
+    xtransit = ((raTransit - ramidnight)/15.) + xmidnight
+    if doTransit:
+        tutc = utc0   # start at beginning of day to find transit utc
+        dutc = 0
+#        for kkk in range(10):
+#            target = SkyCoord( ra=raTransit*u.deg, dec=decTransit*u.deg,
+#                           unit='deg', \
+#                           frame='icrs', location=asite, obstime=tutc)  
+#            daz = - target.ra.hourangle*15./2.
+#            dutc = datetime.timedelta(seconds=(daz*86400.))
+#            print( "utc:%s dutc: %s" % (tutc, dutc))
+#            tutc = tutc + dutc
+#        # find transit time by Newton's method
+#        transit = tutc - utc0
+#
+        if xtransit > 24.:
+            xtransit = xtransit - 24.
+        if xtransit > 24.:
+            xtransit = xtransit - 24.
+        if xtransit < 0.:
+            xtransit = xtransit + 24.
+        if xtransit < 0.:
+            xtransit = xtransit + 24.
+        # now draw vertical lines for Sun cross horn
+        print( "X transit = %8.2f" % (xtransit))
+        plt.axvline( xtransit, color='r', linestyle='dashed')
+        alabel = " RA,Dec: %5.1f, %5.1f" % (raTransit, decTransit)
+        ya = ytop - yoffset - yoffset
+        ax.annotate(" Transit ", xy=( xtransit, ya), xytext =( xtransit, ya))
+        alabel = " RA,Dec: %5.1f, %5.1f" % (raTransit, decTransit)
+        ya = ya - yoffset
+        ax.annotate(alabel, xy=( xtransit, ya), xytext =( xtransit, ya))
 
     # prepare to draw +- 10 degrees of galactic plane
     nGalactic = 90
@@ -1033,7 +1088,9 @@ def main():
     rs.azel2radec()
 
     if nDir == 1:
-        plotHistogram( nDir, rs, nday, mjdRef, EventDirs, 0, [ 0., 0.], [ 0, 0], [ 0., 0.], [0., 0.], 0)
+        plotHistogram( nDir, rs, nday, mjdRef, doTransit, \
+                       raTransit, decTransit, \
+                       EventDirs, 0, [ 0., 0.], [ 0, 0], [ 0., 0.], [0., 0.], 0)
         exit() 
 
 #    for iii in range(nDir): 
@@ -1193,7 +1250,10 @@ def main():
     print( "Count of Events and Event Groups: %d" % (nUnique))
 
 # now have a list of single events and multiple events, plot histogram
-    plotHistogram( nDir, rs, nday, mjdRef, EventDirs, nall, match4times, match4count, match4gallon, match4gallat, nUnique)
+    plotHistogram( nDir, rs, nday, mjdRef, doTransit, \
+                   raTransit, decTransit, \
+                   EventDirs, nall, match4times, match4count, \
+                   match4gallon, match4gallat, nUnique)
     
 # now count all events happening within .1 degrees of other events.
         
