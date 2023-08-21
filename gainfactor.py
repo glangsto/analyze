@@ -4,6 +4,7 @@ and elevations.  This module also finds the local times of galactic plane
 Crossings.
 """
 #HISTORY
+#23Aug16 GIL add velocity calculation
 #22May04 GIL fix reading LONLAT etc
 #22May02 GIL revise save file; add telescope location
 #21AUG20 GIL enable passing of the debug flag
@@ -45,6 +46,7 @@ dates = np.zeros(NMEAS)
 els = np.zeros(NMEAS)
 azs = np.zeros(NMEAS)
 nMeas = np.zeros(NMEAS)
+clight = 299792458. # speed of light in m/sec
 nObs = 1
 nProcessors = 8
 nMeasurements = 3
@@ -188,6 +190,24 @@ def velocity_to_indicies( vel, minvel, maxvel):
         imin = imax
         imax = temp
     return imin, imax
+
+def velocity( freqHz, refFreqHz):
+    """
+    Function to compute velocities (m/s) from input frequencies
+    The input frequencies are defined as Hz, but since only the ratios are used,
+    Any frequency units are acceptable.
+    """
+
+    nData = len(freqHz)
+    refFreqHz = float( refFreqHz)
+    velmps = np.zeros(nData) + refFreqHz # velocity in meters/second
+
+    # doppler shift is defined as higher frequency is negative velocity
+    # negative velocity means moving towards us
+    for iii in range(nData):
+        velmps[iii] = (clight/refFreqHz)*(velmps[iii] - freqHz[iii])
+
+    return velmps   # end of velocity
 
 def saveTsysValues( saveFile, cSpec, cpuIndex, tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec):
     """
