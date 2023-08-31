@@ -1,5 +1,7 @@
 #Python find matchs in data directories
 #HISTORY
+#23Jul26 GIL compute average RA, Dec for groups of events
+#23Jul25 GIL add 1 hour x tick interval
 #23Jun07 GIL enable flagging transit of a specific location
 #23Mar30 GIL change histogram plot order to have label match plot order
 #23Mar21 GIL fix plotting of more than 4 directories
@@ -69,8 +71,7 @@ if nargs < 2:
     print("Where -C  Optionally provide a calendar date (ie 19Nov17) instead of directories")
     print("Where -D  Optionally print debugging info")
     print("Where -E Optionally only show Events with elevation above zero")
-    print("Where -F Optionally flag groups of events")
-    
+    print("Where -F Optionally Do Not flag groups of events")
     print("Where -G Optionally plot +/- 10 degrees of galactic plane")
     print("Where -H Optionally plot histogram of events per parts of a day")
     print("Where -M <ra> <dec> Optionally mark the transit of a coordiante")
@@ -131,7 +132,7 @@ while iii < nargs:
         ifile = ifile + 1
     if str(anarg[0:3]) == "-F":
         flagGroups = True
-        print("Flagging groups of events")
+        print("Not Flagging groups of events")
         ifile = ifile + 1
     if str(anarg[0:3]) == "-G":
         doGalactic = True
@@ -198,7 +199,7 @@ if nday < 1:
     nday = 24
 nDir = nargs-ifile
 # 
-MAXDIR = 10
+MAXDIR = 20
 NOMATCH = -9999
 MAXDT = 10000.
 # define the maximum number of events to keep
@@ -359,6 +360,7 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
     """
     import subprocess
     import matplotlib.pyplot as plt
+    import matplotlib.ticker as mticker
     global calendar
     fig, ax = plt.subplots( figsize=(12,6))
 
@@ -411,7 +413,9 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
 
     yoffsets[nDir-1] = 0
         
-    barcolors = ["lightcyan", "wheat", "greenyellow", "mistyrose", \
+#    barcolors = ["lightcyan", "wheat", "greenyellow", "mistyrose", \
+#                 "wheat", "lightgrey", "mintcream"]
+    barcolors = ["gold", "wheat", "greenyellow", "mistyrose", \
                  "wheat", "lightgrey", "mintcream"]
     # now for all directorys with events
     for ddd in range( nDir):
@@ -622,6 +626,8 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
     iplot = 0
     # for all matched events
     for iii in range(nall):
+        if flagGroups:    # If not flagging groups, skip this processing
+            continue
         x4 = match4times[iii] - mjdRef
         # if date is beyond 0-24 hour range, move in range
         x4 = (x4*24.) % 24.
@@ -669,8 +675,9 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
     plt.xlim(0.,24.05) # 24 hours/per day
     plt.tick_params(axis='x', labelsize=14)
     plt.tick_params(axis='y', labelsize=14)
-    plt.xticks( [0., 4., 8., 12., 16., 20., 24.])
-
+    plt.xticks( [0., 2., 4., 6., 8., 10., 12., 14., 16., 18., 20., 22., 24.])
+    ax.xaxis.set_minor_locator(mticker.MultipleLocator(1))
+    ax.xaxis.set_minor_formatter(mticker.NullFormatter())
     plotfile = 'match-%s.pdf' % (calendar)
     fig = plt.gcf()
     fig.savefig(plotfile, bbox_inches='tight')
@@ -1113,11 +1120,13 @@ def main():
 #        print( "Directory: %2d - %5d"  % (iii, counts[iii]))
 
     nall=0
-    # make big array to keep track of multiple matches
+    # make big arrays to keep track of multiple matches
     files0 = EventDirs[0]['events']
     match4times = np.zeros(nMatch)
     match4gallon = np.zeros(nMatch)
     match4gallat = np.zeros(nMatch)
+    match4ra = np.zeros(nMatch)
+    match4dec = np.zeros(nMatch)
     match4index = np.zeros(nMatch)
     # now make a list of events that only have enough matches
     for lll in range(nMatch):
@@ -1141,6 +1150,8 @@ def main():
         match4times[nall] = matcha['mjd']
         match4gallon[nall] = rs.gallon
         match4gallat[nall] = rs.gallat
+        match4ra[nall] = rs.ra
+        match4dec[nall] = rs.dec
         match4index[nall] = lll
         nall = nall + 1
 
@@ -1159,13 +1170,16 @@ def main():
             kkk = iii + jjj + 1
             # if not an already flagged match
             if match4count[kkk] > 0:
-#                print("Matching Matches: %d %d %d" % (iii, kkk, match4count[iii]))
                 # if a match of coordinates
                 if (match4gallon[kkk] - dd < match4gallon[iii] and \
                         match4gallon[kkk] + dd > match4gallon[iii] and \
                         match4gallat[kkk] - dd < match4gallat[iii] and \
                         match4gallat[kkk] + dd > match4gallat[iii]):
+                    # count number of matches to this event
                     match4count[iii] = match4count[iii] + 1
+                    # compute average ra, dec of event sum with first value
+                    match4ra[iii] = match4ra[iii] + match4ra[kkk]
+                    match4dec[iii] = match4dec[iii] + match4dec[kkk]
                     match4count[kkk] = -1
                     match4index[kkk] = -1
 
@@ -1203,7 +1217,6 @@ def main():
             i1 = lista[1]
         if nDir > 2:
             i2 = lista[2]
-        i2 = lista[2]
         if nDir > 3:
             i3 = lista[3]
         if nDir > 4:
@@ -1214,7 +1227,13 @@ def main():
             file0 = files0[i0]
             rs.read_spec_ast(file0)
             rs.azel2radec()
-            print("%3d 0 %s %7.1f %7.1f %7.1f %7.1f %d" %  (lll, file0, rs.ra, rs.dec, rs.gallon, rs.gallat, multiples))
+            if multiples > 1:
+                avera = match4ra[lll]/float(multiples)
+                avedec = match4dec[lll]/float(multiples)
+            avera = rs.ra
+            avedec = rs.dec
+            print("%3d 0 %s %7.1f %7.1f %7.1f %7.1f %d" % \
+                  (lll, file0, avera, avedec, rs.gallon, rs.gallat, multiples))
             
         if i1 == NOMATCH:
             file1 = ""

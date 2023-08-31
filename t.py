@@ -6,6 +6,7 @@ Glen Langston National Scioence Foundation
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#23Jul05 GIL use galactic hydrogen observations above 40 degrees
 #23Apr25 GIL use cold load for velocity computations
 #23Apr21 GIL debug spectral line obs at 1612 MHz
 #22Jun11 GIL Write .kel (vins) file with channel/velocity/freq units of plot
@@ -397,6 +398,8 @@ ave_hot = radioastronomy.Spectrum()
 # assume only a limited range of galactic latitudes are available
 # not range about +/-60.
 lowGlat = 60.
+# try a lower galactic latitude
+lowGlat = 40.
 
 # if a cold file provided on input
 if coldFileName != "":

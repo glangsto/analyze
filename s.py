@@ -13,16 +13,16 @@ import numpy as np
 import radioastronomy
 import gainfactor as gf
 
-# default offset between plots
-dy = -1.
-
+percent = 10           # default percentage change to flag
 nargs = len( sys.argv)
 if nargs < 2:
     print('S: Summarize a list of observations')
     print('S usage:')
-    print('S [-v] <filenames>')
+    print('S [-s %] [-v] <filenames>')
     print('where')
     print('-v          optionally print verbose summary information')
+    print('-s %        optionally report jumps than % (range 1 to 100)')
+    print('            Default percentage: %7.1f %% ' % (percent))   
     print('<filenames> list of file names to summarize')
     print('  Only *.ast, *.hot and *.cld files will be read. Others will be skipped')
     exit()
@@ -53,11 +53,24 @@ names = sorted(names)
 ##label = labelfmt % (time,rs.telaz,rs.telel,gallon,gallat,freq,bw,gain, filename)
 rs = radioastronomy.Spectrum()
 
+# check inputs twice to allow optional inputs in either order
+if names[0] == '-s':
+    percent = float(names[1])
+    names = names[2:]
+                    
 if names[0] == '-v':
     verbose = True
     names = names[1:]
 else:
     verbose = False
+
+if names[0] == '-s':
+    percent = float(names[1])
+    names = names[2:]
+                    
+if names[0] == '-v':
+    verbose = True
+    names = names[1:]
 
 # prepare to store Tsys
 nNames = len(names)
@@ -151,7 +164,11 @@ print("")
 iWidth = 3
 if (3*iWidth) > nRead:   # if not enough data to look for jumps
     exit()
-    
+
+fraction = percent/100.
+
+print('Looking for jumps in intensity > %7.1f %%' % (percent))
+
 for iii in range(iWidth,(nRead-iWidth)):
     # get the temperatures in counts
     t1 = np.median(tSys[(iii-iWidth):iii])
@@ -163,10 +180,11 @@ for iii in range(iWidth,(nRead-iWidth)):
         dt1 = 1.   # minimum noise is 1 count
     if dt2 < 1.:
         dt2 = 1.   # minimum noise is 1 count
-    
+
+
     # offset counts between the two sides
     dt = np.abs(t1-t2)
-    if (dt > 20.*dt1) or (dt > 20.*dt2):
+    if (dt > (fraction*t1)) or (dt > (fraction*t2)):
         print("At %s, Count Jump; %7.2f+/-%5.2f =! %7.2f+/-%5.2f" % \
               (names2[iii], t1, dt1, t2, dt2))
     
