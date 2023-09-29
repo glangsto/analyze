@@ -6,6 +6,7 @@ Glen Langston National Science Foun dation
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#23SEP27 GIL change telescope index flag from "T" to "I"
 #22APR22 GIL initial version based on t.py
 #
 import copy
@@ -347,7 +348,7 @@ def keep_hotcold( ave_hot, ave_cold, cpuIndex, directory):
     coldname = radioastronomy.utcToName( ave_cold.utc)
     coldname = coldname + ".ast"  # output in counts
     # add telescope index
-    coldname = ("T%d-" % cpuIndex)+coldname
+    coldname = ("I%d-" % cpuIndex)+coldname
     ave_cold.ydataA = ave_cold.ydataA * ave_cold.nave
     ave_cold.write_ascii_file(directory, coldname)
     print( "Wrote Average Cold Load File: %s%s" % (directory, coldname))
@@ -355,7 +356,7 @@ def keep_hotcold( ave_hot, ave_cold, cpuIndex, directory):
     hotname = radioastronomy.utcToName( ave_hot.utc)
     hotname = hotname + ".hot"  # output in counts
     # add telescope index
-    hotname = ("T%d-" % cpuIndex)+hotname
+    hotname = ("I%d-" % cpuIndex)+hotname
     ave_hot.ydataA = ave_hot.ydataA * ave_hot.nave
     ave_hot.write_ascii_file(directory, hotname)
     print( "Wrote Average Hot  Load File: %s%s" % (directory, hotname))
