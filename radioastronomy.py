@@ -3,6 +3,7 @@
 Class defining a Radio Frequency Spectrum
 Includes reading and writing ascii files
 HISTORY
+23Sep25 GIL add filename to spectra structure 
 22Jun11 GIL if doComputeX is false, use pre-calculated X values
 21Dec21 GIL remove extra print(), fix ephem help
 21Oct26 GIL merge in separating header from the data 
@@ -335,6 +336,7 @@ class Spectrum(object):
         ydataA = np.zeros(nData)
         ydataB = np.zeros(nData)
         #now fill out the spectrum structure.
+        self.filename = "                                                     "
         self.writecount = 0
         self.count = int(0)          # count of spectra summed
         self.noteA = str(noteA).strip()      # observing note A
@@ -504,6 +506,7 @@ class Spectrum(object):
         if self.writecount > 0:
             print("File %4d: %s (%d)" % (self.writecount, outname, self.count))
         outline = '# FILE      =  ' + outname + '\n'
+        self.filename = outname
         outfile.write(outline)
         self.noteA = self.noteA.replace('\n', '')
         self.noteA = self.noteA.strip()
@@ -1099,7 +1102,7 @@ class Spectrum(object):
             self.nChan = 0
             self.nSamples = 0
             return
-        
+        self.filename = fullname
 # read the whole file into a single variable, which is a list of every row of the file.
         inlines = f2.readlines()
         f2.close()
