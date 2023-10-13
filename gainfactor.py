@@ -4,6 +4,7 @@ and elevations.  This module also finds the local times of galactic plane
 Crossings.
 """
 #HISTORY
+#23Oct10 GIL add RA,Dec and Galactic Longitude and Latitude to log file
 #23Aug16 GIL add velocity calculation
 #22May04 GIL fix reading LONLAT etc
 #22May02 GIL revise save file; add telescope location
@@ -257,19 +258,19 @@ def saveTsysValues( saveFile, cSpec, cpuIndex, tSourcemax, velSource, dV, tVSum,
         lastaz = cSpec.telaz
         lastel = cSpec.telel
         lastid = cpuIndex
-        
+
     # if a new file, then need to add the header
     if not oldFile:
         f.write( "#  Date    Time   Tel  Az     El     Tsys    Trx    Trms     Time  K/Count    Peak    Peak  Vel.     Sum Vel.   ")
-        f.write( "Sum Intensity   Scale \r\n")
-        f.write( "#                  #   (d)    (d)     (K)     (K)    (K)     (s)              (K)     (km/s) +/-    (km/s) +/-  ")
+        f.write( "Sum Intensity   Scale         RA        Dec    G Lon   GLat \r\n")
+        f.write( "#                  #   (d)    (d)     (K)     (K)    (K)     (s)              (K)     (km/s) +/-    (km/s) +/-       (d)     (d)    (d)   (d) ")
         f.write( " (K km/s) +/-   Factor\r\n")
 
     #          1 2   3   4     5     6    7      8       9    10     11    11    12     13    14      15    16     17
     #         Date   cpu  az    el  tSys  tRx   tRms   tint   K/C   tPeak, vel    dv   VSum   Vrms,  KInt  dKInt factor
-    f.write( "%s %s %2d %6.1f %6.1f %7.2f %7.2f %6.2f %7.0f %7.1f %7.3f %7.1f %5.1f %7.1f %5.1f %7.0f %7.0f %7.3f\r\n" %
+    f.write( "%s %s %2d %6.1f %6.1f %7.2f %7.2f %6.2f %7.0f %7.1f %7.3f %7.1f %5.1f %7.1f %5.1f %7.0f %7.0f %7.3f %7.2f %7.2f %7.2f %7.2f\r\n" %
              (date, time, cpuIndex, cSpec.telaz, cSpec.telel, cSpec.tSys, cSpec.tRx, cSpec.tRms, cSpec.tint, cSpec.KperC,
-              tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec, cSpec.gainFactor))
+              tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec, cSpec.gainFactor, cSpec.ra, cSpec.dec, cSpec.gallon, cSpec.gallat))
     f.close()
     # end of saveTsysValues()
 
@@ -334,7 +335,11 @@ def readSaveValues( f):
     tSumKmSec = float( 1000.)
     dTSumKmSec = float( 10.)
     gainFactor = float( 1.)
-
+    ra = float( 0.0)
+    dec = float( 0.0)
+    gallon = float( 0.0)
+    gallat = float( 0.0)
+    
     # if a new file, then need to add the header
     #   f.write( "#  Date    Time   Tel  Az     El     Tsys    Trx    Trms     Time  K/Count    Peak    Peak  Vel.     Sum Vel.   ")
     #   f.write( "Sum Intensity   Scale \r\n")
@@ -352,7 +357,7 @@ def readSaveValues( f):
         count = count + 1
     if len(aline) < 1:
         date = ""
-        return date, time, cpuIndex, telaz, telel, tSys, tRx, tRms, tint, KperC, tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec, gainFactor
+        return date, time, cpuIndex, telaz, telel, tSys, tRx, tRms, tint, KperC, tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec, gainFactor, ra, dec, gallon, gallat
     
     while aline[0] == "#":
         alen = len(aline)
@@ -405,12 +410,16 @@ def readSaveValues( f):
     tSumKmSec = float( parts[15])
     dTSumKmSec = float( parts[16])
     gainFactor = float( parts[17])
+    ra = float( parts[18])
+    dec = float( parts[19])
+    gallon = float( parts[20])
+    gallat = float( parts[21])
 
-#        sd( "%s %s %2d %6.1f %6.1f %7.2f %7.2f %6.2f %7.0f %6.1f %7.3f %7.1f %5.1f %7.1f %5.1f %7.0f %7.0f %7.3f\r\n" %
+#        sd( "%s %s %2d %6.1f %6.1f %7.2f %7.2f %6.2f %7.0f %6.1f %7.3f %7.1f %5.1f %7.1f %5.1f %7.0f %7.0f %7.3f %7.2f %7.2f %7.2f %7.2f \r\n" %
 #             (date, time, cpuIndex, telaz, telel, tSys, tRx, tRms, tint, KperC,
 #              tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec, gainFactor))
 
-    return date, time, cpuIndex, telaz, telel, tSys, tRx, tRms, tint, KperC, tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec, gainFactor
+    return date, time, cpuIndex, telaz, telel, tSys, tRx, tRms, tint, KperC, tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec, gainFactor, ra, dec, gallon, gallat
     # end of readSaveValues()
 
 def readAllValues( filename):
@@ -420,9 +429,12 @@ def readAllValues( filename):
     (Usually created by the 'T' program)
     Outputs are:
     date     - ascii string date of the summary data (ie 20-05-03)
-    utcs     - array of utc seconds past midnight of the first date
+    utcs     - UTCs of measurements
+    secs     - array of seconds past midnight of the first date
     tSums    - array of integrated intensity for the provided spectrum
     dTs      - array of uncertainty estimates for the integrated intensities
+    gallons  - array of galactic longitudes
+    gallats  - array of galactic latitudes
     """
 
     f = open( filename, "r")
@@ -432,13 +444,18 @@ def readAllValues( filename):
     global lastId, lastaz, lastel
     count = 0
     utcs = []
+    secs = []
     tSums = []
     dTs = []
+    azs = []
+    els = []
+    gallons = []
+    gallats = []
     firstdate = ""
 
     # read though all values in the summary file
     while True:
-        date, time, cpuIndex, telaz, telel, tSys, tRx, tRms, tint, KperC, tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec, gainFactor = \
+        date, time, cpuIndex, telaz, telel, tSys, tRx, tRms, tint, KperC, tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, dTSumKmSec, gainFactor, ra, dec, gallon, gallat = \
             readSaveValues( f)
         if date == "":
             break
@@ -453,23 +470,33 @@ def readAllValues( filename):
             
         utc = datetime.datetime.strptime("20" + date + " " + time, timefmt)
         dUtc = utc - utcmidnight
-        utcs.append( dUtc.total_seconds())
+        utcs.append( utc)
+        secs.append( dUtc.total_seconds())
         tSums.append( tSumKmSec)
         dTs.append( dTSumKmSec)
+        gallons.append( gallon)
+        gallats.append( gallat)
+        azs.append( telaz)
+        els.append( telel)
         if count > 1:
             if telel != lastel:
-                print("Telescope Elevation Changed %8.1f => %8.1f" % (lastel, telel))
-                break
+                print("Telescope Elevation Changed %8.1f => %8.1f" % \
+                      (lastel, telel))
         lastel = telel
         
         count = count + 1
         if count < 3:
             print("%d: %s %9.3f %7.3f" % (count, utc, tSumKmSec, dTSumKmSec))
         
-    utcs = np.asarray( utcs)
+    secs = np.asarray( secs)
     tSums = np.asarray( tSums)
     dTs = np.asarray( dTs)
-    return firstdate, utcs, tSums, dTs
+    azs = np.asarray( azs)
+    els = np.asarray( els)
+    gallons = np.asarray( gallons)
+    gallats = np.asarray( gallats)
+    # ascii string, datetime, seconds, Temperature sum, temp uncertainty
+    return firstdate, utcs, secs, tSums, dTs, azs, els, gallons, gallats
 
 def readTsysValues( saveFile, utc, cpuIndex, az, el):
     """
