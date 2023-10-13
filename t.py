@@ -6,6 +6,7 @@ Glen Langston National Scioence Foundation
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#23SEP27 GIL recalculate channel ranges for baseline subtraction for each ave.
 #23Jul05 GIL use galactic hydrogen observations above 40 degrees
 #23Apr25 GIL use cold load for velocity computations
 #23Apr21 GIL debug spectral line obs at 1612 MHz
@@ -55,6 +56,7 @@ Glen Langston National Scioence Foundation
 #15JUL01 GIL Initial version
 #
 import sys
+import os
 import copy
 import datetime
 import numpy as np
@@ -164,7 +166,7 @@ if nargs < 3:
     print("-L optionally set the low velocity region for baseline fit")
     print("-N <number> optionally set the number of spectra to plot")
     print("-M Skip writing header for .kel files")
-    print("-P write PNG and PDF files instead of showing plot")
+    print("-P <dir> write PNG and PDF files instead of showing plot")
     print("-Q optionally plot intensity versus freQuency, instead of velocity")
     print("-R optionally flag known RFI lines")
     print("-S <filename> optionally set summary file name")
@@ -236,8 +238,15 @@ while iarg < nargs:
         doKeep = True
         iarg = iarg+1
         keepDirectory = sys.argv[iarg]
+        keepDirectory = keepDirectory.strip()
         print('Keeping Average hot and cold files in directory: %s' % \
               (keepDirectory))
+        nKeep = len(keepDirectory)
+        if nKeep < 1:
+            keepDirectory = "../"
+        else:
+            if keepDirectory[nKeep - 1] != '/':
+                keepDirectory = keepDirectory + "/"
     elif sys.argv[iarg].upper() == '-L':
         iarg = iarg+1
         minvel = float( sys.argv[iarg])
@@ -378,8 +387,6 @@ lastel = 0.
 lastaz = 0.
 firstdate = ""
 lastdate = ""
-minel = 200.
-maxel = -200.
 firstaz = -1
 otheraz = -1
 dt = datetime.timedelta(seconds=0.)
@@ -410,11 +417,8 @@ if coldFileName != "":
         ave_cold.ydataA = ave_cold.ydataA/ave_cold.nave
 
     ncold = 1
-    minel = ave_cold.telel
-    maxel = ave_cold.telel
-    minGlat = ave_cold.gallat
 else:
-
+    # else must read the cold files and average
     ave_cold, minel, maxel, ncold = \
         hotcold.read_cold( names, ave_cold, lowel, lowGlat, doScaleAve)
     # if no cold obs found, first try all galactic latitudes
@@ -472,6 +476,11 @@ if nmedian > 1:
     print("Median Filtering cold-load Obs")
     cv = tsys.medianfilter( cv, nmedian)
 
+# initialize logging of elevation ranges
+coldminel = 90
+coldmaxel = 0.
+minel = 200.
+maxel = -200.
 
 # read hot file or compute from the input names
 if hotFileName != "":
@@ -481,12 +490,8 @@ if hotFileName != "":
     else:
         ave_hot.ydataA = ave_hot.ydataA/ave_hot.nave
 else:
-    ave_hot, hotminel, hotmaxel, minGlat, maxGlat = \
+    ave_hot, coldminel, coldmaxel, minGlat, maxGlat = \
         hotcold.read_hot( names, ave_hot, doScaleAve)
-
-    print(("Min, Max Galactic Latitude: %7.1f,%7.1f" % (minGlat, maxGlat)))
-    print(("Min, Max Elevation:         %7.1f,%7.1f" % (hotminel, hotmaxel)))
-
 
 # convert to MHz, for flagging 
 xv = ave_hot.xdata * 1.E-6
@@ -511,23 +516,25 @@ if nmedian > 1:
 gain, gainAve, tRxMiddle, tRms, tStdA, tStdB = \
     hotcold.compute_gain( hv, cv, xa0, xa, xb, xbe, thot, tcold)
 
-# strip out white space and add / to directory name
-keepDirectory = keepDirectory.strip()
-nKeep = len(keepDirectory)
-if nKeep < 1:
-    keepDirectory = "../"
-else:
-    if keepDirectory[nKeep - 1] != '/':
-        keepDirectory = keepDirectory + "/"
-
 # if keeping hot and cold file names
 if doKeep:
+    keepExists = os.path.exists(keepDirectory)
+    if keepExists:
+        print("Saving average hot and cold files to existing directory")
+    else:
+        os.makedirs(keepDirectory)
+        print("Saving average hot and cold files to new directory")
     # code for keeping hot and cold avefrage spectra
     ave_hot.ydataA = hv
     ave_cold.ydataA = cv
+    if cpuIndex == 0:
+        print("Update the cpu Index to distinguish telescopes (-I #)")
     hotcold.keep_hotcold( ave_hot, ave_cold, cpuIndex, keepDirectory)
-    
-print(( "Median Receiver Temp: %7.3f +/- %6.3f (%6.3f %6.3f) (K)" % ( tRxMiddle, tRms, tStdA, tStdB)))
+    print("To Use the files for other observations, add argument:")
+    print("-A %s%s %s%s " % (keepDirectory, ave_hot.filename, \
+                             keepDirectory, ave_cold.filename))
+print(( "Median Receiver Temp: %7.3f +/- %6.3f (%6.3f %6.3f) (K)" % \
+        ( tRxMiddle, tRms, tStdA, tStdB)))
 
 gainA = np.median(gain[xa0:xa])
 gainB = np.median(gain[xb:xbe])
@@ -617,8 +624,14 @@ for filename in names:
         dt = dt + datetime.timedelta(seconds=rs.durationSec)
         lastdate = date
 
+    if rs.telel > maxel:
+        maxel = rs.telel
+    if rs.telel < minel:
+        minel = rs.telel
+
     newAzEl = (lastaz != rs.telaz) or (lastel != rs.telel)
-    newObs = (lastfreq != rs.centerFreqHz) or (lastbw != rs.bandwidthHz) or \
+    newFreq = (lastfreq != rs.centerFreqHz)
+    newObs =  newFreq or (lastbw != rs.bandwidthHz) or \
                           (lastgain != rs.gains[0]) or newAzEl
     # if this is the last file and there was not a change in observing setup
     if allFiles and (not newObs):
@@ -659,7 +672,11 @@ for filename in names:
 
         tsky = hotcold.tsky_gain( yv, gain)
 
-        # get tsys from averages of ends of spectra
+# now compute ranges for baseline fitting, based on min and max vels
+        vel, xa0, xa, xb, xbe = \
+            hotcold.velocity_indecies( ave_spec, NRMS, minvel, maxvel)
+
+# get tsys from averages of ends of spectra
         tSysA = np.median(tsky[xa0:xa])
         tSysB = np.median(tsky[xb:xbe])
         tStdA = np.std(tsky[xa0:xa])
@@ -695,7 +712,11 @@ for filename in names:
         gallon = ave_spec.gallon
         gallat = ave_spec.gallat
         label = 'L,L=%5.1f,%6.1f' % (gallon, gallat)
-
+        if minGlat > gallat:
+            minGlat = gallat
+        if maxGlat < gallat:
+            maxGlat = gallat
+            
         nChan2 = int(ave_spec.nChan/2)
         dV = (velcorr[nChan2] - velcorr[nChan2 - 4])*.25
         if dV < 0:
@@ -793,7 +814,8 @@ for filename in names:
             label = '%s L,L=%5.1f,%5.1f (%d)' % (labeltime, gallon, gallat, nave)
         else:
             label = '%s L,L=%5.1f,%5.1f A,E=%4.0f,%4.0f' % (labeltime, gallon, gallat, az, el)
-        print(( ' Max: %9.1f  Median: %8.2f +/- %5.2f %3d %s' % \
+        if (nplot < maxPlot) or (nplot == int(nplot/20)*20):
+            print(( ' Max: %9.1f  Median: %8.2f +/- %5.2f %3d %s' % \
                 (tSourcemax, tSys, tStd, nave, label)))
         # if plotting frequency overwrite velocities with frequency
         if plotFrequency:
@@ -895,6 +917,9 @@ for filename in names:
     #end for all files to sum
 # end of all files to read
 
+print(("Min, Max Galactic Latitude: %7.1f,%7.1f" % (minGlat, maxGlat)))
+print(("Min, Max Elevation:         %7.1f,%7.1f" % (minel, maxel)))
+
 if doDebug:
     print(( 'Number of remaining observations not plotted: %d' % ( ncold)))
 
@@ -911,7 +936,7 @@ else:
 
 
 if cpuIndex > 0:
-    myTitle = myTitle + ("T:%d " % (cpuIndex))
+    myTitle = myTitle + ("I:%d " % (cpuIndex))
 
 if firstaz == otheraz:
     myTitle = myTitle + "Az = %6.1f, " % (firstaz)
