@@ -78,7 +78,7 @@ avetimesec = 3600.
 #linelist = [1400.00, 1418.21, 1420.0, 1422.0]  # RFI lines in MHz
 linelist = [1400.00, 1419.92, 1420.0, 1421.24, 1421.39, 1421.54]  # RFI lines in MHz
 linelist = [1400.00, 1419.49, 1419.63, 1419.93, 1420.0, 1420.37, 1420.66, 1420.95, 1421.1, 1421.25, 1421.39, 1421.54]  # RFI lines in MHz
-linewidth = [5, 8, 7, 8, 8, 8]
+linewidth = [5, 8, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]
 nlist = len (linelist)
 nwidth = len(linewidth)
 # min and maximum default velocities
@@ -131,7 +131,9 @@ keepDirectory = ""
 plotFrequency = False
 doScaleAve = False
 doZero = False
-
+#assume no pointing offsets
+dAz = 0.
+dEl = 0.
 # define reference frequency for velocities (MHz)
 NUH1 = 1420.405751768 # neutral hydrogen frequency (MHz)
 NUOH1= 1612.231   # OH line
@@ -166,6 +168,7 @@ if nargs < 3:
     print("-L optionally set the low velocity region for baseline fit")
     print("-N <number> optionally set the number of spectra to plot")
     print("-M Skip writing header for .kel files")
+    print("-O <AzOffset> <ElOffset> Add offsets to input Az,El")
     print("-P <dir> write PNG and PDF files instead of showing plot")
     print("-Q optionally plot intensity versus freQuency, instead of velocity")
     print("-R optionally flag known RFI lines")
@@ -251,6 +254,9 @@ while iarg < nargs:
         iarg = iarg+1
         minvel = float( sys.argv[iarg])
         print(('Minium (low)  velocity for sum: %7.2f km/sec' % (minvel)))
+    elif sys.argv[iarg].upper() == '-M':
+        doWriteHeader = False
+        print( 'Skipping writing file header, if writing files')
     elif sys.argv[iarg].upper() == '-N':   # if number of spectra to plot
         iarg = iarg+1
         maxPlot = int(sys.argv[iarg])
@@ -258,9 +264,12 @@ while iarg < nargs:
             print("Not Plotting")
         else:
             print(("Plot will have a maximum of %d spectra" % (maxPlot)))
-    elif sys.argv[iarg].upper() == '-M':
-        doWriteHeader = False
-        print( 'Skipping writing file header, if writing files')
+    elif sys.argv[iarg].upper() == '-O':   # if az, el offsets
+        iarg = iarg+1
+        dAz = float(sys.argv[iarg])
+        iarg = iarg+1
+        dEl = float(sys.argv[iarg])
+        print("Applying input Az,El offsets %.1f,%.1f" % (dAz, dEl))
     elif sys.argv[iarg].upper() == '-P':
         doPlotFile = True
         iarg = iarg+1
@@ -377,7 +386,7 @@ tmax = 999.0 # define reasoanable value limits
 # prepare to remove a linear baseline
 
 nplot = 0
-nwrite = 0       # count files written out 
+nwrite = 0       # count files written out
 minGlat = +90.
 maxGlat = -90.
 lastfreq = 0.
@@ -493,7 +502,7 @@ else:
     ave_hot, coldminel, coldmaxel, minGlat, maxGlat = \
         hotcold.read_hot( names, ave_hot, doScaleAve)
 
-# convert to MHz, for flagging 
+# convert to MHz, for flagging
 xv = ave_hot.xdata * 1.E-6
 ave_hot.refFreqHz = nuRefFreq * 1.e6
 # do more cleanup on spectra for RFI
@@ -550,6 +559,8 @@ avetime = datetime.timedelta(seconds=avetimesec)
 nRead = 0
 nave = 0
 
+previousel = 0.
+
 rs = radioastronomy.Spectrum()
 # now read through all data and average cold sky obs
 for filename in names:
@@ -577,7 +588,9 @@ for filename in names:
         rs.ydataA = rs.ydataA/rs.count
     else:
         rs.ydataA = rs.ydataA/rs.nave
-#  print( filename)
+#  apply input pointing offsets
+    rs.telaz = rs.telaz + dAz
+    rs.telel = rs.telel + dEl
     rs.azel2radec()    # compute ra,dec from az,el
 # if not a sky observation
     if rs.telel < 0. and (not allFiles):
@@ -716,7 +729,7 @@ for filename in names:
             minGlat = gallat
         if maxGlat < gallat:
             maxGlat = gallat
-            
+
         nChan2 = int(ave_spec.nChan/2)
         dV = (velcorr[nChan2] - velcorr[nChan2 - 4])*.25
         if dV < 0:
@@ -783,7 +796,7 @@ for filename in names:
             imin = int(nsky/8)
         if imin  > imax:
             imax = int( 7*nsky/8)
-            
+
         ymin = min(tsky[imin:imax])
         ymax = max(tsky[imin:imax])
 
@@ -810,9 +823,9 @@ for filename in names:
         timeparts = atime.split('.')
         labeltime = timeparts[0]
         label = '%s, A,E: %5s,%5s, L,L: %5.1f,%6.1f' % (labeltime, az, el, gallon, gallat)
-        if minel == maxel:
+        if (minel == maxel) or (el == previousel):
             label = '%s L,L=%5.1f,%5.1f (%d)' % (labeltime, gallon, gallat, nave)
-        else:
+        else: 
             label = '%s L,L=%5.1f,%5.1f A,E=%4.0f,%4.0f' % (labeltime, gallon, gallat, az, el)
         if (nplot < maxPlot) or (nplot == int(nplot/20)*20):
             print(( ' Max: %9.1f  Median: %8.2f +/- %5.2f %3d %s' % \
@@ -846,7 +859,7 @@ for filename in names:
             outname = outname + ".kel"  # output in Kelvins
             write_spec.count = 1
             write_spec.nave = 1
-            doComputeX = False  # x-axis already computed 
+            doComputeX = False  # x-axis already computed
             if doLimitVel:
                 nOut = imax - imin
                 nChan = ave_spec.nChan
@@ -882,6 +895,7 @@ for filename in names:
                                        doWriteHeader, doComputeX)
         # flag restarting the sum
         nave = 0
+        previousel = el
 
     if newObs:
         if lastfreq != rs.centerFreqHz:

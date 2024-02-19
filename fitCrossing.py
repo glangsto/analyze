@@ -1,11 +1,12 @@
 """
-Rnnnead in an observation summary and fit the times of galaxy crossings.
+Read in an observation summary and fit the times of galaxy crossings.
 From these measurements estimate the Azimuth and Elevation of the
 telescope pointing.  Then compute the azimuth and elevation offsets
 """
 # Functions to create a grid and place astronomical data on that
 # grid with a convolving function
 # HISTORY
+# 24Feb19 GIL major reorganization fitting two crossings separately
 # 24Feb19 GIL update for 2024, check for not finding offset
 # 23Oct13 GIL check Az offset with FWHM galactic intensities
 # 23Oct12 GIL count number of observations at each elevation
@@ -37,16 +38,16 @@ doTwo = True
 doThree = True
 doFour = True
 
-GalacticPolRa = (12+(51.4/60.))*15 # (degrees)
-GalacticPolDec = 27.13            # (degrees)
+GalacticPoleRa = (12+(51.4/60.))*15 # (degrees)
+GalacticPoleDec = 27.13            # (degrees)
 
 def readGalacticOffsets( offsetfilename):
     """
-    Read a table of RA and Dec positions
+    Read a table of pre-calculated Galactic lat=0 RA and Dec positions
     input - offset file name
     outputs
     decs - array of declinations for which Galactic Plane is crossed
-    ra1s - array of 1st  galactic plane crossing RAs
+    ra1s - array of 1st galactic plane crossing RAs
     ra2s - array of 2nd galactic plan crossing RAs
     dRas - array of deltas in RA crossings
     """
@@ -85,6 +86,9 @@ def readGalacticOffsets( offsetfilename):
     decs = np.asarray( decs)
     ra1s = np.asarray( ra1s)
     ra2s = np.asarray( ra2s)
+    n2 = len(ra2s)
+    for iii in range(n2):
+        ra2s[iii] = 360. + ra2s[iii]
     dRas = np.asarray( dRas)
 
     f.close()
@@ -92,6 +96,32 @@ def readGalacticOffsets( offsetfilename):
     # end of readGalacticOffsets
     return decs, ra1s, ra2s, dRas
 
+def getCrossingsFromDec( dec, decs, ra1s, ra2s):
+    """
+    get the closest 1st and 2nd Ra crossings, for the input dec
+    """
+
+    n = len(ra1s)
+    iDec = 0
+    minDec = dec - decs[iDec]
+    # prepare to find offsets
+    if minDec < 0:
+        minDec = - minDec
+
+    # find closest dec.  Later may interpolate       
+    for iii in range(n):
+        dDec = dec - decs[iii]
+        if dDec < 0:
+            dDec = - dDec
+        if dDec < minDec:
+            iDec = iii
+            minDec = dDec
+
+    ra1 = ra1s[iDec]
+    ra2 = ra2s[iDec]
+
+    return ra1, ra2   # end of getCrossingFromDec
+            
 def writeDazDel( dazdelfilename, utc1, utc2, cpuIndex, az, el, dAz, dEl):
     """
     appends a new measurement of the Azimuth and elevation offsets
@@ -121,33 +151,43 @@ def writeDazDel( dazdelfilename, utc1, utc2, cpuIndex, az, el, dAz, dEl):
     # end off writeDazDel()
     return
 
-def decFromCrossingDelta( dRa, decs, ra1s, ra2s, dRas):
+def decFromCrossingDelta( dRa, gDecs, gdRas):
     """
     decFromCrossingDelta returns the closest Declination
     matching the measured offset between two galactic crossing positions
     input
     dRa - measured right ascension difference between two galactic crossings
-    decs - array of declinations
-    ra1s - 1st right ascension crossing point for each declination
-    ra2s - 2nd right ascension crossing point for each declination
-    dRas - difference between ra1s and ra2s for each declination
+    gDecs - array of declinations for input offsets
+    gRa1s - 1st right ascension crossing point for each declination
+    dRa2s - 2nd right ascension crossing point for each declination
+    gdRas - difference between ra1s and ra2s for each declination
     """
     idec = 0
-    n = len( dRas)
-    ddRa = 360 - dRa
-    # find dec of crossing point
-    while idec < n:
-        if dRa < dRas[idec]:
-            break
-        idec = idec + 1
+    n = len( gdRas)
+    minDRa  = gdRas[idec] - dRa
+    if minDRa < 0:
+        minDra = - minDRa
+    iminDec = idec
+    # find dec of crossing point separation
+    for idec in range(n):
+        dd = dRa - gdRas[idec]
+        if dd < 0:
+            dd = -dd
+        if dd < minDRa:
+            iminDec = idec;
+            minDra = dd
 
-    print( "dRa = %7.1f coresponds to dec %7.1fd (%d)" %
-           (dRa, decs[idec], idec))
-    return decs[idec]
+    print( "dRa = %7.1f coresponds to dec %7.1fd (%d)" % \
+           (dRa, gDecs[iminDec], iminDec))
+    return gDecs[iminDec]
 
 def gauss(x,mu,sigma,A):
     """
     Return the intensity for a single gaussian model
+    input order is x axis values
+    mu = center postion
+    sigma = width of gaussian
+    A = amplitude of gaussian
     """
     return A*np.exp(-(x-mu)**2/(2*sigma**2))
 
@@ -156,35 +196,6 @@ def bimodal(x,mu1,sigma1,A1,mu2,sigma2,A2):
     Return the intensity for a double gaussian model
     """
     return gauss(x,mu1,sigma1,A1)+gauss(x,mu2,sigma2,A2)
-
-def trimodal(x,mu1,sigma1,A1,mu2,sigma2,A2,mu3,sigma3,A3):
-    """
-    Return the intensity for a triple gaussian model
-    """
-    return gauss(x, mu1, sigma1, A1) + \
-        gauss(x, mu2, sigma2, A2) + \
-        gauss(x, mu3, sigma3, A3)
-
-def quadmodal(x,mu1,sigma1,A1,mu2,sigma2,A2, \
-              mu3,sigma3,A3, mu4,sigma4,A4):
-    """
-    Return the intensity for a four gaussian model
-    """
-    return gauss(x, mu1, sigma1, A1) + \
-        gauss(x, mu2, sigma2, A2) + \
-        gauss(x, mu3, sigma3, A3) + \
-        gauss(x, mu4, sigma4, A4)
-
-def fivemodal(x,mu1,sigma1,A1,mu2,sigma2,A2, \
-              mu3,sigma3,A3, mu4,sigma4,A4, mu5,sigma5,A5):
-    """
-    Return the intensity for a five gaussian model
-    """
-    return gauss(x, mu1, sigma1, A1) + \
-        gauss(x, mu2, sigma2, A2) + \
-        gauss(x, mu3, sigma3, A3) + \
-        gauss(x, mu4, sigma4, A4) + \
-        gauss(x, mu5, sigma5, A5)
 
 def sortParams( inparams, sigmas):
     """
@@ -219,7 +230,10 @@ def sortParams( inparams, sigmas):
                 sigmas[(j*3)+2]  = sigma2
     return inparams, sigmas
 
-def selectIntensities( filename):
+# for diagnostics
+doTest = False
+
+def selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas):
     """
     selectIntensities() reads a "T" integrated intensity file and
     selects only observations for the elevation with the most measurements
@@ -227,23 +241,28 @@ def selectIntensities( filename):
     """
 
     # read date (string), offset seconds
-    firstdate, utcIns, secIns, tSumIns, dTIns, azs, els, gallons, gallats = \
-        gf.readAllValues( filename)
-    # count the number of different elevations
-    nels = 1
-    ellist = np.zeros(100)
+    firstdate, utcIns, secIns, tSumIns, dTIns, azs, els, inRas, inDecs, \
+        gallons, gallats = gf.readAllValues( filename)
+    nData = len(secIns)
+
+        
+    ellist = np.zeros(100)   # assume up to 100 different elevations
     elcount = np.zeros(100)
-    ellist[0] = els[0]     # start with first el
-    for el in els:
-        newEl = True      # assume a new el
-        for ii in range(nels):
+    elDec = np.zeros(100)
+    nel = 0
+    newEl = True
+    
+    for iii in range(nData):
+        el = els[iii]
+        for ii in range(nel):
             if ellist[ii] == el:
                 elcount[ii] = elcount[ii] + 1
                 newEl = False
         if newEl:         # if el not in list
-            ellist[nels] = el  #new el
-            elcount[nels] = 1
-            nels = nels + 1
+            ellist[nel] = el  #new el
+            elcount[nel] = 1
+            elDec[nel] = inDecs[iii]
+            nels = nel + 1
 
     #report number of els
     print("Found %d elevations %f ... %f" % \
@@ -258,136 +277,97 @@ def selectIntensities( filename):
         if maxElCount < elcount[ii]:
             maxElI = ii
             maxElCount = elcount[ii]
-    print("Max measurements elevation: %.1f (d)" % \
-          (ellist[maxElI]))
-    firstdate, utcs, secs, tSums, dTs, azs, els, gallons, gallats = \
-        gf.readAllValues( filename)
-    # now select only the obs with max elevations
-    nData = len(secs)
+            maxDec = elDec[ii] 
+    print("Max measurements elevation: %.1f (d) = Dec: %.1f" % \
+          (ellist[maxElI], maxDec))
+        
+    # now use first declination to select the RAs of 1st and 2nd crossings
+    raX1, raX2 = getCrossingsFromDec( maxDec, gDecs, gRa1s, gRa2s)    
+
+    print("Ra crossing points: %.1f, %.1f" %  (raX1, raX2))
+    fitRaRange = 25.   # assume must be close to actual
+    raX1min = raX1 - fitRaRange
+    raX1max = raX1 + fitRaRange
+    raX2min = raX2 - fitRaRange
+    raX2max = raX2 + fitRaRange
+
+    if raX1min < 0:
+        raX1min = 0.
+    if raX2max > 360.:
+        raX2max = 360.
+    
+    # also assume els and ras can not be off by more than 20 degrees
+    
+    # now select only the obs with max number of elevation samples
     elKeep = ellist[maxElI]
-    n = 0                                     # count obs kept
+
+    # prepare to save different ra ranges
+    inRa1s = np.zeros(nData)
+    tSum1s = np.zeros(nData)
+    inRa2s = np.zeros(nData)
+    tSum2s = np.zeros(nData)
+
+    # divid the data into two parts separated by galactic north pole
+    nRa1 = 0
+    nRa2 = 0
+
     for ii in range(nData):
         if els[ii] == elKeep:
-            utcs[n] = utcs[ii]
-            secs[n] = secs[ii]
-            secIns[n] = secIns[ii]
-            tSums[n] = tSums[ii]
-            tSumIns[n] = tSumIns[ii]
-            dTs[n] = dTs[ii]
-            dTIns[n] = dTIns[ii]
-            gallons[n] = gallons[ii]
-            gallats[n] = gallats[ii]
-            els[n] = els[ii]
-            azs[n] = azs[ii]
-            n = n + 1
+            ra = inRas[ii]
+            # if found an Ra in the 1st range
+            if ra > raX1min and ra < raX1max:
+                inRa1s[nRa1] = ra
+                tSum1s[nRa1] = tSumIns[ii]
+                nRa1 = nRa1 + 1
+            if ra > raX2min and ra < raX2max:
+                inRa2s[nRa2] = ra
+                tSum2s[nRa2] = tSumIns[ii]
+                nRa2 = nRa2 + 1
+            decKeep = inDecs[ii]
 
-    azKeep = azs[0]     # keep track of which azimuth was selected
+    # trim to only input values
+    inRa1s = inRa1s[0:nRa1]
+    tSum1s = tSum1s[0:nRa1]
+    inRa2s = inRa2s[0:nRa2]
+    tSum2s = tSum2s[0:nRa2]
+    
+    if doTest:
+        print("Found %3d samples in Ra range %5.1f to %5.1f" % \
+              (nRa1, raX1min, raX1max))
+        print("Found %3d samples in Ra range %5.1f to %5.1f" % \
+              (nRa2, raX2min, raX2max))
 
-    # now only elevatiosn to be fit are kept
-    nData = n
-    secs = secs[0:n]    # trim out extra values
-    tSums = tSums[0:n]
-    tSums = vmedian(tSums,1)                   # smooth out peaks
-    tSums = vsmooth(tSums,1)                   # smooth out peaks
-    dTs = dTs[0:n]
-    gallats = gallats[0:n]
-    gallons = gallons[0:n]
-    els = els[0:n]
-    azs = azs[0:n]
-    #next phase is to start fit out of galactic plane,  re arrange samples
-    inPlane = True                             # Assume in galactic plane
-    firstN = 0
-    # now find the data out of the plane to start the fit
-    for iii in range(nData):
-        # need to fit starting out of galactic plane
-        if inPlane:
-            if gallats[iii] < -15. or gallats[iii] > 15.:
-                firstN = iii
-                # no longer looking for start of out of plane data
-                inPlane = False
-                print("First point out of galactic plane: %d at %7.1f d" %
-                      (firstN, gallats[firstN]))
-                minT = tSums[firstN]
-                minI = firstN
-        else:
-            if secs[iii] > secs[firstN]+86400. : # if more than one day
-                nData = iii
-                break
+    maxi1 = 0
+    maxi2 = 0
+    for iii in range(nRa1):
+        if tSum1s[maxi1] < tSum1s[iii]:
+            maxi1 = iii
+    for iii in range(nRa2):
+        if tSum2s[maxi2] < tSum2s[iii]:
+            maxi2 = iii
+        
+    if doTest:
+        print("Found Crossing max 1 at %5.1f, %6.1f" % \
+              (inRa1s[maxi1], tSum1s[maxi1]))
+        print("Found Crossing max 2 at %5.1f, %6.1f" % \
+              (inRa2s[maxi2], tSum2s[maxi2]))
 
-    # trim if too much data
-    secs  = secs[0:nData]
-    secIns  = secIns[0:nData]
-    tSums = tSums[0:nData]
-    tSumIns = tSumIns[0:nData]
-    dTs = dTs[0:nData]
-    dTIns = dTIns[0:nData]
+    if doTest:
+        plt.plot(inRas, tSumIns, color='blue',lw=3,
+                 label='Intensities')
+        plt.plot(inRa1s, tSum1s, color='cyan',lw=3,
+                 label='Crossing 1')
+        plt.plot(inRa2s, tSum2s, color='red',lw=3,
+                 label='Crossing 2')
+        plt.show()
 
-    minI = 0
-    minT = tSums[minI]                            # initialize minimum
-    for iii in range(nData):
-        # gaussian fit is better with zero baseline, find minimum
-            if tSums[iii] < minT:
-                minT = tSums[iii]
-                minI = iii
+    #end of selectIntensities()
+    return firstdate, elKeep, decKeep, nRa1, inRa1s, tSum1s, nRa2, inRa2s, tSum2s
 
-    # recompute miminum Temp from median of 10 values around min
-    minI0 = minI - 10
-    minI1 = minI + 10
-    if minI0 < 0:
-        minI = 0
-    if minI1 > nData - 1:
-        maxI1 = nData - 1
-    minT = np.median(tSums[minI0:minI1])
+def fitCrossing( filename, gDecs, gRa1s, gRa2s, gdRas):
+    # the galacitic RAs crossings are pre-computed and written to a file
+    gDecs, gRa1s, gRa2s, gdRas = readGalacticOffsets( offsetfilename)
 
-    # move start of fit to beginning
-    nMove = nData - firstN    # these samples will be moved to the beginning
-    for iii in range( nMove):
-        secs[iii] = secIns[firstN+iii]
-        utcs[iii] = utcIns[firstN+iii]
-        #select temperature - minimum
-        tSums[iii] = tSumIns[firstN+iii] - minT
-        dTs[iii] = dTIns[firstN+iii]
-
-    nOut = nMove            # assume enough data already
-    iMove = 0
-    print("Checking if a full day of obs is selected: %d - %d = %d" % (
-        secs[nMove-1], secs[0], secs[nMove-1] - secs[0]))
-    # if not a full day of observations, append the skipped data to end
-
-    iMove = nMove
-    nOut = nMove
-    # move assuming a day wrap
-    for iii in range(firstN):   # if all data are inrage nMore == 0
-        # only move if first data does not repeat last data
-        if ((secIns[iii] + 86400.) > secs[iMove-1]):
-            utcs[iMove] = utcIns[iii] + datetime.timedelta( seconds=86400.)
-            secs[iMove] = secIns[iii] + 86400.
-            tSums[iMove] = tSumIns[iii]
-            dTs[iMove] = dTs[iii]
-            iMove = iMove + 1
-            nOut = iMove               # new fit data length
-        if (secs[iMove-1] - secs[0]) < 86400.:
-            break
-    # keep the new output count
-    nData = nOut
-
-    # to fit a few gaussians, must limit to exactly 1 day of measurements
-    for iii in range(nData-1):
-        if secs[iii] > secs[iii+1]:
-            print("Time Order Error at %d: %.2f > %.2f" % \
-                  (iii, secs[iii],secs[iii+1]))
-            print("nMove %d, nData %d" % \
-                  (nMove, nData))
-
-    # final trim of input samples
-    nData = nData - 2
-    secs = secs[0:nData]
-    tSums = tSums[0:nData]
-    dTs  = dTs[0:nData]/4.                     # smoothing reduces RMS
-
-    return firstdate, azKeep, elKeep, utcs, secs, tSums, dTs
-
-def fitCrossing( filename):
     """
     fitCrossing takes the integrated intensities from a sumary file,
     then fits a series of gaussians
@@ -395,225 +375,118 @@ def fitCrossing( filename):
     then simultaneously fits all gaussians
     """
 
-    firstdate, az, el, utcs, secs, tSums, dTs = selectIntensities( filename)
+    firstdate, elKeep, decKeep, nRa1, ra1s, tSum1s, nRa2, ra2s, tSum2s = \
+        selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas)
 
-    nData = len(tSums)
-    utc1 = utcs[0]                             # keep track of utcs for log
-    utc2 = utcs[nData-1]                       #
+    nData = nRa1
     # create a temporary array to interatively fit.
     tTemps = np.zeros(nData)
+    t1Max = 0
+    i1Max = 0
     for i in range(nData):
-        tTemps[i] = tSums[i]
-
+        tTemps[i] = tSum1s[i]
+        if t1Max < tTemps[i]:
+            t1Max = tTemps[i]
+            i1Max = i
+    ra1Max = ra1s[i1Max]
+    
     # set number of gaussians to fit and init array of peak values
-#    NGAUSS = 4
-    NGAUSS = 5
-    iMaxs = [0, 0, 0, 0, 0]
-    tMaxs = [0., 0., 0., 0., 0.]
+    iMaxs = [i1Max, 0, 0, 0, 0]
+    tMaxs = [t1Max, 0., 0., 0., 0.]
     # keep fit results
-    utcPeaks = [0., 0., 0., 0., 0.]
-    dUtcPeaks = [0., 0., 0., 0., 0.]
-    tPeaks = [0., 0., 0., 0., 0.]
+    ra1Peaks = [ra1Max, ra1Max, 0., 0., 0.]
+    dRa1Peaks = [0., 0., 0., 0., 0.]
+    tPeaks = [t1Max, t1Max, 0., 0., 0.]
     dTPeaks = [0., 0., 0., 0., 0.]
-    widths = [0., 0., 0., 0., 0.]
+    widths = [50., 50., 0., 0., 0.]
     dWidths = [0., 0., 0., 0., 0.]
 
-    # now fit all gaussians
-    for ng in range(NGAUSS):
+    # estimate the default width of gaussian in RA direction (degrees)
+    width = 50.
+    # Two crossings can be measured only if below minimum declination 
+    maxDecCrossing = 55.
 
-        # get the indexs to  the first intensity peak
-        iMax = np.argmax( tTemps)
-        tMax = tTemps[iMax]
-        iMaxs[ng] = iMax
-        tMaxs[ng] = tMax
+    ra1Min = 360.
+    ra1Max = 0.
+    for iii in range(nData):
+        if ra1Min > ra1s[iii]:
+            ra1Min = ra1s[iii]
+        if ra1Max < ra1s[iii]:
+            ra1Max = ra1s[iii]
 
-        # limit search for half max to range near peak
-        # but not beyond end of data arrays
-        if iMax < nData/2:
-            nseek = int(iMax*.4)
-        else:
-            nseek = int((nData - iMax)*.4)
-        # assume width is no more than one hour
-        width = 3600.
-        tHalf = tMax/2.
-        # now find the half width:
-        for i in range(nseek):
-            j = iMax - i
-            k = iMax + i
-            # if found the half width
-            if tTemps[j] < tHalf:
-                width = secs[iMax] - secs[j]
-                break
-            elif tTemps[k] < tHalf:
-                width = secs[k] - secs[iMax]
-                break
-        # end searching for width
+    dT = 20.
 
-#        print("t%d = %8.1f, y = %8.3f, width = %7.2f " % \
-#          (ng+1, secs[iMax], tMax, width))
+    # get the indexs to  the first intensity peak
+    i1Max = np.argmax( tTemps)
+    t1Max = tTemps[i1Max]
+    r1Max = ra1s[i1Max]
+    ng = 0
 
-        # estimate the fit the gaussian
-        expected=(secs[iMax], width, tMax)
+    # estimate the fit the gaussian
+    expected=(r1Max, width, t1Max)
 
-        sigma1 = [ 0., 0., 0.]
-        try:
-            params1,cov1=curve_fit(gauss,secs,tTemps,expected,sigma=dTs)
-            sigma1=sqrt(diag(cov1))
-        except:
-            print("Error fitting gaussian %d" % (ng+1))
-            params1 = expected
-
-        # fit was successful, subtract fit and try again
-        for i in range(nData):
-            tTemps[i] = tTemps[i] - gauss( secs[i], *params1)
-
-        utcPeaks[ng] = params1[0]
-        widths[ng] = params1[1]
-        tPeaks[ng] = params1[2]
-        dUtcPeaks[ng] = sigma1[0]
-        dWidths[ng] = sigma1[1]
-        dTPeaks[ng] = sigma1[2]
-
-        print("Fit %2d:  %9.2f %8.2f %7.2f" % \
-              (ng, utcPeaks[ng], tPeaks[ng], widths[ng]))
-        print(" +/-  :  %9.2f %8.2f %7.2f" % \
-              (dUtcPeaks[ng], dTPeaks[ng], dWidths[ng]))
-
-    # end for all gaussians
-    params1 = [utcPeaks[0], widths[0], tPeaks[0]]
-
-    # prepare to bound fits in time
-    tmin = secs[0] - 10.
-    tmax = secs[nData-1] + 10.
-
-    # now try 1, 2, 3 and 4 gaussians
-    # keep the largest number that fits
-
-    expected1 = ( utcPeaks[0], widths[0], tPeaks[0])
-    sigma1 = [0., 0., 0.]
-    bestFit = 1
-    minSigmaT = 3600.
+    bestFit = ng
+    sigma1 = [ 10., 10., dT]
     try:
-        params1,cov1=curve_fit(gauss,secs,tSums,expected1,sigma=dTs)
+#        params1,cov1=curve_fit(gauss,ra1s,tTemps,expected,sigma=sigma1)
+        params1,cov1=curve_fit(gauss,ra1s,tTemps,expected)
         sigma1=sqrt(diag(cov1))
-        ng = 1
         bestFit = ng
-        minSigmaT = sigma1[0]
     except:
-        print("Error trying a 1 gaussian fit")
-        params1 = [utcPeaks[0], widths[0], tPeaks[0]]
+        print("Error fitting gaussian %d" % (ng+1))
+        params1 = expected
 
-    expected2 = ( utcPeaks[0], widths[0], tPeaks[0],
-                  utcPeaks[1], widths[1], tPeaks[1])
-    bounds2 =    [ (tmin, 50., 50., tmin, 50., 50.),
-                   (tmax, 90000., 300000., tmax, 90000., 300000.)]
-    sigma2 = [0., 0., 0., 0., 0., 0.]
+    print("Fit %2d:  %9.2f %8.2f %7.2f" % \
+          (1, params1[0], params1[2], params1[1]))
+    print(" +/-  :  %9.2f %8.2f %7.2f" % \
+          (sigma1[0], sigma1[2], sigma1[1]))
+
+# now start fitting 2nd crossing
+    nData = nRa2
+    ra2Min = 360.
+    ra2Max = 0.
+    for iii in range(nData):
+        if ra2Min > ra2s[iii]:
+            ra2Min = ra2s[iii]
+        if ra2Max < ra2s[iii]:
+            ra2Max = ra2s[iii]
+            
+    # create a temporary array to interatively fit.
+    tTemps = np.zeros(nData)
+    t2Max = 0
+    i2Max = 0
+    for i in range(nData):
+        tTemps[i] = tSum2s[i]
+        if t2Max < tTemps[i]:
+            t2Max = tTemps[i]
+            i2Max = i
+    
+    # get the indexs to  the first intensity peak
+    i1Max = np.argmax( tTemps)
+    t2Max = tTemps[i2Max]
+    ra2Max = ra2s[i2Max]
+
+    # estimate the fit the gaussian
+    expected=(ra2Max, width, t2Max)
+
+    bestFit = ng
+    sigma2 = [ 10., 10., dT]
     try:
-        params2,cov2=curve_fit(bimodal,secs,tSums,expected2,sigma=dTs,
-                               bounds=bounds2)
-        sigma2=sqrt(diag(cov2))
-        ng = 2
-        sigmaT = sigma3[0]
-        if sigmaT/5. < minSigmaT:
-            bestFit = ng
-            minSigmaT = sigmaT
+#        params1,cov1=curve_fit(gauss,ra1s,tTemps,expected,sigma=sigma1)
+        params2,cov2=curve_fit(gauss,ra2s,tTemps,expected)
+        sigma2=sqrt(diag(cov1))
+        bestFit = ng
     except:
-        print("Error trying a 2 gaussian fit")
-        params2 = [ utcPeaks[0], widths[0], tPeaks[0],
-                  utcPeaks[1], widths[1], tPeaks[1]]
+        print("Error fitting gaussian %d" % (ng+1))
+        params2 = expected
 
-    expected3 = ( utcPeaks[0], widths[0], tPeaks[0],
-                  utcPeaks[1], widths[1], tPeaks[1],
-                  utcPeaks[1], widths[2], tPeaks[2])
-    bounds3 =    [ (tmin, 50., 50., tmin, 50., 50.,
-                    tmin, 50., 50.),
-                   (tmax, 90000., 300000., tmax, 90000., 300000.,
-                    tmax, 90000., 300000.)]
-    sigma3 = [0., 0., 0., 0., 0., 0., 0., 0., 0.]
-    try:
+    print("Fit %2d:  %9.2f %8.2f %7.2f" % \
+          (2, params2[0], params2[2], params2[1]))
+    print(" +/-  :  %9.2f %8.2f %7.2f" % \
+          (sigma2[0], sigma2[2], sigma2[1]))
 
-        params3,cov3=curve_fit(trimodal,secs,tSums,expected3,sigma=dTs,
-                               bounds=bounds3)
-        sigma3=sqrt(diag(cov3))
-        ng = 3
-        sigmaT = sigma3[0]
-        if sigmaT/5. < minSigmaT:
-            bestFit = ng
-            minSigmaT = sigmaT
-    except:
-        print("Error trying a 3 gaussian fit")
-        params3 = [ utcPeaks[0], widths[0], tPeaks[0],
-                  utcPeaks[1], widths[1], tPeaks[1],
-                  utcPeaks[1], widths[2], tPeaks[2]]
-
-
-    expected4 = ( utcPeaks[0], widths[0], tPeaks[0],
-                  utcPeaks[1], widths[1], tPeaks[1],
-                  utcPeaks[2], widths[2], tPeaks[2],
-                  utcPeaks[3], widths[3], tPeaks[3])
-    bounds4 =    [ (tmin, 50., 50., tmin, 50., 50.,
-                    tmin, 50., 50.,  tmin, 50., 50.),
-                   (tmax, 90000., 300000., tmax, 90000., 300000.,
-                   tmax, 90000., 300000., tmax, 90000., 300000.)]
-    sigma4 = [0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
-    try:
-        params4,cov4=curve_fit(quadmodal,secs,tSums,expected4,sigma=dTs,
-                               bounds=bounds4)
-        sigma4=sqrt(diag(cov4))
-        ng = 4
-        sigmaT = sigma4[0]
-        # more gaussians increases deduced sigma
-        # use more complex fit if sigma is not too great
-        if sigmaT/5. < minSigmaT:
-            bestFit = ng
-            minSigmaT = sigmaT
-    except:
-        print("Error trying a 4 gaussian fit")
-        params4 = [utcPeaks[0], widths[0], tPeaks[0],
-                  utcPeaks[1], widths[1], tPeaks[1],
-                  utcPeaks[2], widths[2], tPeaks[2],
-                  utcPeaks[3], widths[3], tPeaks[3]]
-
-    expected5 = ( utcPeaks[0], widths[0], tPeaks[0],
-                  utcPeaks[1], widths[1], tPeaks[1],
-                  utcPeaks[2], widths[2], tPeaks[2],
-                  utcPeaks[3], widths[3], tPeaks[3],
-                  utcPeaks[4], widths[4], tPeaks[4])
-    bounds5 =    [ (tmin, 50., 50., tmin, 50., 50.,
-                  tmin, 50., 50.,  tmin, 50., 50.,
-                  tmin, 50., 50.),
-                  (tmax, 90000., 300000., tmax, 90000., 300000.,
-                   tmax, 90000., 300000., tmax, 90000., 300000.,
-                   tmax, 90000., 300000.)]
-    sigma5 = [0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
-    try:
-        params5,cov5=curve_fit(fivemodal,secs,tSums,expected5,sigma=dTs,
-                               bounds=bounds5)
-        sigma5=sqrt(diag(cov5))
-        ng = 5
-        sigmaT = sigma5[0]
-        # more gaussians increases deduced sigma
-        # use more complex fit if sigma is not too great
-        if sigmaT/5. < minSigmaT:
-            bestFit = ng
-            minSigmaT = sigmaT
-    except:
-        print("Error trying a 5 gaussian fit")
-        params5 = [utcPeaks[0], widths[0], tPeaks[0],
-                   utcPeaks[1], widths[1], tPeaks[1],
-                   utcPeaks[2], widths[2], tPeaks[2],
-                   utcPeaks[3], widths[3], tPeaks[3],
-                   utcPeaks[4], widths[4], tPeaks[4]]
-
-    # now sort each result in intensity order
-    # no need to sort if only 1 peaks
-#    params1, sigma1 = sortParams( params1, sigma1)
-    params2, sigma2 = sortParams( params2, sigma2)
-    params3, sigma3 = sortParams( params3, sigma3)
-    params4, sigma4 = sortParams( params4, sigma4)
-    params5, sigma5 = sortParams( params5, sigma5)
-
-    return firstdate, utc1, utc2, az, el, secs, tSums, dTs, bestFit, params1, sigma1, params2, sigma2, params3, sigma3, params4, sigma4, params5, sigma5
+    # end of fitCrossing
+    return firstdate, bestFit, elKeep, decKeep, ra1s, tSum1s, ra2s, tSum2s, params1, sigma1, params2, sigma2
 
 def main():
     """
@@ -639,195 +512,66 @@ def main():
     rs = radioastronomy.Spectrum()
  #   print( "Reading %d files" % (len(names)))
 
+    # the galacitic RAs crossings are pre-computed and written to a file
+    gDecs, gRa1s, gRa2s, gdRas = readGalacticOffsets( offsetfilename)
+
     for filename in names:
         print ("File: %s" % (filename))
 
         # return the data and three fits
-        firstdate, utca, utcb, az, el, secs, tSums, dTs, ng, params1, sigma1, params2, sigma2, params3, sigma3, params4, sigma4, params5, sigma5 = fitCrossing( filename)
+        firstdate, ng, elKeep, decKeep, ra1s, tSum1s, ra2s, tSum2s, \
+            params1, sigma1, params2, sigma2 = \
+                fitCrossing( filename, gDecs, gRa1s, gRa2s, gdRas)
 
-        nData = len(secs)
-        print("Fit successful for %d gausians" % (ng))
-        lastId, lastaz, lastel = gf.lastazel()
-        lastaz = az
-        lastel = el
-        rs.telaz = az
-        rs.telel = el
-        # retrieve the telescope coordinates
-        tellon, tellat, telelev = gf.lonlatelev()
-        rs.tellon = tellon
-        rs.tellat = tellat
-        rs.telelev = telelev
-        print("Telescope lon, lat, elev: %7.2f %7.2f %7.1f" %
-              (rs.tellon, rs.tellat, rs.telelev))
-        print("Telescope  Az,  El, id  : %7.2f %7.2f %2d" %
-              (rs.telaz, rs.telel, lastId))
-        utcmidnight = datetime.datetime.strptime("20" + firstdate + " 00:00:00",
-                                                 timefmt)
-        utc1 = utcmidnight   # create variables, for update below
-        utc2 = utc1
-        if ng == 5:
-            utc1 = utcmidnight + datetime.timedelta( seconds = params5[0])
-            utc2 = utcmidnight + datetime.timedelta( seconds = params5[3])
-        elif ng == 4:
-            utc1 = utcmidnight + datetime.timedelta( seconds = params4[0])
-            utc2 = utcmidnight + datetime.timedelta( seconds = params4[3])
-        elif params3[0] != 0.:
-            utc1 = utcmidnight + datetime.timedelta( seconds = params3[0])
-            utc2 = utcmidnight + datetime.timedelta( seconds = params3[3])
-        elif params2[0] != 0.:
-            utc1 = utcmidnight + datetime.timedelta( seconds = params2[0])
-            utc2 = utcmidnight + datetime.timedelta( seconds = params2[3])
-        rs.utc = utc1
+        nData = len(ra1s)
+#        print("Fit successful for %d gausians" % (ng))
+        ra1 = params1[0]
+        ra2 = params2[0]
 
-        print("Time of first  crossing: %s" % (utc1))
-
-        rs.azel2radec()
-        ra1 = rs.ra
-        print("RA, Dec     of crosing: %7.3fd %7.3fd (%7.3fh)" %
-              (rs.ra, rs.dec, rs.ra/15.))
-
-        rs.utc = utc2
-        print("Time of second crossing: %s" % (utc2))
-        rs.azel2radec()
-        ra2 = rs.ra
-        print("RA, Dec     of crossing: %7.3fd %7.3fd (%7.3fh)" %
-              (rs.ra, rs.dec, rs.ra/15.))
-
-        dRa = ra1 - ra2
-        avera = (ra1 + ra2)/2.
-        if rs.dec < 38.4:
-            dRa = dRa + 180.
-            avera = avera + 180.
-            if dRa > 360.:
-                dRa = dRa - 360.
-            if avera > 360.:
-                avera = avera -360.
-        if dRa < 0:
-            dRa = 360. + dRa
-            avera = 360. - avera
-        print("Ra1: %.2f  Ra2: %.2f > Ave: %.2f Delta: %.2f" %  \
-              (ra1, ra2, avera, dRa))
-
-        # read in offsets vs dec
-        decs, ra1s, ra2s, dRas = readGalacticOffsets( offsetfilename)
-
-        founddec = decFromCrossingDelta( dRa, decs, ra1s, ra2s, dRas)
-        # can't determine el offset if dec > 55.
+        avera = 0.5*(ra1+ra2)
+        dRa = ra2 - ra1
         dAz = 0
-        if rs.dec > 55.:
+        foundDec = decFromCrossingDelta( dRa, gDecs, gdRas)
+        dEl = decKeep - foundDec
+        if decKeep > 55.:
             dEl = 0.
-            if ng == 5:
-                if params5[2] * 2. * params5[5]:
-                    avera = params5[2]
-            elif ng == 4:
-                if params4[2] * 2. * params4[5]:
-                    avera = params4[2]
-            elif ng == 3:
-                if params3[2] * 2. * params3[5]:
-                    avera = params3[2]
-            elif ng == 2:
-                if params2[2] * 2. * params2[5]:
-                    avera = params2[2]
-            if dRa < 0:
-                avera = 360 - avera
         else:
-            dAz = GalacticPolRa - avera
-            if rs.telaz > 90. and rs.telaz < 270.:
-                dEl = founddec - rs.dec
-            else:
-                dEl = rs.dec - founddec
-
+            dAz = GalacticPoleRa - avera
+        
         print("Ave RA: %7.3fd (%7.3fh)" %
                   (avera, avera/15.))
         print("dAz: %7.3fd, dEl: %7.3fd" %
               (dAz, dEl))
 
-        writeDazDel( dazdelfilename, utca, utcb, lastId,
-                     rs.telaz, rs.telel, dAz, dEl)
 
-        aveutc, duration = radioastronomy.aveutcs(utc1, utc2)
-        print("Average of crossing Times: %s, Time Interval: %8.2fs" % \
-              (aveutc, duration))
-        plt.plot(secs, tSums, color='blue',lw=3,
-                 label='Intensities')
+        plt.plot(ra1s, tSum1s, color='blue',lw=3,
+                 label='1st Data')
+        plt.plot(ra2s, tSum2s, color='blue',lw=3,
+                 label='2nd Data')
+        if params1[0] != 0.:
+            plt.plot(ra1s, gauss(ra1s,*params1),color='cyan',lw=3,
+                 label='1st Crossing')
         if params2[0] != 0.:
-            plt.plot(secs, bimodal(secs,*params2),color='red',lw=3,
-                 label='2 Gaussians')
-        if params3[0] != 0.:
-            plt.plot(secs, trimodal(secs,*params3),color='green',lw=3,
-                 label='3 Gaussians')
-        if params4[0] != 0.:
-            plt.plot(secs, quadmodal(secs,*params4),color='gold',lw=3,
-                 label='4 Gaussians')
-        if params5[0] != 0. and ng > 4:
-            plt.plot(secs, fivemodal(secs,*params5),color='cyan',lw=3,
-                 label='5 Gaussians')
-
-        plt.xlabel( "Time (Seconds since Midnight %s)   dAz:%5.1fd dEl:%5.1fd" % (firstdate, dAz, dEl))
-        plt.ylabel( "Integrated Intensity (K km/sec)")
-        plt.title("%s Galactic Integrated Intensities - Tel:%2d Az:%7.1fd El:%7.1fd" % (
-            firstdate, lastId, lastaz, lastel))
+            plt.plot(ra2s, gauss(ra2s,*params2),color='red',lw=3,
+                 label='2nd Crossing')
+#        print("1 Gaussian Fit:")
+        i = 0
+        print("      RA     +/-   Intensity    +/-     Width   +/- ")
+        print(" %8.1f  %7.1f   %7.1f  %7.1f %7.1f  %7.1f" % (
+            params1[0+i*3], sigma1[0+i*3],
+            params1[2+i*3], sigma1[2+i*3],
+            params1[1+i*3], sigma1[1+i*3]))
+        print(" %8.1f  %7.1f   %7.1f  %7.1f %7.1f  %7.1f" % (
+            params2[0+i*3], sigma2[0+i*3],
+            params2[2+i*3], sigma2[2+i*3],
+            params2[1+i*3], sigma2[1+i*3]))
+        lastId = 0
+        
+        plt.xlabel( "Right Ascention (Degrees) %s  dAz:%5.1fd dEl:%5.1fd" % (firstdate, dAz, dEl))
+        plt.ylabel( "Peak Intensity (K)")
+        plt.title("%s Galactic Integrated Intensities - Tel:%2d" % (
+            firstdate, lastId))
         plt.legend()
-
-        # use the covariance matrix to get an estimate of fit uncertainty
-        print("     Time    +/-   Intensity    +/-     Width   +/- ")
-        i = 0
-        if params2[0] != 0. and ng > 1:
-            print("2 Gaussian Fit:")
-            print(" %8.1f  %7.1f   %7.1f  %7.1f %7.1f  %7.1f" % (
-                params2[0+i*3], sigma2[0+i*3],
-                params2[2+i*3], sigma2[2+i*3],
-                params2[1+i*3], sigma2[1+i*3]))
-            i = 1
-            print(" %8.1f  %7.1f   %7.1f  %7.1f %7.1f  %7.1f" % (
-                params2[0+i*3], sigma2[0+i*3],
-                params2[2+i*3], sigma2[2+i*3],
-                params2[1+i*3], sigma2[1+i*3]))
-            print("Delta: %8.1f  %7.1f (s)" % (
-                params2[0]-params2[3],
-                np.sqrt(sigma2[0]**2 + sigma2[3]**2)))
-        i = 0
-        if params3[0] != 0. and ng > 2:
-            print("3 Gaussian Fit:")
-            print(" %8.1f  %7.1f   %7.1f  %7.1f %7.1f  %7.1f" % (
-                params3[0+i*3], sigma3[0+i*3],
-                params3[2+i*3], sigma3[2+i*3],
-                params3[1+i*3], sigma3[1+i*3]))
-            i = 1
-            print(" %8.1f  %7.1f   %7.1f  %7.1f %7.1f  %7.1f" % (
-                params3[0+i*3], sigma3[0+i*3],
-                params3[2+i*3], sigma3[2+i*3],
-                params3[1+i*3], sigma3[1+i*3]))
-            print("Delta: %8.1f  %7.1f (s)" % (
-                params3[0]-params3[3], np.sqrt(sigma4[0]**2 + sigma4[3]**2)))
-        i = 0
-        if params4[0] != 0. and ng > 3:
-            print("4 Gaussian Fit:")
-            print(" %8.1f  %7.1f   %7.1f  %7.1f %7.1f  %7.1f" % (
-                params4[0+i*3], sigma4[0+i*3],
-                params4[2+i*3], sigma4[2+i*3],
-                params4[1+i*3], sigma4[1+i*3]))
-            i = 1
-            print(" %8.1f  %7.1f   %7.1f  %7.1f %7.1f  %7.1f" % (
-                params4[0+i*3], sigma4[0+i*3],
-                params4[2+i*3], sigma4[2+i*3],
-                params4[1+i*3], sigma4[1+i*3]))
-            print("Delta: %8.1f  %7.1f (s)" % (
-                params4[0]-params4[3], np.sqrt(sigma4[0]**2 + sigma4[3]**2)))
-        i = 0
-        if params5[0] != 0. and ng > 4:
-            print("5 Gaussian Fit:")
-            print(" %8.1f  %7.1f   %7.1f  %7.1f %7.1f  %7.1f" % (
-                params5[0+i*3], sigma5[0+i*3],
-                params5[2+i*3], sigma5[2+i*3],
-                params5[1+i*3], sigma5[1+i*3]))
-            i = 1
-            print(" %8.1f  %7.1f   %7.1f  %7.1f %7.1f  %7.1f" % (
-                params5[0+i*3], sigma5[0+i*3],
-                params5[2+i*3], sigma5[2+i*3],
-                params5[1+i*3], sigma5[1+i*3]))
-            print("Delta: %8.1f  %7.1f (s)" % (
-                params5[0]-params5[3], np.sqrt(sigma5[0]**2 + sigma5[3]**2)))
 
         plt.show()
         print( "Using %d values from file %s" % ( nData, filename))
