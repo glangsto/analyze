@@ -589,7 +589,10 @@ for filename in names:
     else:
         rs.ydataA = rs.ydataA/rs.nave
 #  apply input pointing offsets
-    rs.telaz = rs.telaz + dAz
+#  assume dAz is lean east-west of the horn
+    rs.utc = rs.utc + datetime.timedelta(seconds=86400.*dAz/360.)
+#  stop assumming a twist in horn base
+#    rs.telaz = rs.telaz + dAz
     rs.telel = rs.telel + dEl
     rs.azel2radec()    # compute ra,dec from az,el
 # if not a sky observation

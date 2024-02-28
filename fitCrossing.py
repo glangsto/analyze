@@ -6,6 +6,7 @@ telescope pointing.  Then compute the azimuth and elevation offsets
 # Functions to create a grid and place astronomical data on that
 # grid with a convolving function
 # HISTORY
+# 24Feb27 GIL double check the dAz offset, add cos(el) factor
 # 24Feb19 GIL major reorganization fitting two crossings separately
 # 24Feb19 GIL update for 2024, check for not finding offset
 # 23Oct13 GIL check Az offset with FWHM galactic intensities
@@ -32,14 +33,17 @@ import gainfactor as gf
 import radioastronomy
 
 # ine file paths
-offsetfilename = "/home/karl/Research/analyze/GalacticPlaneCrossingOffsets.txt"
+#offsetfilename = "/home/karl/Research/analyze/GalacticPlaneCrossingOffsets.txt"
+offsetfilename = "/home/karl/Research/analyze/crossings.txt"
 dazdelfilename = "/home/karl/2024-DazDel.txt"
 doTwo = True
 doThree = True
 doFour = True
 
-GalacticPoleRa = (12+(51.4/60.))*15 # (degrees)
-GalacticPoleDec = 27.13            # (degrees)
+nPoleRa = (12+(51.4/60.))*15 # (degrees)
+nPoleDec = (12+(51.4/60.))*15 # (degrees)
+sPoleRa = nPoleRa - 180.
+sPoleDec = -nPoleDec
 
 def readGalacticOffsets( offsetfilename):
     """
@@ -74,7 +78,7 @@ def readGalacticOffsets( offsetfilename):
         nparts = len(parts)
         if nparts < 1:
             break
-        if nparts == 4:
+        if nparts >= 4:
             decs.append( float(parts[0]))
             ra1s.append( float(parts[1]))
             ra2s.append( float(parts[2]))
@@ -86,9 +90,20 @@ def readGalacticOffsets( offsetfilename):
     decs = np.asarray( decs)
     ra1s = np.asarray( ra1s)
     ra2s = np.asarray( ra2s)
+    n1 = len(ra1s);
+    for iii in range(n1):
+        if ra1s[iii] < 0.:
+            ra1s[iii] = 360. + ra1s[iii]
+        if ra1s[iii] > 360.:
+            ra1s[iii] = ra1s[iii] - 360.
     n2 = len(ra2s)
     for iii in range(n2):
-        ra2s[iii] = 360. + ra2s[iii]
+        if ra2s[iii] < 0.:
+            ra2s[iii] = 360. + ra2s[iii]
+        if ra2s[iii] > 360.:
+            ra2s[iii] = ra2s[iii] - 360.
+            
+            
     dRas = np.asarray( dRas)
 
     f.close()
@@ -99,6 +114,9 @@ def readGalacticOffsets( offsetfilename):
 def getCrossingsFromDec( dec, decs, ra1s, ra2s):
     """
     get the closest 1st and 2nd Ra crossings, for the input dec
+    where 
+    dec is deduced from observations,  
+    decs, ra1s, and ra2s are read from a precomputed file.
     """
 
     n = len(ra1s)
@@ -117,7 +135,7 @@ def getCrossingsFromDec( dec, decs, ra1s, ra2s):
             iDec = iii
             minDec = dDec
 
-    ra1 = ra1s[iDec]
+    ra1 = ra1s[iDec]  # return pre-computed crosssing for this  declination.
     ra2 = ra2s[iDec]
 
     return ra1, ra2   # end of getCrossingFromDec
@@ -164,21 +182,21 @@ def decFromCrossingDelta( dRa, gDecs, gdRas):
     """
     idec = 0
     n = len( gdRas)
-    minDRa  = gdRas[idec] - dRa
-    if minDRa < 0:
-        minDra = - minDRa
+    # find the minimum difference in dRa
+    minDRa = np.abs( gdRas[idec] - dRa)
     iminDec = idec
+
+    print("decFrom input dRa: %7.2f" % (dRa))
+    
     # find dec of crossing point separation
     for idec in range(n):
-        dd = dRa - gdRas[idec]
-        if dd < 0:
-            dd = -dd
+        dd = np.abs( gdRas[idec] - dRa)
         if dd < minDRa:
             iminDec = idec;
-            minDra = dd
+            minDRa = dd
 
-    print( "dRa = %7.1f coresponds to dec %7.1fd (%d)" % \
-           (dRa, gDecs[iminDec], iminDec))
+    print( "dRa = %7.2f (%7.2f) coresponds to dec %7.1f (%d)" % \
+           (dRa, gdRas[iminDec], gDecs[iminDec], iminDec))
     return gDecs[iminDec]
 
 def gauss(x,mu,sigma,A):
@@ -244,11 +262,11 @@ def selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas):
     firstdate, utcIns, secIns, tSumIns, dTIns, azs, els, inRas, inDecs, \
         gallons, gallats = gf.readAllValues( filename)
     nData = len(secIns)
-
         
     ellist = np.zeros(100)   # assume up to 100 different elevations
     elcount = np.zeros(100)
     elDec = np.zeros(100)
+    azlist = np.zeros(100)
     nel = 0
     newEl = True
     
@@ -262,6 +280,7 @@ def selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas):
             ellist[nel] = el  #new el
             elcount[nel] = 1
             elDec[nel] = inDecs[iii]
+            azlist[nel] = azs[iii]
             nels = nel + 1
 
     #report number of els
@@ -273,6 +292,7 @@ def selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas):
 
     maxElCount = 0
     maxElI = 0
+    # now find the elevation with most measurements.
     for ii in range(nels):
         if maxElCount < elcount[ii]:
             maxElI = ii
@@ -280,25 +300,27 @@ def selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas):
             maxDec = elDec[ii] 
     print("Max measurements elevation: %.1f (d) = Dec: %.1f" % \
           (ellist[maxElI], maxDec))
-        
+    azKeep = azlist[maxElI]
+    print("Azimuth Max measurements  : %.1f (d)" % \
+          (azKeep))
+    decKeep = maxDec
+    
     # now use first declination to select the RAs of 1st and 2nd crossings
+    # these values are from the input file
     raX1, raX2 = getCrossingsFromDec( maxDec, gDecs, gRa1s, gRa2s)    
 
     print("Ra crossing points: %.1f, %.1f" %  (raX1, raX2))
-    fitRaRange = 25.   # assume must be close to actual
+    # also assume els and ras can not be off by more than a few degrees
+    fitRaRange = 12.  # assume must be close to actual
     raX1min = raX1 - fitRaRange
     raX1max = raX1 + fitRaRange
     raX2min = raX2 - fitRaRange
     raX2max = raX2 + fitRaRange
 
-    if raX1min < 0:
-        raX1min = 0.
-    if raX2max > 360.:
-        raX2max = 360.
-    
-    # also assume els and ras can not be off by more than 20 degrees
-    
-    # now select only the obs with max number of elevation samples
+    print("Ra range 1: %.1f, %.1f" %  (raX1min, raX1max))
+    print("Ra range 2: %.1f, %.1f" %  (raX2min, raX2max))
+
+    # remember the az,el with the obs with max number of elevation samples
     elKeep = ellist[maxElI]
 
     # prepare to save different ra ranges
@@ -315,28 +337,66 @@ def selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas):
         if els[ii] == elKeep:
             ra = inRas[ii]
             # if found an Ra in the 1st range
-            if ra > raX1min and ra < raX1max:
-                inRa1s[nRa1] = ra
-                tSum1s[nRa1] = tSumIns[ii]
-                nRa1 = nRa1 + 1
-            if ra > raX2min and ra < raX2max:
-                inRa2s[nRa2] = ra
-                tSum2s[nRa2] = tSumIns[ii]
-                nRa2 = nRa2 + 1
-            decKeep = inDecs[ii]
+            if not (ra < nPoleRa and ra > sPoleRa):
+                continue
+            inRa1s[nRa1] = ra
+            tSum1s[nRa1] = tSumIns[ii]
+            nRa1 = nRa1 + 1
+
+    for ii in range(nData):
+        if els[ii] == elKeep:
+            ra = inRas[ii]
+            # if found an Ra in the 2nd range
+            if ra < nPoleRa and ra > sPoleRa:
+                continue
+            inRa2s[nRa2] = ra
+            tSum2s[nRa2] = tSumIns[ii]
+            nRa2 = nRa2 + 1
 
     # trim to only input values
     inRa1s = inRa1s[0:nRa1]
     tSum1s = tSum1s[0:nRa1]
     inRa2s = inRa2s[0:nRa2]
     tSum2s = tSum2s[0:nRa2]
+
+    iiRa1 = 0
+    iiRa2 = 0
     
+    # now further trim data to those to be fit
+    for ii in range(nRa1):
+        if inRa1s[ii] > raX1min and inRa1s[ii] < raX1max:
+            inRa1s[iiRa1] = inRa1s[ii]
+            tSum1s[iiRa1] = tSum1s[ii]
+            iiRa1 = iiRa1 + 1
+        
+    # now further trim data to those to be fit
+    for ii in range(nRa2):
+        if inRa2s[ii] > raX2min and inRa2s[ii] < raX2max:
+            inRa2s[iiRa2] = inRa2s[ii]
+            tSum2s[iiRa2] = tSum2s[ii]
+            iiRa2 = iiRa2 + 1
+
+    print("Selected %d out of %d messurements for 1st crossing" % \
+          (iiRa1, nRa1))
+    print("Selected %d out of %d messurements for 2nd crossing" % \
+          (iiRa2, nRa2))
+
+    nRa1 = iiRa1
+    nRa2 = iiRa2
+
+    # trim again to use only values near the peaks
+    inRa1s = inRa1s[0:nRa1]
+    tSum1s = tSum1s[0:nRa1]
+    inRa2s = inRa2s[0:nRa2]
+    tSum2s = tSum2s[0:nRa2]
+
     if doTest:
         print("Found %3d samples in Ra range %5.1f to %5.1f" % \
               (nRa1, raX1min, raX1max))
         print("Found %3d samples in Ra range %5.1f to %5.1f" % \
               (nRa2, raX2min, raX2max))
 
+    # now find maximium intensity in eacsh range
     maxi1 = 0
     maxi2 = 0
     for iii in range(nRa1):
@@ -361,8 +421,8 @@ def selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas):
                  label='Crossing 2')
         plt.show()
 
-    #end of selectIntensities()
-    return firstdate, elKeep, decKeep, nRa1, inRa1s, tSum1s, nRa2, inRa2s, tSum2s
+    # end of selectIntensities()
+    return firstdate, azKeep, elKeep, decKeep, nRa1, inRa1s, tSum1s, nRa2, inRa2s, tSum2s
 
 def fitCrossing( filename, gDecs, gRa1s, gRa2s, gdRas):
     # the galacitic RAs crossings are pre-computed and written to a file
@@ -375,13 +435,14 @@ def fitCrossing( filename, gDecs, gRa1s, gRa2s, gdRas):
     then simultaneously fits all gaussians
     """
 
-    firstdate, elKeep, decKeep, nRa1, ra1s, tSum1s, nRa2, ra2s, tSum2s = \
-        selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas)
+    # read in all values from T, separated into two arrays
+    firstdate, azKeep, elKeep, decKeep, nRa1, ra1s, tSum1s, nRa2, ra2s, \
+        tSum2s = selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas)
 
     nData = nRa1
     # create a temporary array to interatively fit.
     tTemps = np.zeros(nData)
-    t1Max = 0
+    t1Max = 0.
     i1Max = 0
     for i in range(nData):
         tTemps[i] = tSum1s[i]
@@ -408,6 +469,7 @@ def fitCrossing( filename, gDecs, gRa1s, gRa2s, gdRas):
 
     ra1Min = 360.
     ra1Max = 0.
+    # now find the range of data for first crossing
     for iii in range(nData):
         if ra1Min > ra1s[iii]:
             ra1Min = ra1s[iii]
@@ -451,6 +513,7 @@ def fitCrossing( filename, gDecs, gRa1s, gRa2s, gdRas):
         if ra2Max < ra2s[iii]:
             ra2Max = ra2s[iii]
             
+    # now find the range of data for first crossing
     # create a temporary array to interatively fit.
     tTemps = np.zeros(nData)
     t2Max = 0
@@ -462,7 +525,7 @@ def fitCrossing( filename, gDecs, gRa1s, gRa2s, gdRas):
             i2Max = i
     
     # get the indexs to  the first intensity peak
-    i1Max = np.argmax( tTemps)
+    i2Max = np.argmax( tTemps)
     t2Max = tTemps[i2Max]
     ra2Max = ra2s[i2Max]
 
@@ -486,7 +549,7 @@ def fitCrossing( filename, gDecs, gRa1s, gRa2s, gdRas):
           (sigma2[0], sigma2[2], sigma2[1]))
 
     # end of fitCrossing
-    return firstdate, bestFit, elKeep, decKeep, ra1s, tSum1s, ra2s, tSum2s, params1, sigma1, params2, sigma2
+    return firstdate, bestFit, azKeep, elKeep, decKeep, ra1s, tSum1s, ra2s, tSum2s, params1, sigma1, params2, sigma2
 
 def main():
     """
@@ -512,14 +575,14 @@ def main():
     rs = radioastronomy.Spectrum()
  #   print( "Reading %d files" % (len(names)))
 
-    # the galacitic RAs crossings are pre-computed and written to a file
+    # Read pre-computed 2 Ra and Dec crossings from input file
     gDecs, gRa1s, gRa2s, gdRas = readGalacticOffsets( offsetfilename)
 
     for filename in names:
         print ("File: %s" % (filename))
 
-        # return the data and three fits
-        firstdate, ng, elKeep, decKeep, ra1s, tSum1s, ra2s, tSum2s, \
+        # now read the file containing intensities versus elevation and ras
+        firstdate, ng, azKeep, elKeep, decKeep, ra1s, tSum1s, ra2s, tSum2s, \
             params1, sigma1, params2, sigma2 = \
                 fitCrossing( filename, gDecs, gRa1s, gRa2s, gdRas)
 
@@ -527,22 +590,39 @@ def main():
 #        print("Fit successful for %d gausians" % (ng))
         ra1 = params1[0]
         ra2 = params2[0]
+        # now need to keek ra1 in lower range of ras
+        if ra1 > ra2:
+            temp = ra1
+            ra1 = ra2
+            ra2 = temp
 
         avera = 0.5*(ra1+ra2)
         dRa = ra2 - ra1
-        dAz = 0
+        dAz = 0.
+        # now that we have dRa, get the actual deduced 
         foundDec = decFromCrossingDelta( dRa, gDecs, gdRas)
         dEl = decKeep - foundDec
-        if decKeep > 55.:
+        if decKeep > 55. or decKeep < -55.:
             dEl = 0.
+
+        #Assume the Azimuth offset is due to the horn tilted east or west.
+        #pointed south
+        if azKeep > 90. and azKeep < 270.:
+            dAz = avera - nPoleRa
         else:
-            dAz = GalacticPoleRa - avera
+            dAz = nPoleRa - avera
+        # fix T sign cocnvention
+        dAz = - dAz
+        dEl = - dEl
         
         print("Ave RA: %7.3fd (%7.3fh)" %
                   (avera, avera/15.))
+        print("Pol RA: %7.3fd (%7.3fh)" %
+                  (nPoleRa, nPoleRa/15.))
         print("dAz: %7.3fd, dEl: %7.3fd" %
               (dAz, dEl))
-
+        print("With T comamnd use argument:")
+        print("     -O %.1f %.1f" % (dAz, dEl))
 
         plt.plot(ra1s, tSum1s, color='blue',lw=3,
                  label='1st Data')
