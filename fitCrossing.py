@@ -34,7 +34,7 @@ import radioastronomy
 
 # ine file paths
 #offsetfilename = "/home/karl/Research/analyze/GalacticPlaneCrossingOffsets.txt"
-offsetfilename = "/home/karl/Research/analyze/crossings.txt"
+offsetfilename = "/Research/analyze/crossings.txt"
 dazdelfilename = "/home/karl/2024-DazDel.txt"
 doTwo = True
 doThree = True
@@ -60,7 +60,9 @@ def readGalacticOffsets( offsetfilename):
     ra2s = []
     dRas = []
     n = 0
-    f = open( offsetfilename, "r")
+    # get the home directory
+    home = os.path.expanduser("~")
+    f = open( home+offsetfilename, "r")
     while True:
         aline = f.readline()
         n = n + 1
