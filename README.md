@@ -181,42 +181,9 @@ Where:
 
 ## Events
 
-The telescopes may be used to detect radio flash events as well as time-average spectral observations.
-<a href="images/PeakEvent19Feb17.png"> <img src="images/PeakEvent19Feb17.png" width=200 
+Horn Telescopes are used to detect very short term, _Flash_, events.  The software to investigate
+these events are described in the eventnotes directory
+<a href="eventnotes/README.md"> <img src="images/PeakEvent19Feb17.png" width=200 
 alt="Peak Event in 24 hour observation on February 17, 2019" align="right"></a>
 
-There two Event processing programs
-* E - Overplot a series of Events
-**  To generate the plot at right, type:
-```
-E events/19-02-17T135825.eve
-```
-
-* FFT - To Count events and FFT event time series to search for RFI in the observations. I've not yet seen RFI in the observations, mostly just very short term flashes, < 1 microsecond in duration.
-To summarize all events near the time of the Crab Pulsar in the telescope beam on February 17, 2019 type:
-```
-FFT -si 6.0 -nd 48 -kp 80000. -no "19-FEB-17 Crab Events >6 sigma" ../events/19-02-17T01[01]*.eve
-```
-Where many FFT arguments are used. These are:
-* -sigma number of sigma to count as an event.
-* -nd number of parts in a day  (48 means count events every half hour
-* -kp kelvinspercount Convert the counts in to Kelvin units
-* -note "Note describing the Observations"  for plot title
-* List of files to examine.
-
-<a href="images/EventCaptureCenteredOnCrab.png"> <img src="images/EventCaptureCenteredOnCrab.png" width=800 
-alt="Summary of Crab Observations" align="center"></a>
-
-The neutral hydrogen in the galactic plan is seen in these observations,  (only about 1/30 of a second averaging).
-The peak intensity is about 10 K, with an RMS of roughly 1 K.
-
-<a href="images/EventCaptureCenteredOnHI.png"> <img src="images/EventCaptureCenteredOnHI.png" width=800 
-alt="Neutral Hydrogen is visible in FFT of Samples" align="center"></a>
-
-The counts per hour for the end of February 16, all of February 17 and the beginning of February 18 are
-shown in the plot below. Only events detected with signficance greater than 6 sigma are counted:
-
-<a href="images/EventCapture6Sigma-Compare_16+17+18.png"> <img src="images/EventCapture6Sigma-Compare_16+17+18.png" width=800 
-alt="Neutral Hydrogen is visible in FFT of Samples" align="center"></a>
-
-### Glen Langston, National Science Foundation (GIL - 2018 February 26)
+### Glen Langston, National Science Foundation (GIL - 2024 March 11)
