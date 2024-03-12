@@ -1,10 +1,14 @@
 #!/bin/bash
 # use the version in analyze
 
-if [ -f /usr/bin/python3 ]; then
-    /usr/bin/python3 /home/pi/Research/analyze/sendip.py
+if [ -f $HOME/Research/analyze/sendip.py ]; then 
+    if [ -f /usr/bin/python3 ]; then
+	/usr/bin/python3 $HOME/Research/analyze/sendip.py
+    else
+	python $HOME/Research/analyze/sendip.py
+    fi
 else
-    python /home/pi/Research/analyze/sendip.py
+    python ~/bin/sendip.py
 fi
 
 
