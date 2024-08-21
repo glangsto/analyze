@@ -1,11 +1,14 @@
 """
-Read in an observation summary and fit the times of galaxy crossings.
+Read n an observation summary and fit the times of galaxy crossings.
 From these measurements estimate the Azimuth and Elevation of the
 telescope pointing.  Then compute the azimuth and elevation offsets
 """
 # Functions to create a grid and place astronomical data on that
 # grid with a convolving function
 # HISTORY
+# 24Mar02 GIL annotate the plot
+# 24Feb29 GIL add some arguements
+# 24Feb28 GIL realized that dAz is really horn lean (tilt) for El=90
 # 24Feb27 GIL double check the dAz offset, add cos(el) factor
 # 24Feb19 GIL major reorganization fitting two crossings separately
 # 24Feb19 GIL update for 2024, check for not finding offset
@@ -32,18 +35,22 @@ from vmedian import vsmooth
 import gainfactor as gf
 import radioastronomy
 
-# ine file paths
+# input file for Galactic longitudes for crossings
 #offsetfilename = "/home/karl/Research/analyze/GalacticPlaneCrossingOffsets.txt"
-offsetfilename = "/Research/analyze/crossings.txt"
-dazdelfilename = "/home/karl/2024-DazDel.txt"
+# $HOME will be added to offset name
+offsetfilename = "/Research/analyze/galacticCrossings.txt"
+# 
+dazdelfilename = "/2024-DazDel.txt"
 doTwo = True
 doThree = True
-doFour = True
 
-nPoleRa = (12+(51.4/60.))*15 # (degrees)
-nPoleDec = (12+(51.4/60.))*15 # (degrees)
+nPoleRa = 192.85948 # (degrees, ICRS Frame)
+nPoleDec = 27.12825 # (degrees, ICRS Frame)
 sPoleRa = nPoleRa - 180.
 sPoleDec = -nPoleDec
+
+# for diagnostics
+debug = False
 
 def readGalacticOffsets( offsetfilename):
     """
@@ -151,10 +158,13 @@ def writeDazDel( dazdelfilename, utc1, utc2, cpuIndex, az, el, dAz, dEl):
     az, el - recorded azimuth and elevation of observations
     daz, del - offsets to be added to az, el to get true az,el of observation
     """
-    if os.path.exists( dazdelfilename):
-        f = open( dazdelfilename, "a")
+    # get the home directory
+    home = os.path.expanduser("~")
+    fullname = home + dazdelfilename
+    if os.path.exists( fullname):
+        f = open( fullname, "a")
     else:
-        f = open( dazdelfilename, "w")
+        f = open( fullname, "w")
 
     utc1str = ("%s" % utc1)        # convert utc to str
     utcparts = utc1str.split(".")  # separate by period in seconds
@@ -188,7 +198,7 @@ def decFromCrossingDelta( dRa, gDecs, gdRas):
     minDRa = np.abs( gdRas[idec] - dRa)
     iminDec = idec
 
-    print("decFrom input dRa: %7.2f" % (dRa))
+#    print("decFrom() input dRa: %7.2f" % (dRa))
     
     # find dec of crossing point separation
     for idec in range(n):
@@ -197,7 +207,7 @@ def decFromCrossingDelta( dRa, gDecs, gdRas):
             iminDec = idec;
             minDRa = dd
 
-    print( "dRa = %7.2f (%7.2f) coresponds to dec %7.1f (%d)" % \
+    print( "dRa = %7.2f (min ra %7.2f) coresponds to dec %7.1f (%d)" % \
            (dRa, gdRas[iminDec], gDecs[iminDec], iminDec))
     return gDecs[iminDec]
 
@@ -250,9 +260,6 @@ def sortParams( inparams, sigmas):
                 sigmas[(j*3)+2]  = sigma2
     return inparams, sigmas
 
-# for diagnostics
-doTest = False
-
 def selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas):
     """
     selectIntensities() reads a "T" integrated intensity file and
@@ -262,7 +269,10 @@ def selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas):
 
     # read date (string), offset seconds
     firstdate, utcIns, secIns, tSumIns, dTIns, azs, els, inRas, inDecs, \
-        gallons, gallats = gf.readAllValues( filename)
+        gallons, gallats, telId = gf.readAllValues( filename)
+
+    print("From readAllValuies() - Telescope Id: %d" % (telId))
+    
     nData = len(secIns)
         
     ellist = np.zeros(100)   # assume up to 100 different elevations
@@ -311,7 +321,8 @@ def selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas):
     # these values are from the input file
     raX1, raX2 = getCrossingsFromDec( maxDec, gDecs, gRa1s, gRa2s)    
 
-    print("Ra crossing points: %.1f, %.1f" %  (raX1, raX2))
+    print("Expected RA crossing points: %.1f, %.1f (d)" %  (raX1, raX2))
+
     # also assume els and ras can not be off by more than a few degrees
     fitRaRange = 12.  # assume must be close to actual
     raX1min = raX1 - fitRaRange
@@ -319,8 +330,8 @@ def selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas):
     raX2min = raX2 - fitRaRange
     raX2max = raX2 + fitRaRange
 
-    print("Ra range 1: %.1f, %.1f" %  (raX1min, raX1max))
-    print("Ra range 2: %.1f, %.1f" %  (raX2min, raX2max))
+    print("Expected RA range 1: %.1f, %.1f (d)" %  (raX1min, raX1max))
+    print("Expected RA range 2: %.1f, %.1f (d)" %  (raX2min, raX2max))
 
     # remember the az,el with the obs with max number of elevation samples
     elKeep = ellist[maxElI]
@@ -392,7 +403,7 @@ def selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas):
     inRa2s = inRa2s[0:nRa2]
     tSum2s = tSum2s[0:nRa2]
 
-    if doTest:
+    if debug:
         print("Found %3d samples in Ra range %5.1f to %5.1f" % \
               (nRa1, raX1min, raX1max))
         print("Found %3d samples in Ra range %5.1f to %5.1f" % \
@@ -408,13 +419,13 @@ def selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas):
         if tSum2s[maxi2] < tSum2s[iii]:
             maxi2 = iii
         
-    if doTest:
+    if debug:
         print("Found Crossing max 1 at %5.1f, %6.1f" % \
               (inRa1s[maxi1], tSum1s[maxi1]))
         print("Found Crossing max 2 at %5.1f, %6.1f" % \
               (inRa2s[maxi2], tSum2s[maxi2]))
 
-    if doTest:
+    if debug:
         plt.plot(inRas, tSumIns, color='blue',lw=3,
                  label='Intensities')
         plt.plot(inRa1s, tSum1s, color='cyan',lw=3,
@@ -424,7 +435,7 @@ def selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas):
         plt.show()
 
     # end of selectIntensities()
-    return firstdate, azKeep, elKeep, decKeep, nRa1, inRa1s, tSum1s, nRa2, inRa2s, tSum2s
+    return firstdate, azKeep, elKeep, decKeep, nRa1, inRa1s, tSum1s, nRa2, inRa2s, tSum2s, telId
 
 def fitCrossing( filename, gDecs, gRa1s, gRa2s, gdRas):
     # the galacitic RAs crossings are pre-computed and written to a file
@@ -439,8 +450,9 @@ def fitCrossing( filename, gDecs, gRa1s, gRa2s, gdRas):
 
     # read in all values from T, separated into two arrays
     firstdate, azKeep, elKeep, decKeep, nRa1, ra1s, tSum1s, nRa2, ra2s, \
-        tSum2s = selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas)
+        tSum2s, telId = selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas)
 
+    print( "FitCrossing: Az,El: %7.1f,%7.1f d" % (azKeep, elKeep))
     nData = nRa1
     # create a temporary array to interatively fit.
     tTemps = np.zeros(nData)
@@ -551,7 +563,7 @@ def fitCrossing( filename, gDecs, gRa1s, gRa2s, gdRas):
           (sigma2[0], sigma2[2], sigma2[1]))
 
     # end of fitCrossing
-    return firstdate, bestFit, azKeep, elKeep, decKeep, ra1s, tSum1s, ra2s, tSum2s, params1, sigma1, params2, sigma2
+    return firstdate, bestFit, azKeep, elKeep, decKeep, ra1s, tSum1s, ra2s, tSum2s, params1, sigma1, params2, sigma2, telId
 
 def main():
     """
@@ -561,14 +573,35 @@ def main():
     nargs = len(sys.argv)
 
     if nargs < 2:
-        print('Fit Crossings: find the time of crossings of peak intensities')
-        print('fitCrossing <Spectrum Summary-files>')
+        print('Fit Galactic Crossings: find time of galactic disk crossings, by peak intensity search')
+        print('usage:')
+        print('fitCrossing [-L <lean-degrees>] <T-Summary-files>')
+        print('where:')
+        print(' -L optionally input the measured telescope "lean" degrees')
+        print(' <T-Summary-FIles> input files produced by the "T" program')
+        print('')
+        print('Horn radio telescopes are easy to build with reasonable pointing accuracy')
+        print('To get better than +/- 5. degree position measurements, we must estimate')
+        print('pointing offsets.   This program partially estimates horn Lean (dL) and Elevation (dE)')
+        print('offsets.   If the Lean is measured from observations at Elevation=90, then')
+        print('the Azimuth rotation offset (dAz) can be estimated too.  The dAz parameter (twist of the base) ')
+        print('will be estimated if the user inputs the lean (dL) in degrees. ')
+        print('Leaning East is positive, west is negative')
+        print('')
+        print('Glen Langston,  National Science Foundation -- 24Feb29')
         sys.exit()
-    print( "reading %d files" % (nargs - 1))
 
-# first read through all data and find hot load
-    names = sys.argv[1:]
-    names = sorted(names)
+    dL = 0.
+    if nargs >= 2:
+        if sys.argv[1].upper() == '-L':
+           dL = float( sys.argv[2])
+           print(" Input Horn lean is %.1f (deg) " % (dL))
+           names = sys.argv[3:]
+        else:
+           names = sys.argv[1:]
+
+    nnames = len(names)
+    print( "reading %d files" % (nnames))
 
 #    print(names)
     firstdate = ""
@@ -585,7 +618,7 @@ def main():
 
         # now read the file containing intensities versus elevation and ras
         firstdate, ng, azKeep, elKeep, decKeep, ra1s, tSum1s, ra2s, tSum2s, \
-            params1, sigma1, params2, sigma2 = \
+            params1, sigma1, params2, sigma2, telId = \
                 fitCrossing( filename, gDecs, gRa1s, gRa2s, gdRas)
 
         nData = len(ra1s)
@@ -606,26 +639,42 @@ def main():
         dEl = decKeep - foundDec
         if decKeep > 55. or decKeep < -55.:
             dEl = 0.
-
+        # assume starting with no lean
+        leKeep = 0.
         #Assume the Azimuth offset is due to the horn tilted east or west.
         #pointed south
         if azKeep > 90. and azKeep < 270.:
             dAz = avera - nPoleRa
         else:
             dAz = nPoleRa - avera
+
         # fix T sign cocnvention
         dAz = - dAz
         dEl = - dEl
-        
+
+        # can not compute dAz if too close to straight up.
+        # pointing offset is all due to lean
+        if elKeep > 75.:
+            dL = dAz
+            dAz = 0.
+        else:
+            #if lean is supplied
+            if dL != 0.:
+                dAz = dAz - dL
+                # now compensate for reduced azimuth offset due to elevation
+                el = (elKeep + dEl) * np.pi / 180.
+                dAz = dAz / cos( el)
+                
         print("Ave RA: %7.3fd (%7.3fh)" %
                   (avera, avera/15.))
         print("Pol RA: %7.3fd (%7.3fh)" %
                   (nPoleRa, nPoleRa/15.))
-        print("dAz: %7.3fd, dEl: %7.3fd" %
-              (dAz, dEl))
+        print("dAz: %7.3fd, dEl: %7.3fd, dL: %7.3fd" %
+              (dAz, dEl, dL))
         print("With T comamnd use argument:")
-        print("     -O %.1f %.1f" % (dAz, dEl))
-
+        tLabel = "-O %.1f %.1f %.1f" % (dAz, dEl, dL)
+        print(" "+tLabel)
+        
         plt.plot(ra1s, tSum1s, color='blue',lw=3,
                  label='1st Data')
         plt.plot(ra2s, tSum2s, color='blue',lw=3,
@@ -647,14 +696,29 @@ def main():
             params2[0+i*3], sigma2[0+i*3],
             params2[2+i*3], sigma2[2+i*3],
             params2[1+i*3], sigma2[1+i*3]))
-        lastId = 0
-        
-        plt.xlabel( "Right Ascention (Degrees) %s  dAz:%5.1fd dEl:%5.1fd" % (firstdate, dAz, dEl))
-        plt.ylabel( "Peak Intensity (K)")
-        plt.title("%s Galactic Integrated Intensities - Tel:%2d" % (
-            firstdate, lastId))
-        plt.legend()
 
+        mylabel = "Right Ascention (Deg)  (With T use: %s)" % (tLabel)
+        plt.xlabel( mylabel)
+        plt.ylabel( "Peak Intensity (K)")
+        plt.title("%s Galactic Intensities - Tel:%2d" % (firstdate, telId))
+        plt.legend()
+        tMin1 = min( tSum1s)
+        tMax1 = max( tSum1s)
+        tMin2 = min( tSum2s)
+        tMax2 = max( tSum2s)
+        tMin = min(tMin1, tMin2)
+        tMax = max(tMax1, tMax2)
+        #will annotate plot in Y axis, need reasonable spaceing
+        dT = (tMax - tMin)/10.
+        tAve = (tMin+tMax)/2.
+
+        azLabel = "Az  : %7.2f + %6.2f" % (azKeep, dAz)
+        elLabel = "El  : %7.2f + %6.2f" % (elKeep, dEl)
+        leLabel = "lean: %7.2f + %6.2f" % (leKeep, dL)
+        plt.annotate(azLabel, xy=[150.,tAve+dT])
+        plt.annotate(elLabel, xy=[150.,tAve])
+        plt.annotate(leLabel, xy=[150.,tAve-dT])
+        
         plt.show()
         print( "Using %d values from file %s" % ( nData, filename))
 
