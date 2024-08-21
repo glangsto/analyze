@@ -1,16 +1,17 @@
-#Python 
+#Python
 """
 Class defining a Radio Frequency Spectrum
 Includes reading and writing ascii files
 HISTORY
-23Sep25 GIL add filename to spectra structure 
+24Mar02 GIL add telescope lean (dL) to the structure
+23Sep25 GIL add filename to spectra structure
 22Jun11 GIL if doComputeX is false, use pre-calculated X values
 21Dec21 GIL remove extra print(), fix ephem help
-21Oct26 GIL merge in separating header from the data 
+21Oct26 GIL merge in separating header from the data
 21Oct02 GIL merge in writing of Velocities
 21SEP23 GIL Fix python3 version of ephem calculations
 21SEP15 GIL try PyEphem if pyephem is not available
-21JUN28 GIL prepare to write spectra with velocities 
+21JUN28 GIL prepare to write spectra with velocities
 21JUN10 GIL fix writing different FFT sizes
 21APR09 GIL add telescope altitude read/write
 20DEC28 GIL fix parsing header separately from data
@@ -21,7 +22,7 @@ HISTORY
 20AUG26 GIL fix errors when trying to read a .not file
 20APR16 GIL add recording of tSys, tRx, tRms
 19NOV22 GIL reduce digits of spectral intensity
-19NOV08 GIL add 3 more digits to Event MJD 
+19NOV08 GIL add 3 more digits to Event MJD
 19SEP14 GIL only use gains[] to store SDR gains
 19SEP11 GIL restore write_ascii_ave()
 19JUN29 GIL diagnose errors in vel2chan
@@ -55,7 +56,7 @@ try:
 except:
     # if angles not found, try local file
     from . import angles
-    
+
 # assume ephem can be loaded, then try
 ephemOK = True
 try:
@@ -97,11 +98,11 @@ units = [UNITCOUNTS, UNITDB, UNITKELVIN, UNITBASELINE]
 unitlabels = ['Counts', 'Power (dB)', 'Kelvin', 'Jansky']
 clight = 299792458. # speed of light in m/sec
 #
-TIMEPARTS = 2   # define time axis of an event; only I and Q 
+TIMEPARTS = 2   # define time axis of an event; only I and Q
 #TIMEPARTS = 4  # defien time axis of an event; N Time I and Q
 
 def utcToName( utc):
-    """ 
+    """
     utcToName: returns the 'standard' ascii name of a file for utc date and time
     input:  utc - datetime value
     output: ascii string
@@ -113,7 +114,7 @@ def utcToName( utc):
     # remove 20 from 2019 dates
     yymmdd = daypart[2:19]
     yymmdd = yymmdd.replace(":", "")
-    # end of utcToName() 
+    # end of utcToName()
     return yymmdd
 
 def degree2float(instring, hint):
@@ -194,7 +195,7 @@ def aveutcs( utc1, utc2):
 def iplatlon():
     """
     iplatlon() uses the ip address to get the latitude and longitude
-    The latitude and longitude are only rough, but usually 
+    The latitude and longitude are only rough, but usually
     better han 100 km accuracy.  This is good enough for small antennas.
     """
     # default values for Green Bank, WV
@@ -302,7 +303,7 @@ class Spectrum(object):
         """
         initialize all spectrum class values
         many will be overwritten laters
-        By default; spectra are assumed.   
+        By default; spectra are assumed.
         To change to a time series set nSamples > 0, nChan = 0
         """
         noteA = ""
@@ -315,7 +316,7 @@ class Spectrum(object):
         nSamples = int(nSamples)
         self.nChan = nChan
         self.nSamples = nSamples
-        
+
         if self.nChan > self.nSamples:
             self.nSamples = 0
             self.nSpec = 1
@@ -404,7 +405,7 @@ class Spectrum(object):
         self.erms = 0.         # event RMS
         self.emjd = 0.         # event Modified Julian Day
         return
-    
+
     def __str__(self):
         """
         Define a spectrum summary string
@@ -419,7 +420,7 @@ class Spectrum(object):
         rads = np.pi / 180.
         self.epoch = "2000"
         if ephemOK:
-            
+
             radec2000 = ephem.Equatorial( \
                             rads*self.ra, rads*self.dec, epoch=ephem.J2000)
         # to convert to dec degrees need to replace on : with d
@@ -495,7 +496,7 @@ class Spectrum(object):
                          doHeader = True):
         """
         Write ascii header file containing astronomy data
-        Inputs:  
+        Inputs:
         dirname    Directory where spectra/event will be written
         outname    Name of file to write
         doFreq     Flag writting frequency or velocity
@@ -681,7 +682,7 @@ class Spectrum(object):
                          doHeader = True, doComputeX = False):
         """
         Write ascii file containing astronomy data
-        Inputs:  
+        Inputs:
         dirname    Directory where spectra/event will be written
         outname    Name of file to write
         doFreq     Flag writting frequency or velocity
@@ -693,10 +694,10 @@ class Spectrum(object):
         # if writing the observation summary header
         if doHeader:
             self.write_ascii_header( outfile, outname, doFreq=doFreq)
-    
+
         if self.nTime > 0:            # if an event
             self.nSpec = 0            # then not a spectrum
-            
+
         if doFreq:
             outline = "# N  Frequency  Intensity \n"
             outfile.write(outline)
@@ -712,7 +713,7 @@ class Spectrum(object):
         if self.nSpec > 0:
             leny = len(self.ydataA)
             leny = min(self.nChan, leny)
-            
+
             dx = self.bandwidthHz/float(self.nChan)
             if self.refChan <= 1:
                 print("Unusual Refchan: %d" % (self.refChan))
@@ -722,15 +723,15 @@ class Spectrum(object):
 
                 # if not computing frequencies then computing velocities
                 if not doFreq:
-                    # else computing velocities                    
+                    # else computing velocities
                     dx = - dx * clight / self.refFreqHz   # doppler shift definition
-                    x = self.refFreqHz - x # high freq, going to us -> - Vel. 
+                    x = self.refFreqHz - x # high freq, going to us -> - Vel.
                     x = x * clight / self.refFreqHz
                 # now do the calculation
                 for i in range(leny):
                     self.xdata[i] = x
                     x = x + dx
-                # end of recomputing x 
+                # end of recomputing x
             # if I/Q spectra
             if self.nSpec > 1:
                 pformat = "%04d %s %.4f %.4f\n"
@@ -833,7 +834,7 @@ class Spectrum(object):
         self.write_ascii_file(dirname, outname)
 
     def parse_spec_header(self, inlines):
-        """ 
+        """
         Take input lines read and parse the header lines until reaching
         The data.
         """
@@ -868,6 +869,13 @@ class Spectrum(object):
                 parts[1] = parts[1].upper()
                 if parts[1] == 'UTC':
                     timefmt = "%Y-%m-%d %H:%M:%S.%f"
+                    # special code to protect against an even second (no .%f)
+                    timeparts = parts[4].split(".")
+                    ntimeparts = len(timeparts)
+                    if ntimeparts > 1:
+                        timefmt = "%Y-%m-%d %H:%M:%S.%f"
+                    else:
+                        timefmt = "%Y-%m-%d %H:%M:%S"
                     utc = datetime.datetime.strptime(parts[3] + " " + parts[4], timefmt)
                     self.utc = utc
                 if parts[1] == "SECONDS":
@@ -1045,11 +1053,11 @@ class Spectrum(object):
                     if verbose:
                         print("TELLON: %s %7.3f" % (parts[3], self.tellon))
                 if parts[1] == 'TELLAT':
-                    self.tellat = angles.str2deci( parts[3]) 
+                    self.tellat = angles.str2deci( parts[3])
                     if verbose:
                         print("TELLAT: %s %7.3f" % (parts[3], self.tellat))
                 if parts[1] == 'TELALT':
-                    self.telelev = float( parts[3]) 
+                    self.telelev = float( parts[3])
                     if verbose:
                         print("TELALT: %s %7.3f" % (parts[3], self.telelev))
 # parse ra, dec into float
@@ -1079,7 +1087,7 @@ class Spectrum(object):
                 continue
         # should not return from here, as end of header is detected above
         return linecount
-    
+
     def read_spec_ast(self, fullname, doDebug=False):
         """
         Read an ascii radio Spectrum file or an event in radio samples and
@@ -1222,14 +1230,14 @@ class Spectrum(object):
         Compute channel based on input frequencies (should work with np arrays)
         chan: channel (or channels to compute frequencies) integers or floats
         """
-        
+
         ndata = len(self.xdata)
         dx = self.bandwidthHz/float(ndata)
         chan = np.array( chan)
         dchan = chan - self.refChan
         dx = dx * dchan
         freq = self.centerFreqHz + dx
-        
+
         return freq  # output frequency in Hz
     #end of chan2freq
 
@@ -1237,12 +1245,12 @@ class Spectrum(object):
         """
         Compute velocity (km/sec) based on input channel
         """
-        
+
         chan = np.array( chan)
         freq = self.chan2freq( chan)
         dfreq = nureference - freq
         vel = clight * dfreq / (1000. * nureference) # convert to km/sec
-        
+
         return vel
     #end of chan2vel
 
@@ -1260,7 +1268,7 @@ class Spectrum(object):
         dfreq = freq - self.centerFreqHz
         # comppute number of channels from middle
         dchan = dfreq/dx
-        # must include reference channel in offset 
+        # must include reference channel in offset
         chan = dchan + self.refChan
 #        print "freq2chan: dx, ndata: ", dx, ndata
 #        print "freq2chan: nChan, refChan: ", self.nChan, self.refChan
@@ -1272,12 +1280,12 @@ class Spectrum(object):
         """
         Compute channels for an input (array of velocities in km/sec
         """
-        
+
         velms = np.array( vel) * 1000.  # convert to m/sec
         # compute doppler shift adujustment of frequency
         dfreq = velms * nureference / clight
         # negative velocity corresponds to higher frequency
-        freq = nureference - dfreq 
+        freq = nureference - dfreq
         # now convert new frequency to channel
         chan = self.freq2chan( freq)
 #        print 'vel2chan freq: ',freq, chan
@@ -1288,11 +1296,11 @@ class Spectrum(object):
         """
         Compute frequencies (Hz) for an input array of velocities (km/sec)
         """
-        
+
         ndata = len(self.xdata)
         dx = self.bandwidthHz/float(ndata)
         vel = np.array( vel)
-        freq = (vel * 1000. * nureference / clight) 
+        freq = (vel * 1000. * nureference / clight)
         freq = nureference - freq
 
         return freq
@@ -1329,7 +1337,7 @@ def lines(linelist, lineWidth, x, y):
     y = intensities
     """
 
-    nline = len(linelist) 
+    nline = len(linelist)
     nwidth = len(lineWidth)  # use last value if more lines than widths
 
     nx = len(x)
@@ -1340,15 +1348,15 @@ def lines(linelist, lineWidth, x, y):
         return y
 
     yout = copy.deepcopy(y) # init the output
-    
+
     increasing = x[nx2+1] > x[nx2]
 
     for jjj in range(nline): # for all iines
-        
+
         # find line position
         nu = linelist[jjj]
         if nwidth == 1:
-            nwidth = lineWidth 
+            nwidth = lineWidth
         else:
             nwidth = lineWidth[min(jjj, nwidth-1)]
         nwidth2 = max(1, nwidth/2)
@@ -1378,7 +1386,7 @@ def lines(linelist, lineWidth, x, y):
             kkk = iii+iline-nwidth2
             yout[kkk] = ((ya * (nwidth-iii)) + (yb * iii))/float(nwidth)
 #            print 'Line %d: %f,%f' % (kkk, y[kkk], yout[kkk])
- 
+
     return yout
 
 # HISTORY
