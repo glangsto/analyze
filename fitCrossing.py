@@ -6,6 +6,7 @@ telescope pointing.  Then compute the azimuth and elevation offsets
 # Functions to create a grid and place astronomical data on that
 # grid with a convolving function
 # HISTORY
+# 24Aug22 GIL expand reange of fitting data
 # 24Mar02 GIL annotate the plot
 # 24Feb29 GIL add some arguements
 # 24Feb28 GIL realized that dAz is really horn lean (tilt) for El=90
@@ -324,7 +325,7 @@ def selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas):
     print("Expected RA crossing points: %.1f, %.1f (d)" %  (raX1, raX2))
 
     # also assume els and ras can not be off by more than a few degrees
-    fitRaRange = 12.  # assume must be close to actual
+    fitRaRange = 30.  # assume must be close to actual
     raX1min = raX1 - fitRaRange
     raX1max = raX1 + fitRaRange
     raX2min = raX2 - fitRaRange
