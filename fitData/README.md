@@ -1,8 +1,16 @@
 ## fitCrossing.py
-<a href="Pi3-Hot+Cold-SpectraRaw.png"> <img src="Pi3-Hot+Cold-SpectraRaw.png" width=300 alt="Hot (red,top) and Cold load (green, bottom) spectra"> </a>
+<table>
+<tr><td>
+<a href="Pi3-24Aug-CalibrationSpectraRaw.png"> <img src="Pi3-24Aug-CalibrationSpectraRaw.png" width=300 alt="Hot (red,top) and Cold load (green, bottom) spectra"> </a>
+</td><td>
 <a href="Pi3-24Aug20-Spectra.png"> <img src="Pi3-24Aug20-Spectra.png" width=300 
 alt="24 hours of Telescope Spectra 24, 1 hour averages"></a>
-</br>
+</td></tr><tr><td>
+Hot (red,top) and Cold load (green, bottom) Spectra
+</td><td>
+24 hours of Telescope Spectrat, in 1 hour averages
+</td></tr></table>
+
 ### fitCrossing.py: Takes 24 hours of transit horn radio telescope, spectral line summary, observations and estimate the horn telescope pointirng offset based on Galactic Plane Crossing times.
 
 One goal of the horn radio telescope project is to eable making a whole-sky, Milky Way Map of the structure of our Galaxy.   The map is based on Hydrogen Spectral LIne observations, made with small, low cost, but extreemly power radio telescopes.   This is a great learning project, but there are a few steps required to make a beautiful map of our Galaxy.
@@ -22,10 +30,5 @@ Then observe the sky for 24 hours with your telescope parked at your prefered az
 <a href="Pi3-FitCrossing-Output-24Aug20.png"> <img src="Pi3-FitCrossing-Output-24Aug20.png" width=300 alt="Fit to Peak Hydrogen Intensity 24 August 20"> </a>
 <a href="Pi3-FitCrossing-Output-24Aug21.png"> <img src="Pi3-FitCrossing-Output-24Aug21.png" width=300 alt="Similar Fit to 24 August 21 Obs."></a>
 </br>
-Pi3-FitCrossing-Output-24Aug20.png 
-
-
-<a href="Pi3-24Aug20-Spectra.png"> <img src="Pi3-24Aug20-Spectra.png" width=200 
-alt="Horn Telescope Spectra 24 hours in 1 hour observations"></a>
 
 ### Glen Langston, National Science Foundation (GIL - 2024 August 22)
