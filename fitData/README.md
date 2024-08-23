@@ -3,13 +3,13 @@
 <tr><td>
 <a href="Pi3-24Aug-HotRedColdGreen.png"> <img src="Pi3-24Aug-HotRedColdGreen.png" width=300 alt="Hot (red,top) and Cold load (green, bottom) spectra"> </a>
 </td><td>
-<a href="Pi3-24Aug20-Spectra.png"> <img src="Pi3-24Aug20-Spectra.png" width=300 
+<a href="Pi3-24Aug20-Spectra.png"> <img src="Pi3-24Aug20-Spectra.png" width=350 
 alt="24 hours of Telescope Spectra 24, 1 hour averages"></a>
-</td></tr><tr><td>
-Hot (red,top) and Cold load (green, bottom) Spectra.  For a very sensitive telescope the intensity of the signal looking at the ground should be 3 or 4 times larger
+</td></tr><tr><td width=300>
+Hot (red,top) and Cold load (green, bottom) Spectra.  For a very sensitive telescope, the intensity of the signal looking at the ground should be 3 or 4 times larger
 then observing the sky.   The X axis is Frequency (MHz) versus Intensity in Raw computer Counts.
-</td><td>
-24 hours of Telescope Spectrat, in 1 hour averages.   The X axis is dopplershift velocity in km/sec and the Y axis is intensity in Kelvins.
+</td><td width=350>
+24 hours of Telescope Spectrat, in 1 hour averages.   The X axis is dopplershift velocity, in km/sec, and the Y axis is intensity, in Kelvins.
 </td></tr></table>
 
 ### fitCrossing.py: Takes 24 hours of transit horn radio telescope, spectral line summary, observations and estimate the horn telescope pointirng offset based on Galactic Plane Crossing times.
