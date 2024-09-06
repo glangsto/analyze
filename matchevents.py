@@ -1,5 +1,8 @@
 #Python find matchs in data directories
 #HISTORY
+#24Sep03 GIL log matchs
+#24May06 GIL enable limiting matches due to sigma
+#24Jan26 GIL print output file pdf
 #23Jul26 GIL compute average RA, Dec for groups of events
 #23Jul25 GIL add 1 hour x tick interval
 #23Jun07 GIL enable flagging transit of a specific location
@@ -20,7 +23,7 @@
 #21MAR19 GIL Complete code for 5 directories/telescopes
 #21FEB26 GIL Show Galactic Plane range
 #21FEB25 GIL FInd the SUN transit time
-#21FEB24 GIL show LST of SUN 
+#21FEB24 GIL show LST of SUN
 #21FEB23 GIL remove extra character in time zone
 #20DEC04 GIL allow histogram plotting in case of only one directory
 #20DEC03 GIL minor updates to histogram plottoing
@@ -67,19 +70,22 @@ nargs = len(sys.argv)
 if nargs < 2:
     print("MATCH: Match events listed in several directories")
     print("Usage: MATCH [-OF seconds] [-D] [-C Date] [-E] [-N <n>] [-G] [dir1 dir2 dir3 dir4 ...]")
-    print("Where: Optionally the user provides the maximum time offset (secs) to call a match")
-    print("Where -C  Optionally provide a calendar date (ie 19Nov17) instead of directories")
-    print("Where -D  Optionally print debugging info")
-    print("Where -E Optionally only show Events with elevation above zero")
-    print("Where -F Optionally Do Not flag groups of events")
-    print("Where -G Optionally plot +/- 10 degrees of galactic plane")
-    print("Where -H Optionally plot histogram of events per parts of a day")
-    print("Where -M <ra> <dec> Optionally mark the transit of a coordiante")
-    print("Where -N <n> Optionally print matches when number is equal or greater to <n>")
-    print("Where -ND <n> Optionally divide the day into <n> parts, default 24")
-    print("Where -P Plot matches")
-    print("Where -Q Quiet processing, no showing plots, only save .pdf, .svg")
-    print("Where -Y <offset> Optionally adds an offset to the event plots (-P option)")
+    print("Where:")
+    print(" -OF Optionally the user provides the maximum time offset (secs) to call a match")
+    print(" -C  Optionally provide a calendar date (ie 19Nov17) instead of directories")
+    print(" -D  Optionally print debugging info")
+    print(" -E Optionally only show Events with elevation above zero")
+    print(" -F Optionally Do Not flag groups of events")
+    print(" -G Optionally plot +/- 10 degrees of galactic plane")
+    print(" -H Optionally plot histogram of events per parts of a day")
+    print(" -L <logFileName> Set directory/file for event matches")
+    print(" -M <ra> <dec> Optionally mark the transit of a coordiante")
+    print(" -N <n> Optionally print matches when number is equal or greater to <n>")
+    print(" -ND <n> Optionally divide the day into <n> parts, default 24")
+    print(" -P Plot matches")
+    print(" -SI <min sigma> Only match if event obove <min sigma>")
+    print(" -Q Quiet processing, no showing plots, only save .pdf, .svg")
+    print(" -Y <offset> Optionally adds an offset to the event plots (-P option)")
     print("")
     print("Glen Langston, 2021 September 1")
     sys.exit()
@@ -90,13 +96,15 @@ ifile = 1
 iii = ifile
 offset = 1.0/86400.   # default match offset is  1 seconds = 1/86400 of a day
 nday = 24             # by default divide day in 24 hours
-sigma = 5.0           #
+sigma = 4.0           # Minimum sigma to accept
 kpercount = 1.0       # calibration into Kelvin units
 note = ""             # optional note for top of plot
 calendar = ""
 doPlot = False
 doQuiet = False
 doHistogram = False
+doLog = False
+logFileName = ""
 flagGroups = False
 doDebug = False
 doOffset = False
@@ -128,7 +136,7 @@ while iii < nargs:
         ifile = ifile + 2
     if str(anarg[0:3]) == "-E":
         minEl = 1.
-        print("Only counting events when telescope above %5.1f (d) elevation" % (minEl))
+        print("Only counting events when telescope > %5.1f (d) el." % (minEl))
         ifile = ifile + 1
     if str(anarg[0:3]) == "-F":
         flagGroups = True
@@ -136,11 +144,17 @@ while iii < nargs:
         ifile = ifile + 1
     if str(anarg[0:3]) == "-G":
         doGalactic = True
-        print("Marking observations within 10 degrees of the galatic plane with *")
+        print("Marking observations within 10 degrees of galatic plane with *")
         ifile = ifile + 1
-    if str(anarg[0:3]) == "-ND":
-        nday = int(sys.argv[iii+1])
+    if str(anarg[0:3]) == "-L":  # if logging events
         iii = iii + 1
+        logFileName = sys.argv[iii]
+        print("Logging Events in: %s" % (logFileName))
+        doLog = True
+        ifile = ifile + 2
+    if str(anarg[0:3]) == "-ND":
+        iii = iii + 1
+        nday = int(sys.argv[iii])
         print("Divide Day into N Parts:  %d" % (nday))
         aFix = True
         ifile = ifile + 2
@@ -198,14 +212,27 @@ nplot = 0
 if nday < 1:
     nday = 24
 nDir = nargs-ifile
-# 
+#
 MAXDIR = 20
 NOMATCH = -9999
 MAXDT = 10000.
 # define the maximum number of events to keep
 MAXEVENTS = 10000
 
-
+if doLog:
+    if os.path.exists(logFileName):
+        # if an existing file
+        if os.path.isfile(logFileName):
+            logFile = open(logFileName, 'a')
+        else:
+            outName = logFileName + "/" + calendar + ".log"
+            logFile = open(outName, 'w')
+            print( "Writing to Log file: %s" % (outName))
+    else:   # else neither path nor file exist, write a new file
+        logFile = open(logFileName, 'w')
+    print( "# Log of events on %s" % (calendar), file=logFile)
+    print( "#  Tel   Directory             Event File            Ra     Dec     GLon    GLat N Flashes", file=logFile)
+         
 def finddirs( calendar, ifile, nDir):
     """
     finddirs() finds the names of directories matching the calendar flag
@@ -290,6 +317,9 @@ def readEventsInDir( directory):
         fullname = filename
         rs.read_spec_ast(fullname)
         if rs.telel < minEl:
+            continue
+        asigma = np.abs(rs.epeak/rs.erms)
+        if asigma < sigma:
             continue
         mjds[kkk] = rs.emjd
         peaks[kkk] = rs.epeak
@@ -385,14 +415,15 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
     deltat = 24./float(nday)
     for iDay in range(nday):
         utcparts[iDay] = float(iDay*24./float(nday))
-    
+
     # to finish plot need to duplicate last point
     utcparts[nday] = 24.
     if calendar == "":
         utcstr = str(rs.utc)
         strparts = utcstr.split()
         calendar = strparts[0]
-
+        print( 'Found Calendar date: %s' % (calendar))
+        
     countmax = np.zeros( nDir)
     yoffsets = np.zeros( nDir)
     yoffset = 0
@@ -412,7 +443,7 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
             print( "%d: Y offset %5d %5d" % (ddd,yoffsets[ddd], yoffset))
 
     yoffsets[nDir-1] = 0
-        
+
 #    barcolors = ["lightcyan", "wheat", "greenyellow", "mistyrose", \
 #                 "wheat", "lightgrey", "mintcream"]
     barcolors = ["gold", "wheat", "greenyellow", "mistyrose", \
@@ -426,7 +457,7 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
             for iDay in range(nday):
                 if counts[iDay] > 0:
                     print("%5d %8.2f %5d" % ( iDay, utcparts[iDay], counts[iDay]))
-                
+
         alabel = adir[0:5]
         labelparts = alabel.split("-")
         alabel = "%s:%4d" % (labelparts[0], nEve)
@@ -463,8 +494,8 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
 #    print("dateHour: %s" % (dateHour))
     utcmidnight = datetime.datetime.strptime( dateHour, "%Y-%m-%d %H")
     print("Utc: %s, Local Midnight Utc: %s" % (utcstr, utcmidnight))
-    # prepart to compute local time 
-#    utcOffsetHours = time.timezone/3600. 
+    # prepart to compute local time
+#    utcOffsetHours = time.timezone/3600.
     print( "Time zone %s is offset %5.1f hours from UTC" % (timezone, utcOffsetHours))
 
     # annoate plot for local midnight
@@ -534,7 +565,7 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
     xtransit = 24.*dt
 #    print("dt: %s dt=%7.3f  %7.3f" % (transit, dt, xtransit))
     alabel = " RA,Dec: %5.1f, %5.1f" % (rs.ra, rs.dec)
-    ya = ytop 
+    ya = ytop
     xa = xtransit
     ax.annotate(alabel, xy=( xa, ya), xytext =( xa, ya))
     # set elevation back to horn elevaiton
@@ -574,7 +605,7 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
 #        for kkk in range(10):
 #            target = SkyCoord( ra=raTransit*u.deg, dec=decTransit*u.deg,
 #                           unit='deg', \
-#                           frame='icrs', location=asite, obstime=tutc)  
+#                           frame='icrs', location=asite, obstime=tutc)
 #            daz = - target.ra.hourangle*15./2.
 #            dutc = datetime.timedelta(seconds=(daz*86400.))
 #            print( "utc:%s dutc: %s" % (tutc, dutc))
@@ -605,12 +636,12 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
     nG4 = int(nGalactic/4)
     if doGalactic:
         utc = utc0
-        dt = datetime.timedelta(seconds=(86400./nGalactic)) 
+        dt = datetime.timedelta(seconds=(86400./nGalactic))
         minlat = 10.
         for mmm in range(nGalactic):   # every so often during of the day
             azel = SkyCoord(az = float(rs.telaz)*u.deg, \
                             alt = float(rs.telel)*u.deg, unit='deg', \
-                            frame='altaz', location=asite, obstime=utc)  
+                            frame='altaz', location=asite, obstime=utc)
             if mmm % nG4 == 0:
                 print( "MMM: %4d  %7.2f, %7.2f; %s" % \
                            (mmm, azel.galactic.l.degree, azel.galactic.b.degree, utc))
@@ -621,6 +652,7 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
             if bbb < minlat and bbb > -minlat:
                 xgal = 24.*mmm/nGalactic
                 ax.annotate("*", xy=( xgal, ygal), color='orange')
+                ax.annotate("*", xy=( xgal, yoffset), color='orange')
 
     # now draw vertical lines for events
     iplot = 0
@@ -631,7 +663,7 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
         x4 = match4times[iii] - mjdRef
         # if date is beyond 0-24 hour range, move in range
         x4 = (x4*24.) % 24.
-        # now compute x position for this MJD 
+        # now compute x position for this MJD
         # MJD midnight = UTC midnight.
         # For EST, the time is actually 5 hours before midnight
         x4 = x4 + (epsilon*((iii%7)-3))
@@ -681,11 +713,12 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
     plotfile = 'match-%s.pdf' % (calendar)
     fig = plt.gcf()
     fig.savefig(plotfile, bbox_inches='tight')
+    print("Saved match summary plot: %s" % (plotfile))
     plotfile = 'match-%s.svg' % (calendar)
     fig = plt.gcf()
     fig.savefig(plotfile, bbox_inches='tight')
     if not doQuiet:
-        plt.show()    
+        plt.show()
     return
 # end of plotHistogram
 
@@ -699,10 +732,10 @@ def writeHornSummary( summaryFile, dirname, nShort, nLong, az, el):
     nLong - number of long events seen
     """
     outstr = "%s %5d %5d %6.1f %6.1f" % (dirname, nShort, nLong, az, el)
-    
+
     summaryFile.write(outstr)
     return
-    
+
 def main():
     """
     Main executable for matching transient events
@@ -710,7 +743,7 @@ def main():
 
     nDir = len(dirs)
     nEvents = np.zeros(nDir)
-          
+
     iDir = 0
     # look though all directories
     for dir in dirs:
@@ -720,7 +753,7 @@ def main():
         if nEve > 0:
             # create an object with the events
             aDir = { 'dir': dir,
-                     'events' : events, 
+                     'events' : events,
                      'n': nEve,
                      'mjds': mjds,
                      'peaks': peaks,
@@ -733,7 +766,7 @@ def main():
             else:
                 EventDirs.update({ iDir : aDir})
             iDir = iDir + 1
-        print("%5d Events in Directory: %s" % (nEve, dir))
+            print("%5d Events in Directory: %s" % (nEve, dir))
 
     # end reading all events in a directory
 
@@ -826,7 +859,7 @@ def main():
         print("Hour      1     2")
 
     utcparts = np.zeros(nday)
-    # now print matches as a function of time 
+    # now print matches as a function of time
     for iDay in range(nday):
         utcparts[iDay] = float(iDay*24./float(nday))
         if counts0[iDay] != 0 or counts1[iDay] != 0 or counts2[iDay] != 0 \
@@ -850,14 +883,14 @@ def main():
                 print("%5.1f %5d %5d %5d %5d %5d" % (utcparts[iDay], counts0[iDay], \
                                                        counts1[iDay], counts2[iDay], counts3[iDay], counts4[iDay]))
 
-# Given N telescopes, there are N!/2 pairs of observations 
+# Given N telescopes, there are N!/2 pairs of observations
 # ie 2 Telescopes, 1 Pair
 #    3 Telescopes, 3 Pairs
 #    4 Telescopes  6 Pairs
 #    5 Telescopes 30 Pairs
 
 # determine the maximum number of matches
-    maxMatch = nTotal 
+    maxMatch = nTotal
 
     mjd0s = EventDirs[0]['mjds']
     # for each of the pairs of directories, find closest matches
@@ -906,8 +939,8 @@ def main():
         if i0 == 0:
             match = { 'nmatch': nMatch, 'count': matchcount, 'mjd': mjdRef, 'list': [ i0, i1, i2, i3, i4, i5] }
             matchs = { nMatch: match }
-            
-            
+
+
         if nDir < 2:
             continue
         if abs(dt01s[i0]) < offset:
@@ -1073,9 +1106,9 @@ def main():
         print( " Tel:     2     3     4     5 ")
     else:
         print( " Tel:     2     3     4     5     6 ")
-        
+
     nCheck = min( nDir, 5)
-    for iii in range(nCheck): 
+    for iii in range(nCheck):
         counttypes = np.zeros(max(nDir,4))
         for lll in range(nMatch):
             matcha = matchs[ lll]
@@ -1098,9 +1131,9 @@ def main():
         plotHistogram( nDir, rs, nday, mjdRef, doTransit, \
                        raTransit, decTransit, \
                        EventDirs, 0, [ 0., 0.], [ 0, 0], [ 0., 0.], [0., 0.], 0)
-        exit() 
+        exit()
 
-#    for iii in range(nDir): 
+#    for iii in range(nDir):
     for lll in range(nMatch):
 
         # now compare all pairs of matches
@@ -1232,33 +1265,47 @@ def main():
                 avedec = match4dec[lll]/float(multiples)
             avera = rs.ra
             avedec = rs.dec
+            #
             print("%3d 0 %s %7.1f %7.1f %7.1f %7.1f %d" % \
-                  (lll, file0, avera, avedec, rs.gallon, rs.gallat, multiples))
-            
+#                  (lll, file0, avera, avedec, rs.gallon, rs.gallat, multiples))
+                  (nUnique, file0, avera, avedec, rs.gallon, rs.gallat, multiples))
+            if doLog:
+              print("%3d 0 %s %7.1f %7.1f %7.1f %7.1f %d" % \
+                  (nUnique, file0, avera, avedec, rs.gallon, rs.gallat, multiples), file=logFile)
+
         if i1 == NOMATCH:
             file1 = ""
         else:
             files1 = EventDirs[1]['events']
             file1 = files1[i1]
-            print("%3d 1 %s" %  (lll, file1))
+            print("%3d 1 %s" %  (nUnique, file1))
+            if doLog:
+              print("%3d 1 %s" %  (nUnique, file1), file=logFile)
         if i2 == NOMATCH:
             file2 = ""
         else:
             files2 = EventDirs[2]['events']
             file2 = files2[i2]
-            print("%3d 2 %s" %  (lll, file2))
+            print("%3d 2 %s" %  (nUnique, file2))
+            if doLog:
+              print("%3d 2 %s" %  (nUnique, file2), file=logFile)
         if i3 == NOMATCH:
             file3 = ""
         else:
             files3 = EventDirs[3]['events']
             file3 = files3[i3]
-            print("%3d 3 %s" %  (lll, file3))
+            print("%3d 3 %s" %  (nUnique, file3))
+            if doLog:
+              print("%3d 3 %s" %  (nUnique, file3), file=logFile)
         if i4 == NOMATCH:
             file4 = ""
         else:
             files4 = EventDirs[4]['events']
             file4 = files4[i4]
-            print("%3d 4 %s" %  (lll, file4))
+            print("%3d 4 %s" %  (nUnique, file4))
+            if doLog:
+              print("%3d 4 %s" %  (nUnique, file4), file=logFile)
+            
         if doPlot:
             if doOffset:
                 plotcmd = "~/Research/analyze/E -Y %.2f %s %s %s %s %s" % (yoffset, file0, file1, file2, file3, file4)
@@ -1266,6 +1313,8 @@ def main():
                 plotcmd = "~/Research/analyze/E %s %s %s %s %s" % (file0, file1, file2, file3, file4)
             os.system(plotcmd)
 
+    if doLog:
+        logFile.close()
     print( "Count of Events and Event Groups: %d" % (nUnique))
 
 # now have a list of single events and multiple events, plot histogram
@@ -1273,10 +1322,8 @@ def main():
                    raTransit, decTransit, \
                    EventDirs, nall, match4times, match4count, \
                    match4gallon, match4gallat, nUnique)
-    
+
 # now count all events happening within .1 degrees of other events.
-        
+
 if __name__ == "__main__":
     main()
-
-    
