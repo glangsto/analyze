@@ -1,0 +1,27 @@
+fd#/bin/sh
+# sort all data from yesterday's observations
+
+export analyze=~/Research/analyze
+export dateToSort=`$analyze/Yesterday`
+
+export sortDir=~/archive
+
+if [ -z "$1" ]
+then
+    echo "sortkark: Sort the missplaced files in /media/kark"
+    echo "usage: sortkark <date>"
+    echo "ie:   sortkark 24Aug22"
+    echo ""
+    echo "Glen Langston  NSF glen.i.langston@gmail.com"
+    echo ""
+    exit -1
+else
+    export dateToSort=$1
+fi    
+
+cd $sortDir
+
+echo Sorting directory: $sortDir
+echo Sorting date     : $dateToSort
+
+python $analyze/sortdate.py $dateToSort
