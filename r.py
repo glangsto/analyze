@@ -97,7 +97,7 @@ if nargs < 2:
 xa = -1
 xb = -1
 
-namearg = 1    
+namearg = 1
 # for all arguments, read list and exit when no flag argument found
 while iarg < nargs:
 
@@ -210,7 +210,7 @@ for iii in range(namearg, min(nargs,30)):
 
     rs.read_spec_ast( filename)
 # for averages can not use az,el to get ra,dec and glat, glon
-#    rs.azel2radec()    # compute ra,dec from az,el 
+#    rs.azel2radec()    # compute ra,dec from az,el
 
     parts = filename.split('/')
     nparts = len(parts)
@@ -244,18 +244,18 @@ for iii in range(namearg, min(nargs,30)):
         xa = 0
     if xb < 0:
         xb = nData
-        
+
     if firstdate == "":
         firstdate = date
     lastdate = date
-    
+
     vel = np.zeros(nData)
     for jjj in range (0, nData):
         vel[jjj] = c * (nuRefFreq - xv[jjj])/nuRefFreq
 
     if not plotFrequency:
         xa, xb = gf.velocity_to_indicies( vel, minvel, maxvel)
-    
+
     # normize for different integration times
     if doScaleAve:
         rs.ydataA = rs.ydataA/rs.count
@@ -299,9 +299,11 @@ for iii in range(namearg, min(nargs,30)):
 #        fig.canvas.set_window_title(date)
 #        plt.manager.canvas.set_window_title(date)
         for tick in ax1.xaxis.get_major_ticks():
-            tick.label.set_fontsize(14) 
+#            tick.label.set_fontsize(14)
+            tick.set_xticklabels(fontsize=14)
         for tick in ax1.yaxis.get_major_ticks():
-            tick.label.set_fontsize(14) 
+#            tick.label.set_fontsize(14)
+            tick.set_yticklabels(fontsize=14)
 
     nplot = nplot + 1
     if nplot > maxPlot:
@@ -325,7 +327,7 @@ if (maxPlot < 1) or (nplot < 1):
 
 if myTitle == "":
     myTitle = note
-    
+
 plt.title(myTitle, fontsize=16)
 plt.xlabel('Frequency (MHz)',fontsize=16)
 ylabel = 'Intensity (%s)' % rs.bunit

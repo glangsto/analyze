@@ -2,7 +2,7 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
-#23AUG16 GIL check for big changes to Tsys 
+#23AUG16 GIL check for big changes to Tsys
 #19SEP11 GIL no longer use statistics
 #18MAR05 GIL only summarize .hot and .ast files
 #16SEP30 GIL show frequency and bandwidth
@@ -13,7 +13,7 @@ import numpy as np
 import radioastronomy
 import gainfactor as gf
 
-percent = 10           # default percentage change to flag
+percent = 50           # default percentage change to flag
 nargs = len( sys.argv)
 if nargs < 2:
     print('S: Summarize a list of observations')
@@ -22,7 +22,7 @@ if nargs < 2:
     print('where')
     print('-v          optionally print verbose summary information')
     print('-s %        optionally report jumps than % (range 1 to 100)')
-    print('            Default percentage: %7.1f %% ' % (percent))   
+    print('            Default percentage: %7.1f %% ' % (percent))
     print('<filenames> list of file names to summarize')
     print('  Only *.ast, *.hot and *.cld files will be read. Others will be skipped')
     exit()
@@ -46,7 +46,7 @@ lastgain = 0.
 nsame = 0
 nRead = 0
 
-labelfmt = '%s %5s,%5s %5.1f,%5.1f: %8.2f,%5.2f %5.1f - %s' 
+labelfmt = '%s %5s,%5s %5.1f,%5.1f: %8.2f,%5.2f %5.1f - %s'
 names = sys.argv[1:nargs]
 names = sorted(names)
 
@@ -57,7 +57,7 @@ rs = radioastronomy.Spectrum()
 if names[0] == '-s':
     percent = float(names[1])
     names = names[2:]
-                    
+
 if names[0] == '-v':
     verbose = True
     names = names[1:]
@@ -67,7 +67,7 @@ else:
 if names[0] == '-s':
     percent = float(names[1])
     names = names[2:]
-                    
+
 if names[0] == '-v':
     verbose = True
     names = names[1:]
@@ -94,10 +94,10 @@ for filename in names:
     parts = aname.split('.')
     # determine extension type
     nparts = len(parts)
-    # if no extension, 
-    if nparts < 2: 
+    # if no extension,
+    if nparts < 2:
         continue  ### then not a file to summarize
-    
+
 # only summarize astronomy files
     if (parts[1] != 'ast') and (parts[1] != 'hot') and (parts[1] != 'cld') \
        and (parts[1] != 'jy') and (parts[1] != 'kel'):
@@ -127,13 +127,13 @@ for filename in names:
     if verbose:
         print("freqHz: %.1f  (%d)" % (freqHz[0], len(freqHz)))
     velmps = gf.velocity( freqHz, rs.refFreqHz)
-    
+
     # next comput indicies for tsys, trms cal
     names2[nRead] = filename
     ixMin, ixMax = gf.velocity_to_indicies( velmps, velMin, velMax)
     tSys[nRead] = np.median(rs.ydataA[ixMin:ixMax])
     tRms[nRead] = np.std(rs.ydataA[ixMin:ixMax])
-    
+
     if rs.telaz != lastaz or rs.telel != lastel or lastbw != bw or lastfreq != freq or lastgain != gain:
         lastbw = bw
         lastfreq = freq
@@ -187,4 +187,3 @@ for iii in range(iWidth,(nRead-iWidth)):
     if (dt > (fraction*t1)) or (dt > (fraction*t2)):
         print("At %s, Count Jump; %7.2f+/-%5.2f =! %7.2f+/-%5.2f" % \
               (names2[iii], t1, dt1, t2, dt2))
-    
