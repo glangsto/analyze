@@ -5,6 +5,7 @@ Crossings.
 """
 
 # HISTORY
+# 24Oct15 GIL improve check for blank lines and end of file
 # 24Mar02 GIL enable returning telescope longitude and latitude
 # 23Oct26 GIL add another digit to tSys, tRms fix label
 # 23Oct10 GIL add RA,Dec and Galactic Longitude and Latitude to log file
@@ -584,15 +585,29 @@ def readAllValues(filename):
     print("Read Telescope Info, Id: %d" % (cpuIndex))
 
     # read though all values in the summary file
+    nblank = 0
+    lastEl = -99.
     while True:
         if len(aline) < 0:
             aline = f.readline()
             aline.strip()
-
+        # allow a few blank lines in file.  
+        if len(aline) == 0:
+            nblank + 1
+            # if too many blank lines, must be end of file.
+            if nblank > 10:
+                break # exit loop
+            continue  # else keep looking for next data line
+            
         date, time, id, telaz, telel, tSys, tRx, tRms, tint, KperC, \
             tSourcemax, velSource, dV, tVSum, tVsumRms, tSumKmSec, \
             dTSumKmSec, gainFactor, ra, dec, gallon, gallat = \
                     readSaveValues(aline)
+        if telel != lastEl:
+            print("readvalues: New El %7.2f -> %7.2f" % (lastEl, telel))
+            lastEl = telel
+        nblank = 0
+        
         # if date is blank, then end of file
         if date == "":
             break
