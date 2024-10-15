@@ -1,5 +1,6 @@
 # Find the RA and Dec crossing points of the galactic plane
 # HISTORY
+# 24Oct15 GIL parameterize number of samples 
 # 24Feb28 GIL add checks and write output 
 # 24Feb27 GIL major re=write;
 # 21JAN15 GIL initial version based on web:
@@ -32,7 +33,9 @@ outname = sys.argv[1]
 
 ras = []
 decs = []
-lons = np.linspace( 0., 360., 720)
+# set the maximum number of galactic RA/Dec samples to compute
+NSAMPLES = 1000
+lons = np.linspace( 0., 360., NSAMPLES)
 lat = 0.0
           
 for lon in lons:
@@ -45,23 +48,26 @@ ras = np.asarray(ras)
 decs = np.asarray(decs)
 
 ndec = len(decs)
-declist = np.linspace(-90., 90, 360)
+declist = np.linspace(-90., 90, NSAMPLES)
 nlist = len(declist)
 # keep closest crossing ras and longitudes
-ra1list = np.linspace(0., 360., 360)
-ra2list = np.linspace(0., 360., 360)
-lon1list = np.linspace(0., 360., 360)
-lon2list = np.linspace(0., 360., 360)
-#
+ra1list = np.linspace(0., 360., NSAMPLES)
+ra2list = np.linspace(0., 360., NSAMPLES)
+lon1list = np.linspace(0., 360., NSAMPLES)
+lon2list = np.linspace(0., 360., NSAMPLES)
+
+#  get very accurate coordinates of galactic north and south poles
 spole = SkyCoord(0.*u.deg, -90.*u.deg, frame='galactic')  # using degrees directly
 npole = SkyCoord(0.*u.deg, +90.*u.deg, frame='galactic')  # using degrees directly
 
 nPole = npole.icrs.ra.deg
+nPoleDec = npole.icrs.dec.deg
 sPole = spole.icrs.ra.deg
+sPoleDec = spole.icrs.dec.deg
 
-print("RA, Dec of North Galactic Pole: %7.2f, %7.2f" % \
+print("RA, Dec of North Galactic Pole: %9.5f, %9.5f" % \
       (nPole, npole.icrs.dec.deg))
-print("RA, Dec of Sorth Galactic Pole: %7.2f, %7.2f" % \
+print("RA, Dec of South Galactic Pole: %9.5f, %9.5f" % \
       (sPole, spole.icrs.dec.deg))
 
 # for all decs in range -90 to 90
@@ -127,7 +133,14 @@ plt.plot( ras, decs, label="RA,Dec", linewidth=5)
 plt.plot( ra1list, declist, label="1st Crossing", color="cyan")
 plt.plot( ra2list, declist, label="2nd Crossing")
 plt.plot( ra2list - ra1list, declist, label="dRa", linestyle="dashed")
+plt.plot([nPole],[nPoleDec], marker="+")
+plt.plot([sPole],[sPoleDec], marker="x")
 
+plt.annotate("  Galactic North", [nPole,nPoleDec])
+plt.annotate("%7.3f,%7.3f " % (nPole, nPoleDec), [nPole,nPoleDec-10.])
+plt.annotate("%7.3f,%7.3f " % (sPole, sPoleDec), [sPole,sPoleDec-10.])
+
+plt.annotate("  Galactic South", [sPole,sPoleDec])
 plt.xlabel("RA (deg)")
 plt.ylabel("Dec (deg)")
 ax.legend()
