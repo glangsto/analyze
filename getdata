@@ -1,10 +1,12 @@
 #!/bin/bash
 # Script to transfer spectra from the data computers to this host
 # HISTORY
+# 24AUG08 GIL Look in other directories for data
 # 19JUN27 GIL initial version
 # find the most recent note file 
 
 export archivehome=~/archive
+export archivehome=/media/karl
 
 if [ -z "$1" ]
 then
@@ -54,6 +56,7 @@ if [ ! -d "$archivehome" ]
 then
     mkdir $archivehome
 fi
+
 cd $archivehome
 
 export today=`date +%y%b%d`
@@ -70,4 +73,7 @@ cd $datadir
 # rsync -ruval --ignore-existing --dry-run --remove-source-files $datauser@$datahost:Research/gr-radio_astro/data/ ./
 
 rsync -ruval --ignore-existing --remove-source-files $datauser@$datahost:Research/gr-radio_astro/$sourcedir/ ./
+
+echo "Look in home directory for data"
+rsync -ruval --ignore-existing --remove-source-files $datauser@$datahost:$sourcedir/ ./
 
