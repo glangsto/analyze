@@ -18,6 +18,12 @@ from matplotlib import pyplot as plt
 
 #matplotlib inline
 
+GRIDRADEC  = 0
+GRIDMRADEC = 1
+GRID0RADEC = 2
+GRIDEL     = 3
+GRIDGAL    = 4
+
 class Grid(object):
     """
     Grid image class for placing weighted spectral intensities on a grid.
@@ -55,7 +61,7 @@ class Grid(object):
         self.cdelt2 = (1./float(dpi)) + .001
         self.crpix1 = width/2.
         self.crpix2 = height/2.
-        
+
         self.xminrad = xmin*np.pi/180.  # convert to radians
         self.xmaxrad = xmax*np.pi/180.
         self.yminrad = ymin*np.pi/180.
@@ -68,13 +74,21 @@ class Grid(object):
         self.image = np.empty((self.img_height, self.img_width), dtype=np.float32)
         self.weights = np.empty((self.img_height, self.img_width))
         self.FWHM = FWHM # degrees
-#        self.sigma = self.FWHM/(2*np.sqrt(2*np.log(2.)))
         self.sigma = self.FWHM/(2.*np.sqrt(2.*np.log(2.)))
         self.sigma2 = self.sigma*self.sigma
 #        self.WF = -0.5/self.sigma2  # used in exponent of gaussian
         self.WF = -.1/self.sigma2  # used in exponent of gaussian
-        self.gridtype = str(gridtype)  # Either RA or GAL
-
+        self.gridtype = str(gridtype)  # RA, -RA, EL, GAL
+        self.gridindex = GRIDRADEC             # RA,Dec, RA=360 at right
+        if gridtype == '-RA':
+            self.gridindex = GRIDMRADEC        # RA=360 at Left
+        elif gridtype == 'RA0':
+            self.gridindex = GRID0RADEC        # RA=0 in middle
+        elif gridtype == 'EL' or gridtype == '-EL':                 
+            self.gridindex = GRIDEL            # Ra, Elevation for debugging
+        else:
+            self.gridindex = GRIDGAL           # grid galactic coordinates
+        
 #        print 'Init: x min,max  (d) : ', self.xmin, self.xmax
 #        print 'Init: x min,max (rad): ', self.xminrad, self.xmaxrad
         self.projection = projection
@@ -212,7 +226,7 @@ class Grid(object):
                 # add the colvolved measurement to the grid.
                 self.xy(iix, jjy, z, r, inweight)
         return
-                
+
     def normalize(self):
         """
         normalize() computes the image from the sum and weights images
@@ -297,7 +311,7 @@ def main():
     """
     dpi = 2
     dpi = 1
-    
+
     width = int(360)
     height = int(180)
     mywidth = int(width*dpi)
@@ -314,7 +328,7 @@ def main():
                       projection="-CAR", gridtype=gridtype)
 
     for iii in np.arange(xmin, xmax, 30):
-        x = iii 
+        x = iii
         for jjj in np.arange(ymin, ymax, 30):
             y = jjj
             z = y*x
@@ -341,4 +355,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
