@@ -1,11 +1,12 @@
 """
-Read n an observation summary and fit the times of galaxy crossings.
-From these measurements estimate the Azimuth and Elevation of the
-telescope pointing.  Then compute the azimuth and elevation offsets
+Read n an observation summaris and fit the times of galaxy crossings.
+From these measurements estimate the Azimuth, Elevation and Lean of the
+telescope pointing.  Plot fit and azimuth and elevation offsets
 """
 # Functions to create a grid and place astronomical data on that
 # grid with a convolving function
 # HISTORY
+# 24Aug23 GIL Add all data to the plot, to show selected range.
 # 24Aug22 GIL expand reange of fitting data
 # 24Mar02 GIL annotate the plot
 # 24Feb29 GIL add some arguements
@@ -281,10 +282,12 @@ def selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas):
     elDec = np.zeros(100)
     azlist = np.zeros(100)
     nel = 0
-    newEl = True
+    lastEl = -99.
     
     for iii in range(nData):
         el = els[iii]
+        # assume a new Elevation
+        newEl = True
         for ii in range(nel):
             if ellist[ii] == el:
                 elcount[ii] = elcount[ii] + 1
@@ -295,6 +298,9 @@ def selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas):
             elDec[nel] = inDecs[iii]
             azlist[nel] = azs[iii]
             nels = nel + 1
+        if lastEl != el:
+            print("New el: %7.2f -> %7.2f" % (lastEl, el))
+            lastEl = el
 
     #report number of els
     print("Found %d elevations %f ... %f" % \
@@ -436,7 +442,7 @@ def selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas):
         plt.show()
 
     # end of selectIntensities()
-    return firstdate, azKeep, elKeep, decKeep, nRa1, inRa1s, tSum1s, nRa2, inRa2s, tSum2s, telId
+    return firstdate, azKeep, elKeep, decKeep, nRa1, inRa1s, tSum1s, nRa2, inRa2s, tSum2s, telId, inRas, tSumIns
 
 def fitCrossing( filename, gDecs, gRa1s, gRa2s, gdRas):
     # the galacitic RAs crossings are pre-computed and written to a file
@@ -451,7 +457,7 @@ def fitCrossing( filename, gDecs, gRa1s, gRa2s, gdRas):
 
     # read in all values from T, separated into two arrays
     firstdate, azKeep, elKeep, decKeep, nRa1, ra1s, tSum1s, nRa2, ra2s, \
-        tSum2s, telId = selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas)
+        tSum2s, telId, inRas, tSumIns = selectIntensities( filename, gDecs, gRa1s, gRa2s, gdRas)
 
     print( "FitCrossing: Az,El: %7.1f,%7.1f d" % (azKeep, elKeep))
     nData = nRa1
@@ -564,7 +570,7 @@ def fitCrossing( filename, gDecs, gRa1s, gRa2s, gdRas):
           (sigma2[0], sigma2[2], sigma2[1]))
 
     # end of fitCrossing
-    return firstdate, bestFit, azKeep, elKeep, decKeep, ra1s, tSum1s, ra2s, tSum2s, params1, sigma1, params2, sigma2, telId
+    return firstdate, bestFit, azKeep, elKeep, decKeep, ra1s, tSum1s, ra2s, tSum2s, params1, sigma1, params2, sigma2, telId, inRas, tSumIns
 
 def main():
     """
@@ -619,7 +625,7 @@ def main():
 
         # now read the file containing intensities versus elevation and ras
         firstdate, ng, azKeep, elKeep, decKeep, ra1s, tSum1s, ra2s, tSum2s, \
-            params1, sigma1, params2, sigma2, telId = \
+            params1, sigma1, params2, sigma2, telId, inRas, tSumIns =  \
                 fitCrossing( filename, gDecs, gRa1s, gRa2s, gdRas)
 
         nData = len(ra1s)
@@ -675,17 +681,32 @@ def main():
         print("With T comamnd use argument:")
         tLabel = "-O %.1f %.1f %.1f" % (dAz, dEl, dL)
         print(" "+tLabel)
+
+        lastRa = 0
+        nRas = len(inRas)
+        # the data read in will not be in RA order.
+        # Zero Intensities at jumps in RA to remove diagonal plot lines
+        # for all input RAs.   Only for plotting.
+        for iii in range( nRas):
+            ra = inRas[iii]
+            if ra < lastRa:
+                tSumIns[iii] = 0
+                if iii < nRas - 1:
+                    tSumIns[iii+1] = 0
+                tSumIns[iii-1] = 0.
+            lastRa = ra
         
+        plt.plot( inRas, tSumIns, color='gold', lw=1, label='All Intensities')
         plt.plot(ra1s, tSum1s, color='blue',lw=3,
-                 label='1st Data')
-        plt.plot(ra2s, tSum2s, color='blue',lw=3,
-                 label='2nd Data')
+                 label='1st Range')
+        plt.plot(ra2s, tSum2s, color='purple',lw=3,
+                 label='2nd Range')
         if params1[0] != 0.:
             plt.plot(ra1s, gauss(ra1s,*params1),color='cyan',lw=3,
-                 label='1st Crossing')
+                 label='1st Fit')
         if params2[0] != 0.:
             plt.plot(ra2s, gauss(ra2s,*params2),color='red',lw=3,
-                 label='2nd Crossing')
+                 label='2nd Fit')
 #        print("1 Gaussian Fit:")
         i = 0
         print("      RA     +/-   Intensity    +/-     Width   +/- ")
@@ -700,7 +721,7 @@ def main():
 
         mylabel = "Right Ascention (Deg)  (With T use: %s)" % (tLabel)
         plt.xlabel( mylabel)
-        plt.ylabel( "Peak Intensity (K)")
+        plt.ylabel( "Intensity (K)")
         plt.title("%s Galactic Intensities - Tel:%2d" % (firstdate, telId))
         plt.legend()
         tMin1 = min( tSum1s)
@@ -710,15 +731,15 @@ def main():
         tMin = min(tMin1, tMin2)
         tMax = max(tMax1, tMax2)
         #will annotate plot in Y axis, need reasonable spaceing
-        dT = (tMax - tMin)/10.
-        tAve = (tMin+tMax)/2.
+        dT = tMax/20.
+        tAve = tMax/2.
 
         azLabel = "Az  : %7.2f + %6.2f" % (azKeep, dAz)
-        elLabel = "El  : %7.2f + %6.2f" % (elKeep, dEl)
+        elLabel = "El   : %7.2f + %6.2f" % (elKeep, dEl)
         leLabel = "lean: %7.2f + %6.2f" % (leKeep, dL)
-        plt.annotate(azLabel, xy=[150.,tAve+dT])
-        plt.annotate(elLabel, xy=[150.,tAve])
-        plt.annotate(leLabel, xy=[150.,tAve-dT])
+        plt.annotate(azLabel, xy=[140.,tAve+dT])
+        plt.annotate(elLabel, xy=[140.,tAve])
+        plt.annotate(leLabel, xy=[140.,tAve-dT])
         
         plt.show()
         print( "Using %d values from file %s" % ( nData, filename))
