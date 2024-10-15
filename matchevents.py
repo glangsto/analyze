@@ -1,5 +1,6 @@
 #Python find matchs in data directories
 #HISTORY
+#24Oct03 GIL add more galactic annotations
 #24Sep03 GIL log matchs
 #24May06 GIL enable limiting matches due to sigma
 #24Jan26 GIL print output file pdf
@@ -653,6 +654,8 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
                 xgal = 24.*mmm/nGalactic
                 ax.annotate("*", xy=( xgal, ygal), color='orange')
                 ax.annotate("*", xy=( xgal, yoffset), color='orange')
+                ax.annotate("*", xy=( xgal, ya-(1.5*yoffset)), color='orange')
+                ax.annotate("*", xy=( xgal, ya-(2.0*yoffset)), color='orange')
 
     # now draw vertical lines for events
     iplot = 0
