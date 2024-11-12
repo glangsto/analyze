@@ -1,7 +1,8 @@
 #/bin/sh
 # sort all data from yesterday's observations
 
-export analyze=/home/glen/Research/analyze
+
+export analyze=$HOME/Research/analyze
 export dateToSort=`$analyze/Yesterday`
 
 cd /media/karl
