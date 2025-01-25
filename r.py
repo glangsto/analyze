@@ -1,6 +1,7 @@
 #Python Script to plot raw NSF record data.
 #plot the raw data from the observation
 #HISTORY
+#24Nov02 GIL accomodate tick font size change arguments
 #23Mar04 GIL fix matplot lib changes/deprications.   Short label if el < 0
 #22May20 GIL if file not recognized skip
 #20Dec24 GIL remove 20 from plot file names
@@ -298,13 +299,17 @@ for iii in range(namearg, min(nargs,30)):
         fig,ax1 = plt.subplots(figsize=(10,6))
 #        fig.canvas.set_window_title(date)
 #        plt.manager.canvas.set_window_title(date)
-        for tick in ax1.xaxis.get_major_ticks():
+#        for tick in ax1.xaxis.get_major_ticks():
 #            tick.label.set_fontsize(14)
-            tick.set_xticklabels(fontsize=14)
-        for tick in ax1.yaxis.get_major_ticks():
+#            tick.set_xticklabels(fontsize=14)
+#        for tick in ax1.yaxis.get_major_ticks():
 #            tick.label.set_fontsize(14)
-            tick.set_yticklabels(fontsize=14)
+#            tick.set_yticklabels(fontsize=14)
 
+# We change the fontsize of minor ticks label 
+        ax1.tick_params(axis='both', which='major', labelsize=14)
+        ax1.tick_params(axis='both', which='minor', labelsize=12)
+            
     nplot = nplot + 1
     if nplot > maxPlot:
         break
