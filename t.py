@@ -6,6 +6,7 @@ Glen Langston National Scioence Foundation
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#24OCT22 GIL fix font size for labels
 #23SEP27 GIL recalculate channel ranges for baseline subtraction for each ave.
 #23Jul05 GIL use galactic hydrogen observations above 40 degrees
 #23Apr25 GIL use cold load for velocity computations
@@ -969,15 +970,18 @@ if (maxPlot < 1) or (nplot < 1):
     print("No Plots, exiting")
     sys.exit()
 #fig.canvas.set_window_title(myTitle)
-for tick in ax1.xaxis.get_major_ticks():
-    tick.label.set_fontsize(14)
+#for tick in ax1.xaxis.get_major_ticks():
+#    tick.label.set_fontsize(14)
     # specify integer or one of preset strings, e.g.
     #tick.label.set_fontsize('x-small')
     #tick.label.set_rotation('vertical')
-for tick in ax1.yaxis.get_major_ticks():
-    tick.label.set_fontsize(14)
+#for tick in ax1.yaxis.get_major_ticks():
+#    tick.label.set_fontsize(14)
 #plt.xlim(xallmin,xallmax)  # normal plot range
 #plt.xlim(-150., 300.)
+
+plt.yticks(fontsize=14)
+plt.xticks(fontsize=14)
 
 # select the relevant range of velocities (km/sec) for plotting
 #plt.xlim(-250., 250.)
