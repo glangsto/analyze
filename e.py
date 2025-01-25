@@ -2,6 +2,7 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#24Nov14 GIL add a bit of space above and below plots
 #23Feb24 GIL keep track of min and max
 #23Feb17 GIL fix np deletion of np.int and np.float
 #22Apr07 GIL clean up messages
@@ -265,7 +266,8 @@ for iii in range(namearg, min(nargs,25)):
 plt.title(title)
 plt.xlabel('Time Offset From Event (micro-seconds)')
 plt.ylabel('Intensity (Counts)')
-plt.legend(loc='upper right')
+#plt.legend(loc='upper right')
+plt.legend()
 plt.xlim(xallmin,xallmax)
 if not doMag:
 #    if y0 > 0.:
@@ -273,7 +275,9 @@ if not doMag:
 #    elif y0 < 0.:
 #        plt.ylim(yallmin+y0*.666,yallmax)
 #    else:
-    plt.ylim(yallmin,(1.1*yallmax))
+    dY = abs( yoffset/2.)
+    plt.ylim(yallmin-dY,yallmax+dY)
+    
 if doPlotFile:
     if fileTag == "":
         fileTag = "E-" + firstdate
