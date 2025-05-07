@@ -306,7 +306,7 @@ def main():
             labels[0] = 0
             labels[0] = 24
             yticks = np.arange(0, myheight, 15*dpi)
-        elif gridtype == '-EL' or gridType == 'EL':
+        elif gridtype == '-EL' or gridtype == 'EL':
             plt.xlabel("Right Ascension (hours)")
             plt.ylabel("Elevation (degrees)")
             labels = 24 - (ticks/(mywidth/24))

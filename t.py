@@ -6,6 +6,7 @@ Glen Langston National Scioence Foundation
 #Python Script to plot calibrated  NSF spectral integration data.
 #plot the raw data from the observation
 #HISTORY
+#25APR28 GIL update for labels without elevation change
 #24OCT22 GIL fix font size for labels
 #23SEP27 GIL recalculate channel ranges for baseline subtraction for each ave.
 #23Jul05 GIL use galactic hydrogen observations above 40 degrees
@@ -828,9 +829,11 @@ for filename in names:
         labeltime = timeparts[0]
         label = '%s, A,E: %5s,%5s, L,L: %5.1f,%6.1f' % (labeltime, az, el, gallon, gallat)
         if (minel == maxel) or (el == previousel):
-            label = '%s L,L=%5.1f,%5.1f (%d)' % (labeltime, gallon, gallat, nave)
+            #            label = '%s L,L=%5.1f,%5.1f (%d)' % (labeltime, gallon, gallat, nave)
+            el = el
         else: 
             label = '%s L,L=%5.1f,%5.1f A,E=%4.0f,%4.0f' % (labeltime, gallon, gallat, az, el)
+        label = '%s L,L=%5.1f,%5.1f A,E=%4.0f,%4.0f' % (labeltime, gallon, gallat, az, el)
         if (nplot < maxPlot) or (nplot == int(nplot/20)*20):
             print(( ' Max: %9.1f  Median: %8.2f +/- %5.2f %3d %s' % \
                 (tSourcemax, tSys, tStd, nave, label)))

@@ -37,10 +37,12 @@ def medianfilter(mydata, nwidth):
     for iii in range(ndata):
         b = iii - nwidth
         e = iii + nwidth + 1
-        if b < 0:
-            b = 0
-        if e >= ndata:
-            e = ndata-1
+        if b < 3:
+            outdata[iii] = mydata[iii]
+            continue
+        if e >= ndata - 3:
+            outdata[iii] = mydata[iii]
+            continue
 #        if iii > ndata-(2*nwidth):
 #            print("%d (%d to %d)" % (iii, b, e))
         a = statistics.median(mydata[b:e]) 
