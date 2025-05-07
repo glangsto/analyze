@@ -1,5 +1,8 @@
 #Python find matchs in data directories
 #HISTORY
+#25May02 GIL add more x ticks and sub-ticks
+#25Mar20 GIL add Verbose (-V) to print each file being examined
+#25Feb22 GIL check for events in directories 10-15
 #24Oct03 GIL add more galactic annotations
 #24Sep03 GIL log matchs
 #24May06 GIL enable limiting matches due to sigma
@@ -202,6 +205,10 @@ while iii < nargs:
         doDebug = True
         print("Debugging")
         ifile = ifile + 1
+    if anarg[0:2] == "-V":
+        verbose = True
+        print("Verbose output")
+        ifile = ifile + 1
     if anarg[0:2] == "-Y":
         doOffset = True
         iii = iii + 1
@@ -238,7 +245,7 @@ def finddirs( calendar, ifile, nDir):
     """
     finddirs() finds the names of directories matching the calendar flag
     """
-    dirs = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]
+    dirs = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]
     nDir = 0
     nfiles = len(sys.argv[ifile:])
     # now find calendars
@@ -316,6 +323,8 @@ def readEventsInDir( directory):
     kkk = 0
     for filename in events:
         fullname = filename
+        if verbose:
+            print("%5d: %s" % (kkk, fullname))
         rs.read_spec_ast(fullname)
         if rs.telel < minEl:
             continue
@@ -344,7 +353,7 @@ if nday != 24:
 
 if doDebug:
     nDir = len(dirs)
-    for i in range(ndir):
+    for i in range(nDir):
         print("Dir %d: %s" % (i+1, dirs[i]))
 
 def findpairs( EventDir1, EventDir2):
@@ -710,8 +719,21 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
     plt.xlim(0.,24.05) # 24 hours/per day
     plt.tick_params(axis='x', labelsize=14)
     plt.tick_params(axis='y', labelsize=14)
-    plt.xticks( [0., 2., 4., 6., 8., 10., 12., 14., 16., 18., 20., 22., 24.])
-    ax.xaxis.set_minor_locator(mticker.MultipleLocator(1))
+    xticks = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]
+#    plt.xticks( float( np.array(xticks)), str(np.array(xticks)))
+    nticks = len(xticks)
+    strticks = xticks
+    for i in range(nticks):
+        strticks[i] = str( xticks[i])
+        xticks[i] = float(xticks[i])
+    ax.set_xticks( xticks)
+   
+    #    ax.set_xticklabels( strticks)
+    ax.tick_params(which='major', width=3)
+    ax.tick_params(which='minor', width=1)
+    ax.tick_params(which='major', length=5)
+    ax.tick_params(which='minor', length=3, color='b')
+    ax.xaxis.set_minor_locator(mticker.MultipleLocator(0.25))
     ax.xaxis.set_minor_formatter(mticker.NullFormatter())
     plotfile = 'match-%s.pdf' % (calendar)
     fig = plt.gcf()
@@ -1008,9 +1030,9 @@ def main():
             matchs[ nMatch ] = match
             nMatch = nMatch + 1
 
-        if doDebug:
-                print("Event %s Matches %s; Offset: %9.6f s" % (event1s[lll], event2s[jjj], dts))
-                print("%5d %18.9f: %5d %18.9f" % (lll, mjd1s[lll], jjj, mjd2s[jjj]))
+#        if doDebug:
+#             print("Event %s Matches %s; Offset: %9.6f s" % (event1s[lll], event2s[jjj], dts))
+#             print("%5d %18.9f: %5d %18.9f" % (lll, mjd1s[lll], jjj, mjd2s[jjj]))
 # Now must first flag events already matched with this directory
     i0 = NOMATCH
     i1 = NOMATCH
@@ -1330,3 +1352,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

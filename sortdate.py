@@ -1,5 +1,7 @@
 #Python Script to sort all observations and events into different directories
 #HISTORY
+#25Apr29 GIL Sort by file name, without reading the file
+#25Feb25 GIL Add bigger directory range
 #23Mar29 GIL look for all directories corresponding to a specific date
 #23Feb15 GIL initial version
 #
@@ -55,7 +57,7 @@ count = 0
 
 for date in dates:
 
-    for ipi in range (1,10):
+    for ipi in range (1,13):
         for atype in dirtypes:
             
             dir = "pi%0d-%s-%s" % (ipi, atype, date)
@@ -67,7 +69,7 @@ for date in dates:
                 files = os.listdir(dir)
                 nfiles = len(files)
                 print("%5d files in directory %s" % (nfiles, dir))
-                sortcmd = "python3 ~/Research/analyze/sortdata.py %s/*" % dir
+                sortcmd = "python3 ~/Research/analyze/sortday.py %s/*" % dir
                 if verbose:
                     print("Sorting: %s" % (sortcmd))
                 os.system(sortcmd)
