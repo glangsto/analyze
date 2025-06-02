@@ -1,10 +1,23 @@
 #/bin/sh
-# sort all data from yesterday's observations
-
+# sort all data from yesterday's (or other date) observations
+# 24Dec20 GIL update to input other dates.
+#
+# example input is:
+# sortYesterday 24Dec14
+#
 
 export analyze=$HOME/Research/analyze
-export dateToSort=`$analyze/Yesterday`
+
+if [ -z "$1" ]
+then
+    export dateToSort=`$analyze/Yesterday`
+else
+    export dateToSort=$1
+fi
 
 cd /media/karl
+
+echo Sorting directory: /media/karl
+echo Sorting date     : $dateToSort
 
 python $analyze/sortdate.py $dateToSort
