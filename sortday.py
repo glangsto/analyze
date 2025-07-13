@@ -1,6 +1,8 @@
 #Python Script to sort observations and events into different directories
 #This version only uses the file name to determine the correct directory
 #HISTORY  
+#25Jul13 GIL go back to moving one file at a time
+#25Jul06 GIL move all files in the directory if new directory found
 #25Apr29 GIL initial version, based on sortdata.py
 #
 import sys
@@ -22,7 +24,7 @@ if nargs < 2:
     print('<filenames> list of file names to sort')
     print('  Only *.eve, *.ast, *.hot and *.cld files will be read. Others will be skipped')
     print("")
-    print("Glen Langston, NSF -- 23 Feb 15")
+    print("Glen Langston, NSF -- 25 July 12")
     exit()
 
 monthnames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", \
@@ -61,16 +63,22 @@ if names[0].lower() == '-v':
 else:
     verbose = False
 
+# temporary debug
+#verbose = True
+
 count = 0
 printcount = 0
 movecount = 0
 lastyy = ""
 lastmm = ""
 lastdd = ""
+lastDir = ""
 
 for filename in names:
 
 #    print filename
+    if len(filename) < 1:
+        continue
     parts = filename.split('/')
     nparts = len(parts)
     if nparts < 2:
@@ -87,6 +95,7 @@ for filename in names:
         ndirparts = len(dirparts)
         if ndirparts != 3:
             print("Directory name must have 3 parts separated by '-'")
+            print("Ie: pi1-data-25Jul11")
             print("Invalid Directory: %s" % adir)
             exit()
         prefix = "%s-%s-" % (dirparts[0], dirparts[1])
@@ -98,7 +107,8 @@ for filename in names:
     nparts = len(parts)
     if nparts == 1:
         printcount = printcount + 1
-        print("%d: %s Only 1 part" % ( nparts, parts[0]))
+        if verbose:
+            print("%d: %s Only 1 part" % ( nparts, parts[0]))
         
     # if not a two part name with expected extension
     if nparts < 2:
@@ -110,7 +120,6 @@ for filename in names:
     if verbose and printcount < 10:
         printcount = printcount + 1
         print('File: ',filename)
-
 
     # expecting a name like "25-04-29T123456_789.eve"
     nameparts = parts[0].split('T')
@@ -131,36 +140,50 @@ for filename in names:
     dd = dateparts[2]
         
     count = count + 1
+
     # check if the date changed
     if lastyy != yy or lastmm != mm or lastdd != dd:
-        newdate = "%s%s%s" % (yy, monthnames[int(mm)-1], dd)
         lastyy = yy
         lastmm = mm
-        lastdd = dd
+        lastdd = dd    
+        newdate = "%s%s%s" % (yy, monthnames[int(mm)-1], dd)
+        newDir = "%s%s" % (prefix, newdate)
         if calendar == "":
             calendar = newdate
             print("First Calendar Date: %s" % (calendar))
-        newDir = "%s%s" % (prefix, newdate)
 
+        # don't move files if they are already in the correct directorya
+        if newDir == inDir:
+            continue
+
+        # if the  directory
+        if newDir == inDir:
+            continue
+                
         mkdir = "mkdir %s 2> /dev/null" % (newDir)
         if not os.path.isfile( newDir):
             os.system(mkdir)
             if verbose:
                 print("New Directory: %s " % (newDir))
+        lastDir = newDir
 
-    icount = int( count/100)
-    if (newDir == inDir):
-        
+    icount = int(count/100)
+    if newDir == inDir:
         if count < 3 or (100*icount) == count:
-            print ("File %5d in the correct directory: %s" % (count, filename))
+            print ("File %5d in the correct directory: %s" % \
+                   (count, filename))
+        continue
     else:
-        if count < 3 or (100*icount) == count:
-            print ("File %5d moved to new   directory: %s" % (count, newDir))
-        mvDay = "mv %s %s 2> /dev/null" % (filename,newDir)
+        mvcmd = "mv %s %s 2> /dev/null" % (filename, newDir)
+        if count < 3:
+            print(mvcmd)
+        os.system(mvcmd)
+        icount = int( count/100)
         movecount = movecount + 1
-        if count < 5:
-            print(mvDay)
-        os.system(mvDay)
-     
+        if count < 3 or (100*icount) == count:
+            print ("File %5d moved:                    %s" % \
+                           (count, filename))
+# if here, end of all files in this directory
+
 print("Moved %5d of %5d sortable files in  %s" % (movecount, count, inDir))
 
