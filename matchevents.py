@@ -1,5 +1,6 @@
 #Python find matchs in data directories
 #HISTORY
+#25Jul06 GIL write outputs to OUTPUT directory
 #25May02 GIL add more x ticks and sub-ticks
 #25Mar20 GIL add Verbose (-V) to print each file being examined
 #25Feb22 GIL check for events in directories 10-15
@@ -85,6 +86,7 @@ if nargs < 2:
     print(" -L <logFileName> Set directory/file for event matches")
     print(" -M <ra> <dec> Optionally mark the transit of a coordiante")
     print(" -N <n> Optionally print matches when number is equal or greater to <n>")
+    print(" -O <directory> write plots to output directory")
     print(" -ND <n> Optionally divide the day into <n> parts, default 24")
     print(" -P Plot matches")
     print(" -SI <min sigma> Only match if event obove <min sigma>")
@@ -109,6 +111,7 @@ doQuiet = False
 doHistogram = False
 doLog = False
 logFileName = ""
+outdir = ""
 flagGroups = False
 doDebug = False
 doOffset = False
@@ -137,6 +140,11 @@ while iii < nargs:
         if nPrint <= 0:
             nPrint = 2
         print("Print if %d or more matches" % (nPrint))
+        ifile = ifile + 2
+    if str(anarg[0:3]) == "-W":
+        outdir = sys.argv[iii+1]
+        iii = iii + 1
+        print("Writing plots to %s" % (outdir))
         ifile = ifile + 2
     if str(anarg[0:3]) == "-E":
         minEl = 1.
@@ -735,11 +743,17 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
     ax.tick_params(which='minor', length=3, color='b')
     ax.xaxis.set_minor_locator(mticker.MultipleLocator(0.25))
     ax.xaxis.set_minor_formatter(mticker.NullFormatter())
-    plotfile = 'match-%s.pdf' % (calendar)
+    if outdir != "":
+        plotfile = '%s/match-%s.pdf' % (outdir, calendar)
+    else:
+        plotfile = 'match-%s.pdf' % (calendar)
     fig = plt.gcf()
     fig.savefig(plotfile, bbox_inches='tight')
     print("Saved match summary plot: %s" % (plotfile))
-    plotfile = 'match-%s.svg' % (calendar)
+    if outdir != "":
+        plotfile = '%s/match-%s.svg' % (outdir, calendar)
+    else:
+        plotfile = 'match-%s.svg' % (calendar)
     fig = plt.gcf()
     fig.savefig(plotfile, bbox_inches='tight')
     if not doQuiet:
