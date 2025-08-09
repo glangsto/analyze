@@ -1,0 +1,5 @@
+#/bin/sh
+#script returns the wildcard list of files for yesterdays date
+
+date --date="yesterday" ""+%y-%m-%dT*""
+

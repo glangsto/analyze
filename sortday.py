@@ -169,7 +169,7 @@ for filename in names:
 
     icount = int(count/100)
     if newDir == inDir:
-        if count < 3 or (100*icount) == count:
+        if count < 2 or (100*icount) == count:
             print ("File %5d in the correct directory: %s" % \
                    (count, filename))
         continue
@@ -180,7 +180,7 @@ for filename in names:
         os.system(mvcmd)
         icount = int( count/100)
         movecount = movecount + 1
-        if count < 3 or (100*icount) == count:
+        if count < 2 or (100*icount) == count:
             print ("File %5d moved:                    %s" % \
                            (count, filename))
 # if here, end of all files in this directory
