@@ -1,10 +1,12 @@
 #!/bin/bash
 # Script to transfer events from the data computers to this host
 # HISTORY
+# 25Aug14 GIL only allow one rsync at a time to run
 # 19JUN12 GIL initial version
 # find the most recent note file 
 
 export archivehome=~/archive
+export archivehome=/media/karl
 
 if [ -z "$1" ]
 then
@@ -24,6 +26,12 @@ then
     exit -1
 else
     export datahost=$1
+fi
+
+# prevent data transfer overload
+if pgrep -x rsync > /dev/null; then
+    echo "rsync already running, must wait to avoid transfer overload"
+    exit -1
 fi
 
 if [ -z "$2" ]
@@ -70,4 +78,10 @@ cd $datadir
 # rsync -ruval --ignore-existing --dry-run --remove-source-files $datauser@$datahost:Research/gr-radio_astro/events/ ./
 
 rsync -ruval --ignore-existing --remove-source-files $datauser@$datahost:Research/gr-radio_astro/$sourcedir/ ./
+
+echo ""
+echo "--> Look in home directory for events!"
+echo ""
+
+rsync -ruval --ignore-existing --remove-source-files $datauser@$datahost:$sourcedir/ ./
 

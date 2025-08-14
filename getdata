@@ -1,6 +1,7 @@
 #!/bin/bash
 # Script to transfer spectra from the data computers to this host
 # HISTORY
+# 25Aug14 GIL only allow one rsync at a time to run
 # 24AUG08 GIL Look in other directories for data
 # 19JUN27 GIL initial version
 # find the most recent note file 
@@ -26,6 +27,12 @@ then
     exit -1
 else
     export datahost=$1
+fi
+
+# prevent data transfer overload
+if pgrep -x rsync > /dev/null; then
+    echo "rsync already running, must wait to avoid transfer overload"
+    exit -1
 fi
 
 if [ -z "$2" ]
@@ -56,7 +63,6 @@ if [ ! -d "$archivehome" ]
 then
     mkdir $archivehome
 fi
-
 cd $archivehome
 
 export today=`date +%y%b%d`
