@@ -2,6 +2,7 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#25Aug15 GIL fix typos
 #25May02 GIL more x axis tics
 #25May01 GIL add more space above plot
 #24Nov14 GIL add a bit of space above and below plots
@@ -271,7 +272,7 @@ plt.ylabel('Intensity (Counts)')
 plt.legend(loc='upper right')
 #plt.legend()
 plt.xlim(xallmin,xallmax)
-xticks = [0,1,2,3,4,5,6,7,8,9,10,11,12,13.14.15.16.17,18,19,20,21,22,23]
+xticks = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]
 #plt.xticks(float(xticks), str(xticks))
             
 if not doMag:
@@ -289,7 +290,7 @@ if doPlotFile:
     outpng = fileTag + ".png"
     plt.savefig(outpng,bbox_inches='tight')
     outpdf = fileTag + ".pdf"
-p    plt.savefig(outpdf,bbox_inches='tight')
+    plt.savefig(outpdf,bbox_inches='tight')
     print( "Wrote files %s and %s" % (outpng, outpdf))
 else:
     # else show the plots
