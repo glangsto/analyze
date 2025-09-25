@@ -1,10 +1,13 @@
 # function to find the closest time in a time sorted array of event times
 # Times are MJD times, but any floating point array can be searched this way.
 # HISTORY
+# 25Aug20 GIL fix dealing with single value
+# 25Aug12 GIL deal with input is a single value
 # 25Aug10 GIL INitial version based on AI search
 
 # initial version used date time structures
 #from datetime import datetime
+import numpy as np
 from bisect import bisect_left
 
 def findTime(time_array, target_time):
@@ -21,19 +24,27 @@ $        time_array (list): A list of datetime objects, sorted in ascending orde
         value closest to input value, and the index to the closest value
     """
     # check input quality
-    if not time_array:
-        return None, 0
+#    if not time_array:
+#        return None, 0
 
+    # if not an array, just return value
+    try:
+        n = len(time_array)
+        if n == 0:
+            return time_array[0], 0
+    except:
+        return time_array, 0
+    
     # Find the insertion point for the target_time
-    # This gives the index where target_time would be inserted to maintain sort order.
+    # Gives index where target_time would be inserted to maintain sort order.
     # If target_time is present, it returns the index of the first occurrence.
     idx = bisect_left(time_array, target_time)
 
     # Handle edge cases
     if idx == 0:  # Target time is before or equal to the first element
         return time_array[0], 0
-    elif idx == len(time_array):  # Target time is after the last element
-        return time_array[-1], len(time_array) - 1
+    elif idx >= n - 1:  # Target time is after the last element
+        return time_array[-1], n - 1
     else:
         # Compare the element at idx and the element before idx
         # These are the two candidates for the closest time
@@ -74,3 +85,8 @@ if __name__ == "__main__":
     empty_times = []
     closest_empty, idx = findTime(empty_times, target_exact)
     print(f"The closest time in an empty array is: {closest_empty}, index is: {idx}")
+
+    one_time = 60800.5
+    closest_empty, idx = findTime(one_time, target_exact)
+    print(f"The closest time to single value   is: {closest_empty}, index is: {idx}")
+    

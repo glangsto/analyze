@@ -1,12 +1,24 @@
 #Python find matchs in data directories
 #HISTORY
+#25Sep24 GIL modularize 
+#25Sep23 GIL find indexing problem with matched events.
+#25Sep17 GIL check match lists for repeats
+#25Sep16 GIL finish cleanup and repeat matching code
+#25Sep12 GIL Do not match one event to many events in other telescopes.
+#25Sep05 GIL optionally fit gaussians to event data streams
+#25Aug21 GIL Fix matching, input to findTime was backwards
+#25Aug20 GIL Modularize a bit, move findDate to separate file
+#25Aug11 GIL test for single events, to avoid len(1) failing
+#25Aug11 GIL test for single events, to avoid len(1) failing
+#25Aug10 GIL speed up matching of events, using better sorter
+#25Aug09 GIL use file name for event time, instead of reading files.
 #25Jul06 GIL write outputs to OUTPUT directory
 #25May02 GIL add more x ticks and sub-ticks
 #25Mar20 GIL add Verbose (-V) to print each file being examined
 #25Feb22 GIL check for events in directories 10-15
 #24Oct03 GIL add more galactic annotations
 #24Sep03 GIL log matchs
-#24May06 GIL enable limiting matches due to sigma
+#24May06 GIL enable limiti9ng matches due to sigma
 #24Jan26 GIL print output file pdf
 #23Jul26 GIL compute average RA, Dec for groups of events
 #23Jul25 GIL add 1 hour x tick interval
@@ -70,6 +82,10 @@ from astropy.coordinates import AltAz
 import radioastronomy
 import subprocess
 import copy
+from jdutil import date_to_mjd
+from findTime import findTime
+from findDate import findDirs, readEventsInDir
+from findMatches import *
 
 nargs = len(sys.argv)
 if nargs < 2:
@@ -79,7 +95,7 @@ if nargs < 2:
     print(" -OF Optionally the user provides the maximum time offset (secs) to call a match")
     print(" -C  Optionally provide a calendar date (ie 19Nov17) instead of directories")
     print(" -D  Optionally print debugging info")
-    print(" -E Optionally only show Events with elevation above zero")
+#    print(" -E Optionally only show Events with elevation above zero")
     print(" -F Optionally Do Not flag groups of events")
     print(" -G Optionally plot +/- 10 degrees of galactic plane")
     print(" -H Optionally plot histogram of events per parts of a day")
@@ -89,18 +105,29 @@ if nargs < 2:
     print(" -O <directory> write plots to output directory")
     print(" -ND <n> Optionally divide the day into <n> parts, default 24")
     print(" -P Plot matches")
-    print(" -SI <min sigma> Only match if event obove <min sigma>")
+#    print(" -SI <min sigma> Only match if event obove <min sigma>")
     print(" -Q Quiet processing, no showing plots, only save .pdf, .svg")
     print(" -Y <offset> Optionally adds an offset to the event plots (-P option)")
     print("")
-    print("Glen Langston, 2021 September 1")
+    print("")
+    print("Matching of events from several telescopes is more complex")
+    print("than you might think.  It is fairly easy to find the closest")
+    print("Events in other telescopes to a single event in one telescope.")
+    print("But it is assumed")
+    print("that if there are many matching events in other telescopes, only")
+    print("the closest in time for each telescope is the match, not all close")
+    print("Events.  Filtering requires finding the closest event for each")
+    print("Telescope, then counting and removing the other close matches for")
+    print("the second telescope")
+    print("")
+    print("Glen Langston, 2025 September 12")
     sys.exit()
 
-# separate arguments form file names
-iOffset = 1
+# separate arguments from file names
 ifile = 1
 iii = ifile
-offset = 1.0/86400.   # default match offset is  1 seconds = 1/86400 of a day
+OneMjdSec = float( 1./86400.)
+tOffset = OneMjdSec   # default match offset is 1/2 seconds = 1/86400 of a day
 nday = 24             # by default divide day in 24 hours
 sigma = 4.0           # Minimum sigma to accept
 kpercount = 1.0       # calibration into Kelvin units
@@ -113,26 +140,27 @@ doLog = False
 logFileName = ""
 outdir = ""
 flagGroups = False
-doDebug = False
 doOffset = False
 yoffset = 0.0
-doGalactic = False
+doGalactic = True
+doGaussian = False
 doTransit = False
 raTransit = 0.0
 decTransit = 0.0
 nPrint = 4
 minEl = -100.
 # temporarily turn on/off debugging
+verbose = True
 verbose = False
 
 # read through arguments extracting parameters
 while iii < nargs:
     anarg = sys.argv[iii].upper()
     if str(anarg[0:3]) == "-OF":
-        offset = float(sys.argv[iii+1])
+        tOffset = float(sys.argv[iii+1])
         iii = iii + 1
-        print("Maximum Time Offset: %8.6f s for Match: " % (offset))
-        offset = offset/86400.   # convert to MJDs
+        print("Maximum Time Offset: %8.6f s for Match: " % (tOffset))
+        tOffset = tOffset/86400.   # convert to MJDs
         ifile = ifile + 2
     if str(anarg[0:3]) == "-N":
         nPrint = int(sys.argv[iii+1])
@@ -155,8 +183,8 @@ while iii < nargs:
         print("Not Flagging groups of events")
         ifile = ifile + 1
     if str(anarg[0:3]) == "-G":
-        doGalactic = True
-        print("Marking observations within 10 degrees of galatic plane with *")
+        doGaussian = True
+        print("Fitting Gaussians to event sequences")
         ifile = ifile + 1
     if str(anarg[0:3]) == "-L":  # if logging events
         iii = iii + 1
@@ -225,16 +253,19 @@ while iii < nargs:
     iii = iii + 1
 
 nplot = 0
+# if dividing day into less that 1 part, divide day into hours
 if nday < 1:
     nday = 24
+# number of directories provided
 nDir = nargs-ifile
 #
 MAXDIR = 20
 NOMATCH = -9999
-MAXDT = 10000.
-# define the maximum number of events to keep
-MAXEVENTS = 10000
+MAXDT = 365.
+# Only read one event file, to get location and az, el
+readAzEl = False
 
+# prepare to write out summary of events
 if doLog:
     if os.path.exists(logFileName):
         # if an existing file
@@ -249,162 +280,45 @@ if doLog:
     print( "# Log of events on %s" % (calendar), file=logFile)
     print( "#  Tel   Directory             Event File            Ra     Dec     GLon    GLat N Flashes", file=logFile)
          
-def finddirs( calendar, ifile, nDir):
-    """
-    finddirs() finds the names of directories matching the calendar flag
-    """
-    dirs = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]
-    nDir = 0
-    nfiles = len(sys.argv[ifile:])
-    # now find calendars
-    if calendar == "":
-        dirs[0] = sys.argv[ifile]
-        if nfiles < 2:
-            nDir = 1
-            return dirs[0:1]
-        dirs[1] = sys.argv[ifile+1]
-        nDir = 2
-        if n > 2:
-            dir[nDir] = sys.argv[ifile+2]
-            nDir = nDir+1
-        if nDir > 3:
-            dir[nDir] = sys.argv[ifile+3]
-            nDir = nDir+1
-    else:
-        for idir in range(1, 40):
-            adir = "pi%d-events-" % idir
-            adir = adir + calendar
-            if os.path.isdir(adir):
-                dirs[nDir] = adir
-                nDir = nDir + 1
-                print("Found directory: %s" % adir)
-            if nDir >= MAXDIR:
-                break
-
-        for idir in range(1, 40):
-            adir = "odroid%d-events-" % idir
-            adir = adir + calendar
-            if os.path.isdir(adir):
-                dirs[nDir] = adir
-                nDir = nDir + 1
-                print("Found directory: %s" % adir)
-            if nDir >= MAXDIR:
-                break
-
-        for idir in range(1, 20):
-            adir = "od%d-events-" % idir
-            adir = adir + calendar
-            if os.path.isdir(adir):
-                dirs[nDir] = adir
-                nDir = nDir + 1
-                print("Found directory: %s" % adir)
-            if nDir >= MAXDIR:
-                break
-
-    if nDir < 2:
-        print("Can not match events in less than 2 directories")
-
-    return dirs[0:nDir]
-
-def readEventsInDir( directory):
-    """
-   Read in all events in a file list and return arrays
-    """
-
-#   only examine event files
-    events = list(glob.glob(os.path.join(directory,'*.eve')))
-    nEve = len(events)
-
-    if nEve < 1:
-        print( "No Events in Directory; %s" % (directory))
-        return nEve, "", 0., 0., 0., 0., 0.
-#    else:
-#        print("Found %5d events in directory: %s" % (nEve, directory))
-
-    mjds = np.zeros(nEve)
-    peaks = np.zeros(nEve)
-    rmss = np.zeros(nEve)
-    azs = np.zeros(nEve)
-    els = np.zeros(nEve)
-
-    rs = radioastronomy.Spectrum()
-    kkk = 0
-    for filename in events:
-        fullname = filename
-        if verbose:
-            print("%5d: %s" % (kkk, fullname))
-        rs.read_spec_ast(fullname)
-        if rs.telel < minEl:
-            continue
-        asigma = np.abs(rs.epeak/rs.erms)
-        if asigma < sigma:
-            continue
-        mjds[kkk] = rs.emjd
-        peaks[kkk] = rs.epeak
-        rmss[kkk] = rs.erms
-        azs[kkk] = rs.telaz
-        els[kkk] = rs.telel
-        if (100 * int(kkk/100) == kkk) and doDebug:
-            print("Event %5d: %12.9f: %7.3f+/-%5.3f" % (kkk, rs.emjd, rs.epeak, rs.erms))
-        kkk = kkk + 1
-    nEve = kkk
-
-    return nEve, events, mjds, peaks, rmss, azs, els
-# end of readEventsInDir
-
 # count directories with events
-dirs = finddirs( calendar, ifile, nDir)
+inList = sys.argv[ifile:-1]
+# count number of directories events matching input
 
 if nday != 24:
     nminutes = int(1440.001/nday)
     print("Counting Events in blocks of %5d minutes" % (nminutes))
 
-if doDebug:
-    nDir = len(dirs)
-    for i in range(nDir):
-        print("Dir %d: %s" % (i+1, dirs[i]))
+#verbose = True
 
-def findpairs( EventDir1, EventDir2):
+def matchClose( nall, matchcount, matchindex, dd = 10.*60./86400.) :
     """
-    findpairs() - match events in pairs of event structures
-    Inputs are Python data structures describing the events in the directories
-    Outputs are indicies of matches to 2nd directory and time offsets between
+    Count nearby in time, but not close enough to be an exact match
     """
-    # extract number of events in each directory
-    n1 = EventDir1['n']
-    n2 = EventDir2['n']
-    # make sure there are plenty of indicies, set to no-match
-    ii12s = np.zeros(n1+n2) + NOMATCH
-    # init minimum time offsets
-    dt12s = np.zeros(n1+n2) + MAXDT
+    # for all events, 
+    for iii in range(nall):
+        # if an already counted match
+        if matchcount[iii] < 1:
+            continue
+        mmm = (nall - iii) - 1
+        # look at all other events
+        for jjj in range(mmm):
+            # starting at one after the current event
+            kkk = iii + jjj + 1
+            # if not already counted as an event
+            if matchcount[kkk] > 0:
+                # if a match of time
+                matchcount[kkk] = -1
+                matchindex[kkk] = -1
+    return matchcount, matchindex
+                
 
-    mjd1s = EventDir1['mjds']
-    mjd2s = EventDir2['mjds']
-
-    # now match event times in directories 1 and 2
-    for lll in range(n1):
-        mjd1 = mjd1s[lll]
-        # assume closest match is first file in 2nd list
-        dtj = 0
-        mjd2 = mjd2s[dtj]
-        dtMin = abs(mjd1 - mjd2)
-        dtPM = mjd1 - mjd2
-        for jjj in range(n2):
-            mjd2 = mjd2s[jjj]
-            dt = mjd1 - mjd2
-            dtabs = abs(dt)
-            if dtabs < dtMin:
-                dtMin = dtabs
-                dtPM = dt   # dt with sign Plus/Minus = PM
-                dtj = jjj   # keep index to closest other event
-        ii12s[lll] = dtj
-        dt12s[lll] = dtPM
-    return ii12s, dt12s
-# end of find pairs of matches
-
-def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, EventDirs, nall, match4times, match4count, match4gallon, match4gallat, nUnique):
+def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, \
+                   EventDirs, nall, matchtimes, matchcount, matchgallon, \
+                   matchgallat, nUnique):
     """
     plot several histograms of the event count versus time of day
+    where:
+    nUnique - number of distinque events
     """
     import subprocess
     import matplotlib.pyplot as plt
@@ -449,16 +363,12 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
         counts = copy.deepcopy( EventDirs[ddd]['counts'])
         countmax[ddd] = np.max(counts)
         yoffset = yoffset + countmax[ddd]
-        if verbose:
-            print( "%d: Max Counts %5d (%d)" % (ddd,countmax[ddd],yoffset))
 
     ytop = yoffset
     # now back down from the top for each plot
     for ddd in range(nDir):
         yoffset = yoffset - countmax[ddd]
         yoffsets[ddd] = yoffset
-        if verbose:
-            print( "%d: Y offset %5d %5d" % (ddd,yoffsets[ddd], yoffset))
 
     yoffsets[nDir-1] = 0
 
@@ -467,27 +377,27 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
     barcolors = ["gold", "wheat", "greenyellow", "mistyrose", \
                  "wheat", "lightgrey", "mintcream"]
     # now for all directorys with events
-    for ddd in range( nDir):
-        adir = EventDirs[ddd]['dir']
-        nEve = EventDirs[ddd]['n']
-        counts = copy.deepcopy( EventDirs[ddd]['counts'])
-        if verbose:
-            for iDay in range(nday):
-                if counts[iDay] > 0:
-                    print("%5d %8.2f %5d" % ( iDay, utcparts[iDay], counts[iDay]))
+    for iDir in range( nDir):
+        adir = EventDirs[iDir]['dir']
+        nEve = EventDirs[iDir]['n']
+        counts = copy.deepcopy( EventDirs[iDir]['counts'])
+#        if verbose:
+#            for iDay in range(nday):
+#                if counts[iDay] > 0:
+#                    print("%5d %8.3f %5d" % ( iDay, utcparts[iDay], counts[iDay]))
 
         alabel = adir[0:5]
         labelparts = alabel.split("-")
-        alabel = "%s:%4d" % (labelparts[0], nEve)
+        alabel = "%4s:%4d" % (labelparts[0], nEve)
         # duplicate the last value to complete the plot
         counts = np.append( counts, counts[nday-1])
-        ybottom = yoffsets[ddd]
+        ybottom = yoffsets[iDir]
 # time epsilon to unhide multiple events
-        plt.step( utcparts, counts + yoffsets[ddd], where="post", label=alabel)
+        plt.step( utcparts, counts + yoffsets[iDir], where="post", label=alabel)
 #        plt.bar( utcparts, counts, bottom=ybottom, align="center", \
 #        plt.bar( utcparts, counts, bottom=ybottom, align="edge", \
         plt.bar( utcparts, counts, width=deltat, bottom=ybottom, align="edge", \
-                  label=None, color=barcolors[ddd])
+                  label=None, color=barcolors[iDir])
         #                  where='post', label=alabel)
         maxcounts = np.max(counts)
 
@@ -620,17 +530,6 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
     if doTransit:
         tutc = utc0   # start at beginning of day to find transit utc
         dutc = 0
-#        for kkk in range(10):
-#            target = SkyCoord( ra=raTransit*u.deg, dec=decTransit*u.deg,
-#                           unit='deg', \
-#                           frame='icrs', location=asite, obstime=tutc)
-#            daz = - target.ra.hourangle*15./2.
-#            dutc = datetime.timedelta(seconds=(daz*86400.))
-#            print( "utc:%s dutc: %s" % (tutc, dutc))
-#            tutc = tutc + dutc
-#        # find transit time by Newton's method
-#        transit = tutc - utc0
-#
         if xtransit > 24.:
             xtransit = xtransit - 24.
         if xtransit > 24.:
@@ -680,7 +579,7 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
     for iii in range(nall):
         if flagGroups:    # If not flagging groups, skip this processing
             continue
-        x4 = match4times[iii] - mjdRef
+        x4 = matchtimes[iii] - mjdRef
         # if date is beyond 0-24 hour range, move in range
         x4 = (x4*24.) % 24.
         # now compute x position for this MJD
@@ -690,22 +589,21 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
         icolor = iplot % 6
         plt.axvline( x4, color=verticalcolors[icolor], linestyle='dashed')
         # if a single match
-        if match4count[iii] == 1:
-            alabel = "  %5.1f,%5.1f" % (match4gallon[iii],match4gallat[iii])
+        if matchcount[iii] == 1:
+            alabel = "  %5.1f,%5.1f" % (matchgallon[iii],matchgallat[iii])
             ax.annotate(alabel, xy=( x4, y0), xytext=(x4 , y0), \
                             arrowprops=dict(facecolor='black', shrink=.003),)
-        elif match4count[iii] > 1:
-            alabel = "  %5.1f,%5.1f (%d)" % (match4gallon[iii],match4gallat[iii], match4count[iii])
+        elif matchcount[iii] > 1:
+            alabel = "  %5.1f,%5.1f (%d)" % (matchgallon[iii],matchgallat[iii], matchcount[iii])
             ax.annotate(alabel, xy=( x4, y0), xytext=(x4 , y0), \
                             arrowprops=dict(facecolor='black', shrink=.003),)
-        if match4count[iii] >= 1:
+        if matchcount[iii] >= 1:
             y0 = y0 + yoffset
             iplot = iplot + 1
             # keep from going off the plot
         if y0 > ytop - (2 * yoffset):
             y0 = 2 * yoffset
     # now finish up labels
-#    plt.legend(title="Set of Obs.")
     plt.legend()
     if nDir == 1:
         plt.title("%s   Event Rate" % (calendar),fontsize=18)
@@ -780,587 +678,201 @@ def main():
     Main executable for matching transient events
     """
 
-    nDir = len(dirs)
-    nEvents = np.zeros(nDir)
+# dirs is the list of names of directories that match the input string.
+# nDir is the count of directory names
+    dirs, nDir = findDirs( inList, calendar)
+    nEvents = np.zeros(nDir) # init the counts of events in each directory
 
     iDir = 0
     # look though all directories
     for dir in dirs:
-        # read all events in one directory
-        nEve, events, mjds, peaks, rmss, azs, els = readEventsInDir( dir)
+        # read count of events, event file names and MJDs of events
+        nEve, eventNames, mjds = readEventsInDir( dir)
+        # convert List to array
+        mjds = np.array( mjds)
         # if any events
         if nEve > 0:
             # create an object with the events
-            aDir = { 'dir': dir,
-                     'events' : events,
-                     'n': nEve,
-                     'mjds': mjds,
-                     'peaks': peaks,
-                     'rmss' : rmss,
-                     'azs' : azs,
-                     'els' : els
+            aDir = { 'dir': dir,              # name of directory
+                     'events' : eventNames,   # names of events in directories
+                     'n': nEve,               # count of events in directory
+                     'mjds': mjds,            # array of MJDs of these events
                      }
-            if iDir == 0:
-                EventDirs = { iDir : aDir }
+            fullName = dir[0:4]
+            fullParts = fullName.split("-")
+            telName = fullParts[0]
+            if iDir == 0:                     # initialize a list of directories
+                eventDirs = { iDir : aDir }
+                telNames = [ telName ]
             else:
-                EventDirs.update({ iDir : aDir})
+                eventDirs.update({ iDir : aDir})   #else add to directory list
+                telNames.append( telName)
             iDir = iDir + 1
-            print("%5d Events in Directory: %s" % (nEve, dir))
+            print("%5d Events in Directory: %s (%s)" % (nEve, dir, telName))
 
     # end reading all events in a directory
 
-    # for each of the directories, count the events per hour (or other fraction of a day)
+    # for each of the directories, count the events per fraction of a day)
     nDir = iDir # keep track of directory count
     mjdRef = 0.
-    # for each directory, find the reference mjd
-    for iDir in range( nDir):
-        session = copy.deepcopy(EventDirs[ iDir])
-        mjds = session['mjds']
+
+    # for each directory, find the reference mjd, which is earliest mjd in list
+    for iDir in range( nDir): 
+        mjds =  eventDirs[ iDir]['mjds']
         if mjdRef == 0:
             mjdRef = int(mjds[0])
         if int(mjds[0]) < mjdRef:
-            mjdRef = int(mjds[0])
+            mjdRef = int(mjds[iDir])
 
-    print( "MJD reference: %12.6f" % (mjdRef))
+    if nDir > 0:
+        print( "MJD reference: %12.6f" % (mjdRef))
 
-    nTotal = 0
-    # next, for each directory, count events in each hour/part of a day
+    rs = radioastronomy.Spectrum()
+    if nDir > 0:
+        filename = eventDirs[ 0]['events'][0]
+        rs.read_spec_ast( filename)
+    else:
+        filemame = ""
+    nTotal = 0   # count total number of events in all directories
+    # next, for each directory, count eventNames in each hour/part of a day
     for iDir in range( nDir):
-        session = copy.deepcopy(EventDirs[ iDir])
+        # examine each directories events.  A session is one telescope-day
+        session = copy.deepcopy(eventDirs[ iDir])
         nEve = session['n']
         nTotal = nTotal + nEve
         mjds = session['mjds']
-        counts = np.zeros(nday)
+        countsInDt = np.zeros(nday)   # initialize the counts per fraction of a day
         # now count events in each range
         for iEve in range(nEve):
-#            dMjd = mjds[iEve] - mjdRef + (0.5/float(nday))
             dMjd = mjds[iEve] - mjdRef
+            # compute index into counts as a fraction of a day.
             iDay = int((dMjd*nday))
             # wrap around day fraction
             iDay = iDay % nday
-            counts[iDay] = counts[iDay]+1
-        session['counts'] = counts
-        EventDirs[ iDir] = copy.deepcopy(session)
+            # these counts are only for a single telescope
+            # to plot events as a function of time.
+            countsInDt[iDay] = countsInDt[iDay]+1
+        # a session is one day and one telescope
+        session['counts'] = countsInDt
+        eventDirs[ iDir] = copy.deepcopy(session)
 
-#       print("Hour fraction of Events in Directory %s" % (session["dir"]))
+    if nDir > 0:                 # deal with finding no telescopes
+        print("Count of Events in Time interval for each Telescope ")
+        print("                    Telescope")
+        print(" Time ", end="")
 
+    nEves = np.zeros(nDir)
+    # now for all time intervals show events in that interval
+    for iDir in range( nDir):
+        nEves[iDir] = eventDirs[ iDir ]['n']
+        countsInDt = copy.deepcopy( eventDirs[iDir]['counts'])
+
+        if iDir == 0:
+            countsMatrix = [ countsInDt ]
+        else:
+            countsMatrix.append( countsInDt)
+        print("%5s " % (telNames[iDir]), end = "")
     if nDir > 0:
-        session0 = EventDirs[ 0 ]
-        nEve0 = EventDirs[ 0 ]['n']
-        counts0 = copy.deepcopy( EventDirs[0]['counts'])
-    else:
-        print("No directories with events found, exiting")
-        sys.exit()
-    if nDir > 1:
-        nEve1 = EventDirs[ 1 ]['n']
-        session1 = EventDirs[ 1 ]
-        counts1 = copy.deepcopy( EventDirs[1]['counts'])
-    else:
-        nEve1 = 0
-        counts1 = np.zeros(nday)
-    if nDir > 2:
-        session2 = EventDirs[ 2 ]
-        nEve2 = EventDirs[ 2 ]['n']
-        counts2 = copy.deepcopy( EventDirs[2]['counts'])
-    else:
-        nEve2 = 0
-        counts2 = np.zeros(nday)
-    if nDir > 3:
-        session3 = EventDirs[ 3 ]
-        nEve3 = EventDirs[ 3 ]['n']
-        counts3 = copy.deepcopy( EventDirs[3]['counts'])
-    else:
-        nEve3 = 0
-        counts3 = np.zeros(nday)
-    if nDir > 4:
-        session4 = EventDirs[ 4 ]
-        nEve4 = EventDirs[ 4 ]['n']
-        counts4 = copy.deepcopy( EventDirs[4]['counts'])
-    else:
-        nEve4 = 0
-        counts4 = np.zeros(nday)
-    if nDir > 5:
-        session5 = EventDirs[ 5 ]
-        nEve5 = EventDirs[ 5 ]['n']
-        counts5 = copy.deepcopy( EventDirs[5]['counts'])
-    else:
-        nEve5 = 0
-        counts5 = np.zeros(nday)
+        print("")
 
-    print("Hour        Telescope/Day  ")
-    if nDir > 4:
-        print("Hour      1     2     3     4     5")
-    elif nDir > 3:
-        print("Hour      1     2     3     4")
-    elif nDir > 2:
-        print("Hour      1     2     3")
-    else:
-        print("Hour      1     2")
-
-    utcparts = np.zeros(nday)
-    # now print matches as a function of time
+    # init total per telescope
+    telTotals = np.zeros(nDir)
+    # now print events as a function of time, for each telescope if any has an event
     for iDay in range(nday):
-        utcparts[iDay] = float(iDay*24./float(nday))
-        if counts0[iDay] != 0 or counts1[iDay] != 0 or counts2[iDay] != 0 \
-                or counts3[iDay] != 0 or counts4[iDay] != 0:
-            if nDir == 5:
-                print("%5.1f  %5d %5d %5d %5d %5d" % (utcparts[iDay], \
-                                                  counts0[iDay],counts1[iDay], counts2[iDay], counts3[iDay], counts4[iDay]))
-            elif nDir == 4:
-                print("%5.1f  %5d %5d %5d %5d" % (utcparts[iDay], \
-                                               counts0[iDay],counts1[iDay], counts2[iDay], counts3[iDay]))
-            elif nDir == 3:
-                print("%5.1f %5d %5d %5d " % (utcparts[iDay], \
-                                               counts0[iDay],counts1[iDay], counts2[iDay]))
-            elif nDir == 2:
-                print("%5.1f %5d %5d " % (utcparts[iDay], \
-                                               counts0[iDay],counts1[iDay]))
-            elif nDir == 1:
-                print("%5.1f %5d " % (utcparts[iDay], \
-                                               counts0[iDay]))
-            else: # else 5 or more, just print 5
-                print("%5.1f %5d %5d %5d %5d %5d" % (utcparts[iDay], counts0[iDay], \
-                                                       counts1[iDay], counts2[iDay], counts3[iDay], counts4[iDay]))
-
-# Given N telescopes, there are N!/2 pairs of observations
-# ie 2 Telescopes, 1 Pair
-#    3 Telescopes, 3 Pairs
-#    4 Telescopes  6 Pairs
-#    5 Telescopes 30 Pairs
-
-# determine the maximum number of matches
-    maxMatch = nTotal
-
-    mjd0s = EventDirs[0]['mjds']
-    # for each of the pairs of directories, find closest matches
-    if nDir > 1:
-        mjd1s = EventDirs[1]['mjds']
-        ii01s, dt01s = findpairs( EventDirs[0], EventDirs[1])
-    if nDir > 2:
-        mjd2s = EventDirs[2]['mjds']
-        ii02s, dt02s = findpairs( EventDirs[0], EventDirs[2])
-        ii12s, dt12s = findpairs( EventDirs[1], EventDirs[2])
-    if nDir > 3:
-        mjd3s = EventDirs[3]['mjds']
-        ii03s, dt03s = findpairs( EventDirs[0], EventDirs[3])
-        ii13s, dt13s = findpairs( EventDirs[1], EventDirs[3])
-        ii23s, dt23s = findpairs( EventDirs[2], EventDirs[3])
-    if nDir > 4:
-        mjd4s = EventDirs[4]['mjds']
-        ii04s, dt04s = findpairs( EventDirs[0], EventDirs[4])
-        ii14s, dt14s = findpairs( EventDirs[1], EventDirs[4])
-        ii24s, dt24s = findpairs( EventDirs[2], EventDirs[4])
-        ii34s, dt34s = findpairs( EventDirs[3], EventDirs[4])
-    if nDir > 5:
-        mjd5s = EventDirs[5]['mjds']
-        ii05s, dt04s = findpairs( EventDirs[0], EventDirs[4])
-        ii15s, dt14s = findpairs( EventDirs[1], EventDirs[4])
-        ii25s, dt24s = findpairs( EventDirs[2], EventDirs[4])
-        ii35s, dt34s = findpairs( EventDirs[3], EventDirs[4])
-
-    # now report out the minimum time offsets and times less than 1 second off
-    OneMjdSec = 1./86400.
-
-# now match each pair of directories.  Match 1+2
-# count signficant matchs
-    nMatch = 0
-    iMatch = 0
-# offset is the minimum time, to accept as a match
-# for all events in first directory, find acceptable matches in others
-    for i0 in range(nEve0):
-        matchcount = 1  # always match with self
-        mjdave = mjd0s[i0]
-        i1 = NOMATCH
-        i2 = NOMATCH
-        i3 = NOMATCH
-        i4 = NOMATCH
-        i5 = NOMATCH
-        if i0 == 0:
-            match = { 'nmatch': nMatch, 'count': matchcount, 'mjd': mjdRef, 'list': [ i0, i1, i2, i3, i4, i5] }
-            matchs = { nMatch: match }
-
-
-        if nDir < 2:
-            continue
-        if abs(dt01s[i0]) < offset:
-            i1 = int(ii01s[i0])
-            mjdave = mjdave + mjd1s[i1]
-            matchcount = matchcount + 1
-        if nDir > 2:
-            if abs(dt02s[i0]) < offset:
-                i2 = int(ii02s[i0])
-            #            print("0: %5d, 1: %5d 2: %5d" % (i0, i1, i2))
-                mjdave = mjdave + mjd2s[i2]
-                matchcount = matchcount + 1
-        if nDir > 3:
-            if abs(dt03s[i0]) < offset:
-                i3 = int(ii03s[i0])
-                mjdave = mjdave + mjd3s[i3]
-                matchcount = matchcount + 1
-        if nDir > 4:
-            if abs(dt04s[i0]) < offset:
-                i4 = int(ii04s[i0])
-                mjdave = mjdave + mjd4s[i4]
-                matchcount = matchcount + 1
-        # if any matches to this event
-        if matchcount > 1:
-            # a match has at least two partners
-            mjdave = mjdave / float(matchcount)
-#            if matchcount == nDir:
-#                print( "MJD Ave: %12.6f; %12.6f %12.6f %12.6f, %12.6f" % (mjdave, mjd0s[i0], mjd1s[i1], mjd2s[i2], mjd3s[i3]))
-            # currently can only compare 4 directories/telescopes
-            match = { 'nmatch': nMatch, 'count': matchcount, 'mjd': mjdave, 'list': [ i0, i1, i2, i3, i4, i5] }
-            if nMatch == 0:
-                matchs = { nMatch: match }
-            else:
-                matchs.update({ nMatch : match })
-            nMatch = nMatch + 1
-
-# Now must first flag events already matched with this directory
-    i0 = NOMATCH
-    for i1 in range(nEve1):
-        matchcount = 1
-        mjdave = mjd1s[0]
-        i2 = NOMATCH
-        i3 = NOMATCH
-        i4 = NOMATCH
-        i5 = NOMATCH
-        if nDir < 3:
-            continue
-        if abs(dt12s[i1]) < offset:
-            i2 = int(ii12s[i1])
-            mjdave = mjdave + mjd2s[i2]
-            matchcount = matchcount + 1
-        if nDir > 3:
-            if abs(dt13s[i1]) < offset:
-                i3 = int(ii13s[i1])
-                mjdave = mjdave + mjd3s[i3]
-                matchcount = matchcount + 1
-        if matchcount > 1:
-            match['nmatch'] = nMatch
-            match['count'] = matchcount
-            match['mjd'] = mjdave / float(matchcount)
-            match['list'] = [ i0, i1, i2, i3, i4, i5]
-            matchs[ nMatch ] = match
-            nMatch = nMatch + 1
-
-#        if doDebug:
-#             print("Event %s Matches %s; Offset: %9.6f s" % (event1s[lll], event2s[jjj], dts))
-#             print("%5d %18.9f: %5d %18.9f" % (lll, mjd1s[lll], jjj, mjd2s[jjj]))
-# Now must first flag events already matched with this directory
-    i0 = NOMATCH
-    i1 = NOMATCH
-    for i2 in range(nEve2):
-        matchcount = 1
-        mjdave = mjd2s[0]
-        i3 = NOMATCH
-        i4 = NOMATCH
-        i5 = NOMATCH
-        if nDir > 3:
-            if abs(dt23s[i2]) < offset:
-                i3 = int(ii23s[i2])
-                mjdave = mjdave + mjd3s[i3]
-                matchcount = matchcount + 1
-        if matchcount > 1:
-            match['nmatch'] = nMatch
-            match['count'] = matchcount
-            match['mjd'] = mjdave / float(matchcount)
-            match['list'] = [ i0, i1, i2, i3, i4, i5]
-            matchs[ nMatch ] = match
-            nMatch = nMatch + 1
-
-    print("Total number of sets of matches: %d" % (nMatch))
-
-    # now trim out all the pairs of matches that are double counted
-    # ie if matched between dirs 0 1, 2 and 3
-    # then must flag out matched 1,2, 1,3 and 2,3
-    for lll in range((nMatch-1)):
-            # now compare all pairs of matches
-        matcha = matchs[ lll]
-        lista = matcha['list']
-        counta = matcha['count']
-        if nDir < 2:
-            continue
-        # first pass, only look at 4 matches
-        if counta < 5:
-            continue
-        for nnn in range((nMatch-lll-1)):
-            kkk = lll + nnn + 1
-            matchb = matchs[kkk]
-            listb = matchb['list']
-            countb = matchb['count']
-            # count pairs of matches between two lists:
-            paircount = 0
-            if lista[0] == listb[0]:
-                paircount = paircount+1
-            if lista[1] == listb[1]:
-                paircount = paircount+1
-            if lista[2] == listb[2]:
-                paircount = paircount+1
-            if lista[3] == listb[3]:
-                paircount = paircount+1
-            if lista[4] == listb[4]:
-                paircount = paircount+1
-            if lista[5] == listb[5]:
-                paircount = paircount+1
-            # if the number of matchs in 2nd matches all in first
-            if paircount == countb:
-                countb = 0
-                matchb['count'] = 0
-                matchs[kkk] = matchb
-
-    counts = np.zeros(nDir)
-# finally count matches between directories
-    for lll in range(nMatch):
-            # now compare all pairs of matches
-        matcha = matchs[ lll]
-        lista = matcha['list']
-        counta = matcha['count']
-        if nDir < 2:
-            continue
-        if counta < 1: # if a flagged match
-            continue # ignore this match
-        if lista[0] != NOMATCH:
-            counts[0] = counts[0] + 1
-        if lista[1] != NOMATCH:
-            counts[1] = counts[1] + 1
-        if lista[2] != NOMATCH:
-            counts[2] = counts[2] + 1
-        if lista[3] != NOMATCH:
-            counts[3] = counts[3] + 1
-        if lista[4] != NOMATCH:
-            counts[4] = counts[4] + 1
-        if lista[5] != NOMATCH:
-            counts[5] = counts[5] + 1
-
-
-    print( " Matches of Events with other telescopes")
-    if nDir == 2:
-        print( " Tel:     2 ")
-    elif nDir == 3:
-        print( " Tel:     2     3 ")
-    elif nDir == 4:
-        print( " Tel:     2     3     4 ")
-    elif nDir == 5:
-        print( " Tel:     2     3     4     5 ")
-    else:
-        print( " Tel:     2     3     4     5     6 ")
-
-    nCheck = min( nDir, 5)
-    for iii in range(nCheck):
-        counttypes = np.zeros(max(nDir,4))
-        for lll in range(nMatch):
-            matcha = matchs[ lll]
-            lista = matcha['list']
-            counta = matcha['count'] - 1
-            if counta < 0:
+        eventsFound = False
+        for iDir in range(nDir):
+            if countsMatrix[iDir][iDay] != 0:
+                eventsFound = True
                 continue
-            if lista[iii] != NOMATCH:
-                counttypes[counta] = counttypes[counta] + 1
-        print( "%3d:  %5d %5d %5d" % (iii, counttypes[1], counttypes[2], counttypes[3]))
+        if eventsFound:
+            utcN = float(iDay*24./float(nday))
+            print("%5.1f " % (utcN), end = "")
+            for iDir in range(nDir):
+                print("%5d " % (countsMatrix[iDir][iDay]), end =  "")
+                telTotals[iDir] = telTotals[iDir] + countsMatrix[iDir][iDay]
+            print("")
 
-    # prepare a full spectrum for time reference
+    print("Total:", end = "")
+    for iDir in range( nDir):
+        print("%5d " % (int(telTotals[iDir])), end = "")
+    if iDir < 1:
+        print("    0")
+    else:
+        print("")
+        # there are (nDir-1)! possible pairs
+        print("       Count of matches with other telescopes")
+        
+
+    matchCounts = np.zeros( nDir)
+
+    if nDir < 1:
+        exit()
+    nMatch, eventList = findMatches( nDir, eventDirs, telNames, tOffset = tOffset, verbose=True)
+    print("Total number of sets of matches: %d" % (nMatch))
+    eventTrim = trimEvents( nMatch, eventList, nDir, eventDirs)
+
+    nMin = 3
+    nRemain, eventFinal = compressEvents( nMatch, eventTrim, nMin=nMin, verbose = True)
+    print("##############################################################################")
+    print("Compressed %d events to %d events with minimum number of telescopes=%d" % \
+          (nMatch, nRemain, nMin))
+
     rs = radioastronomy.Spectrum()
-    # read in the first event
-    fullname = EventDirs[ 0]['events'][0]
-    rs.read_spec_ast( fullname)
-    rs.azel2radec()
 
+    matchtimes = np.zeros(nRemain)
+    matchcounts = np.zeros(nRemain)
+    matchgallon = np.zeros(nRemain)
+    matchgallat = np.zeros(nRemain)
+
+    files = []
+    # now fill arrays with coordinates and info
+    iMatch = 0
+    for lll in range(nRemain): 
+        amatch = eventFinal[ lll] 
+        matches = amatch['list']
+        nTel = amatch['count']
+        for iDir in range(nDir):
+            iMatch = matches[iDir]
+            if iMatch != NOMATCH:
+                # find file name in sets of names
+                fileName = eventDirs[iDir]['events'][iMatch]
+                files.append( fileName)
+                rs.read_spec_ast( fileName)
+                rs.azel2radec()
+                # now pass info 
+                matchtimes[lll] = amatch['mjd']
+                matchcounts[lll] =  int(amatch['count'])
+                matchgallon[lll] = rs.gallon
+                matchgallat[lll] = rs.gallat
+        aveMjd = amatch['mjd']
+        showMatch( iMatch, aveMjd, nDir, matches, eventDirs)
+        iMatch = iMatch + 1
+               
+    verbose = False
+
+    # if only one directory, plot histogram without matches.
     if nDir == 1:
         plotHistogram( nDir, rs, nday, mjdRef, doTransit, \
                        raTransit, decTransit, \
-                       EventDirs, 0, [ 0., 0.], [ 0, 0], [ 0., 0.], [0., 0.], 0)
+                       eventDirs, 0, [ 0., 0.], [ 0, 0], [ 0., 0.], [0., 0.], 0)
         exit()
 
-#    for iii in range(nDir):
-    for lll in range(nMatch):
-
-        # now compare all pairs of matches
-        matcha = matchs[ lll]
-        lista = matcha['list']
-        counta = matcha['count']
-        if counta < 1: # if a flagged match
-            continue # ignore this match
-        if lista[0] != NOMATCH:
-            counts[0] = counts[0] + 1
-        if lista[1] != NOMATCH:
-            counts[1] = counts[1] + 1
-        if lista[2] != NOMATCH:
-            counts[2] = counts[2] + 1
-        if lista[3] != NOMATCH:
-            counts[3] = counts[3] + 1
-#        print( "Directory: %2d - %5d"  % (iii, counts[iii]))
-
-    nall=0
-    # make big arrays to keep track of multiple matches
-    files0 = EventDirs[0]['events']
-    match4times = np.zeros(nMatch)
-    match4gallon = np.zeros(nMatch)
-    match4gallat = np.zeros(nMatch)
-    match4ra = np.zeros(nMatch)
-    match4dec = np.zeros(nMatch)
-    match4index = np.zeros(nMatch)
-    # now make a list of events that only have enough matches
-    for lll in range(nMatch):
-        matcha = matchs[ lll ]
-        lista = matcha['list']
-        counta = matcha['count']
-        if counta < nPrint:
-            continue
-        # must have one directory, but others might not be present
-        i0 = lista[0]
-        if i0 < 0:
-            continue
-        if i0 >= nEve0:
-            print("Error reading telescope 0 index %d not in range 0 to %d" % \
-                  ( i0, len(files0)))
-            print(lista)
-            continue
-        file0 = files0[i0]
-        rs.read_spec_ast(file0)
-        rs.azel2radec()
-        match4times[nall] = matcha['mjd']
-        match4gallon[nall] = rs.gallon
-        match4gallat[nall] = rs.gallat
-        match4ra[nall] = rs.ra
-        match4dec[nall] = rs.dec
-        match4index[nall] = lll
-        nall = nall + 1
-
-    match4count = np.zeros(nall) + 1
-    # compute index of coordinates within a small angular area
-
-    dd = 0.5  # match offset is small number of degrees
-    n3 = nall - 1
-    # now count full, matched, events within a small angular area
-    for iii in range(nall):
-        # if an already counted match
-        if match4count[iii] < 1:
-            continue
-        mmm = (nall - iii) - 1
-        for jjj in range(mmm):
-            kkk = iii + jjj + 1
-            # if not an already flagged match
-            if match4count[kkk] > 0:
-                # if a match of coordinates
-                if (match4gallon[kkk] - dd < match4gallon[iii] and \
-                        match4gallon[kkk] + dd > match4gallon[iii] and \
-                        match4gallat[kkk] - dd < match4gallat[iii] and \
-                        match4gallat[kkk] + dd > match4gallat[iii]):
-                    # count number of matches to this event
-                    match4count[iii] = match4count[iii] + 1
-                    # compute average ra, dec of event sum with first value
-                    match4ra[iii] = match4ra[iii] + match4ra[kkk]
-                    match4dec[iii] = match4dec[iii] + match4dec[kkk]
-                    match4count[kkk] = -1
-                    match4index[kkk] = -1
-
-#    for iii in range(nall):
-#        # if an already counted match
-#        if match4count[iii] < 1:
-#            continue
-#        print( "Event: %8.2f %5.1f %5.1f %3d" % (match4times[iii], \
-#                                                      match4gallon[iii], match4gallat[iii], match4count[iii]))
-    # print multiple, isolated events
-    nUnique = 0
-    # next print complete matches within the same (small) region
-    for lll in range(nMatch):
-        matcha = matchs[ lll ]
-        lista = matcha['list']
-        counta = matcha['count']
-        if counta < nPrint:
-            continue
-        # now only print unique or 1st of many matches
-        isUnique = False
-        for iii in range(nall):
-            if lll == match4index[iii]:
-                isUnique = True
-                multiples = match4count[iii]
-        if not isUnique:
-            continue
-        nUnique = nUnique + 1
-        # must have one directory, but others might not be present
-        i0 = lista[0]
-        i1 = NOMATCH
-        i2 = NOMATCH
-        i3 = NOMATCH
-        i4 = NOMATCH
-        if nDir > 1:
-            i1 = lista[1]
-        if nDir > 2:
-            i2 = lista[2]
-        if nDir > 3:
-            i3 = lista[3]
-        if nDir > 4:
-            i4 = lista[4]
-        if i0 == NOMATCH:
-            file0 = ""
-        else:
-            file0 = files0[i0]
-            rs.read_spec_ast(file0)
-            rs.azel2radec()
-            if multiples > 1:
-                avera = match4ra[lll]/float(multiples)
-                avedec = match4dec[lll]/float(multiples)
-            avera = rs.ra
-            avedec = rs.dec
-            #
-            print("%3d 0 %s %7.1f %7.1f %7.1f %7.1f %d" % \
-#                  (lll, file0, avera, avedec, rs.gallon, rs.gallat, multiples))
-                  (nUnique, file0, avera, avedec, rs.gallon, rs.gallat, multiples))
-            if doLog:
-              print("%3d 0 %s %7.1f %7.1f %7.1f %7.1f %d" % \
-                  (nUnique, file0, avera, avedec, rs.gallon, rs.gallat, multiples), file=logFile)
-
-        if i1 == NOMATCH:
-            file1 = ""
-        else:
-            files1 = EventDirs[1]['events']
-            file1 = files1[i1]
-            print("%3d 1 %s" %  (nUnique, file1))
-            if doLog:
-              print("%3d 1 %s" %  (nUnique, file1), file=logFile)
-        if i2 == NOMATCH:
-            file2 = ""
-        else:
-            files2 = EventDirs[2]['events']
-            file2 = files2[i2]
-            print("%3d 2 %s" %  (nUnique, file2))
-            if doLog:
-              print("%3d 2 %s" %  (nUnique, file2), file=logFile)
-        if i3 == NOMATCH:
-            file3 = ""
-        else:
-            files3 = EventDirs[3]['events']
-            file3 = files3[i3]
-            print("%3d 3 %s" %  (nUnique, file3))
-            if doLog:
-              print("%3d 3 %s" %  (nUnique, file3), file=logFile)
-        if i4 == NOMATCH:
-            file4 = ""
-        else:
-            files4 = EventDirs[4]['events']
-            file4 = files4[i4]
-            print("%3d 4 %s" %  (nUnique, file4))
-            if doLog:
-              print("%3d 4 %s" %  (nUnique, file4), file=logFile)
+    if doPlot:
+        if not doOffset:
+            yoffset = 0.
             
-        if doPlot:
-            if doOffset:
-                plotcmd = "~/Research/analyze/E -Y %.2f %s %s %s %s %s" % (yoffset, file0, file1, file2, file3, file4)
-            else:
-                plotcmd = "~/Research/analyze/E %s %s %s %s %s" % (file0, file1, file2, file3, file4)
-            os.system(plotcmd)
+        plotcmd = "~/Research/analyze/E -Y %.2f %s " % (yoffset, files)
+        os.system(plotcmd)
 
     if doLog:
         logFile.close()
-    print( "Count of Events and Event Groups: %d" % (nUnique))
+    print( "Count of Events and Event Groups: %d" % (nRemain))
 
 # now have a list of single events and multiple events, plot histogram
     plotHistogram( nDir, rs, nday, mjdRef, doTransit, \
                    raTransit, decTransit, \
-                   EventDirs, nall, match4times, match4count, \
-                   match4gallon, match4gallat, nUnique)
+                   eventDirs, nRemain, matchtimes, matchcounts, \
+                   matchgallon, matchgallat, nRemain)
 
 # now count all events happening within .1 degrees of other events.
 
