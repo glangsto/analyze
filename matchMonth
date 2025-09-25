@@ -1,0 +1,35 @@
+#/bin/sh
+# match one month's events from all available telescopes
+# 25Sep06 GIL update to input other dates.
+#
+# example input is:
+# matchMonth 25Aug
+#
+
+export analyze=$HOME/Research/analyze
+
+if [ -z "$1" ]
+then
+    echo "matchMonth: sort one month of observations"
+    echo "example:"
+    echo "matchMonth 25Aug"
+    exit -1
+else
+    export dateToSort=$1
+fi
+
+cd /media/karl
+
+echo Sorting directory: /media/karl
+echo Sorting date     : $dateToSort
+
+export zero=0
+for i in $(seq 1 31); do
+  export dayToSort=$dateToSort$i
+  if [ $i -lt 10 ] ; then
+     export dayToSort=$dateToSort$zero$i
+  fi
+  echo $i $dayToSort
+  $analyze/MATCHDAILY $dayToSort
+done
+
