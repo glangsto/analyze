@@ -318,6 +318,7 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
     """
     plot several histograms of the event count versus time of day
     where:
+    nDir = number of telescopes
     nUnique - number of distinque events
     """
     import subprocess
@@ -726,16 +727,12 @@ def main():
 
     if nDir > 0:
         print( "MJD reference: %12.6f" % (mjdRef))
-
     rs = radioastronomy.Spectrum()
-    if nDir > 0:
-        filename = eventDirs[ 0]['events'][0]
-        rs.read_spec_ast( filename)
-    else:
-        filemame = ""
     nTotal = 0   # count total number of events in all directories
     # next, for each directory, count eventNames in each hour/part of a day
     for iDir in range( nDir):
+        filename = eventDirs[ iDir]['events'][0]
+        rs.read_spec_ast( filename)
         # examine each directories events.  A session is one telescope-day
         session = copy.deepcopy(eventDirs[ iDir])
         nEve = session['n']
@@ -824,6 +821,9 @@ def main():
     matchgallon = np.zeros(nRemain)
     matchgallat = np.zeros(nRemain)
 
+    verbose = False
+
+    # initialize the file list
     files = []
     # now fill arrays with coordinates and info
     iMatch = 0
@@ -845,10 +845,10 @@ def main():
                 matchgallon[lll] = rs.gallon
                 matchgallat[lll] = rs.gallat
         aveMjd = amatch['mjd']
-        showMatch( iMatch, aveMjd, nDir, matches, eventDirs)
+        if verbose:
+            showMatch( lll, aveMjd, nDir, matches, eventDirs)
         iMatch = iMatch + 1
                
-    verbose = False
 
     # if only one directory, plot histogram without matches.
     if nDir == 1:
