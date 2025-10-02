@@ -2,6 +2,7 @@
 #The list of header items to fix is given in help.
 #These include El (elevation) and Az (azimuth)
 #HISTORY
+#25OCT02 GIL check if file exists before processing
 #23APR25 GIL if fixing center frequency also update xdata
 #23MAR31 GIL add count of files fixed, add gain1
 #21APR09 GIL deal with note files add fix telescope altitude
@@ -222,11 +223,31 @@ if aFix == False:
 nplot = 0
 nFix = 0
 nfiles = nargs-ifile
+# create the default file structure
+rs = radioastronomy.Spectrum()
+
 for iii in range(nfiles):
 
     filename = sys.argv[iii+ifile]
 
-    rs = radioastronomy.Spectrum()
+    if not os.path.exists( filename):
+        print("Input file name: %s does not exist!" % (filename))
+        continue
+
+    if not os.path.isfile( filename):
+        print("Input argument: %s is not a file:" % (filename))
+        continue
+
+    try:
+        file_size = os.path.getsize(filename)
+        if file_size < 2000:
+            print(" Input file is too small (%d): %s" % (file_size, filename))
+            continue
+    except FileNotFoundError:
+        print(f"Error: The file '{filename}' was not found.")
+    except PermissionError:
+        print(f"Error: Permission denied to access the file '{filename}'.")
+    
 #    print filename
     rs.read_spec_ast( filename)
     if newAz != NOVALUE:
