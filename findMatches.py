@@ -1,4 +1,3 @@
-
 #Python find matchs in data directories
 #HISTORY
 #25Sep24 GIL Fix Not verbose only functions
@@ -240,7 +239,7 @@ def findMatches( nDir, eventDirs, telNames, tOffset = OneMjdSec, verbose = False
                     matches[jDir] = jMatch
                     matchDts[jDir] = dt
                     nPair = nPair+1
-                    if int(nPair/1000)*1000 == nPair and nPair > 0:
+                    if int(nPair/10000)*10000 == nPair and nPair > 0:
                         print( "Matching events: Telescopes %3d,%3d Events (%5d, %5d)" % \
                                (iDir, jDir, iEve, jMatch))
             # end for all other telescpes
@@ -255,7 +254,10 @@ def findMatches( nDir, eventDirs, telNames, tOffset = OneMjdSec, verbose = False
             if nTel < 2:         # must match with at least one other telescope to be a match
                 continue
             aveMjd = aveMjd/float(nTel)
-            event = { 'nmatch': nMatch, 'count': nTel, 'mjd': aveMjd, 'list': matches }
+            # event: 1: nmatch index number, 2: count of matching telescopes,
+            #    3: average mjd and 4: list of matching event indicies
+            notGroup = ' '
+            event = { 'nmatch': nMatch, 'count': nTel, 'mjd': aveMjd, 'flag': notGroup, 'list': matches }
             if verbose:
                 showMatch( nPair, aveMjd, nDir, matches, eventDirs)
             eventList.append( event)
@@ -315,7 +317,6 @@ def trimEvents( nEvents, events, nDir, eventDirs, verbose = False):
             ni = eventi['count']
             for jEvent in range (iEvent+1, nEvents):
                 eventj = events[jEvent]
-                neventj = eventj['nmatch']
                 matchesj = eventj['list']
                 jMatch = matchesj[iDir]
                 if iMatch != jMatch:   # not the same matching event in telescope i
@@ -371,7 +372,7 @@ def compressEvents( nEvents, events, nMin = 3, verbose = False):
     nOut = 0
     eventsOut = []
     for iEvent in range( nEvents):
-        event = events[iEvent]
+        event = copy.deepcopy(events[iEvent])
         nTel = event['count']
         if nTel >= nMin:
             eventsOut.append( event)
@@ -425,7 +426,7 @@ if __name__ == "__main__":
     print("##############################################################################")
     print("Starting Event triming to remove duplicate matches to a single telescope-event")
     
-    eventTrim = trimEvents( nMatch, eventList, nDir, eventDirs, verbose = True )
+    eventTrim = trimEvents( nMatch, eventList, nDir, eventDirs, verbose = False )
 
     nMin = 3
     nRemain, eventFinal = compressEvents( nMatch, eventTrim, nMin=nMin, verbose = True)

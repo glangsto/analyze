@@ -1,5 +1,7 @@
 #Python find matchs in data directories
 #HISTORY
+#25Sep30 GIL group matches
+#25Sep29 GIL group events and catagorize
 #25Sep24 GIL modularize 
 #25Sep23 GIL find indexing problem with matched events.
 #25Sep17 GIL check match lists for repeats
@@ -86,6 +88,7 @@ from jdutil import date_to_mjd
 from findTime import findTime
 from findDate import findDirs, readEventsInDir
 from findMatches import *
+from groupMatches import *
 
 nargs = len(sys.argv)
 if nargs < 2:
@@ -128,7 +131,7 @@ ifile = 1
 iii = ifile
 OneMjdSec = float( 1./86400.)
 tOffset = OneMjdSec   # default match offset is 1/2 seconds = 1/86400 of a day
-nday = 24             # by default divide day in 24 hours
+nDay = 24             # by default divide day in 24 hours
 sigma = 4.0           # Minimum sigma to accept
 kpercount = 1.0       # calibration into Kelvin units
 note = ""             # optional note for top of plot
@@ -194,8 +197,8 @@ while iii < nargs:
         ifile = ifile + 2
     if str(anarg[0:3]) == "-ND":
         iii = iii + 1
-        nday = int(sys.argv[iii])
-        print("Divide Day into N Parts:  %d" % (nday))
+        nDay = int(sys.argv[iii])
+        print("Divide Day into N Parts:  %d" % (nDay))
         aFix = True
         ifile = ifile + 2
     if str(anarg[0:2]) == "-M":   # if marking transit of a location
@@ -254,8 +257,8 @@ while iii < nargs:
 
 nplot = 0
 # if dividing day into less that 1 part, divide day into hours
-if nday < 1:
-    nday = 24
+if nDay < 1:
+    nDay = 24
 # number of directories provided
 nDir = nargs-ifile
 #
@@ -284,11 +287,9 @@ if doLog:
 inList = sys.argv[ifile:-1]
 # count number of directories events matching input
 
-if nday != 24:
-    nminutes = int(1440.001/nday)
+if nDay != 24:
+    nminutes = int(1440.001/nDay)
     print("Counting Events in blocks of %5d minutes" % (nminutes))
-
-#verbose = True
 
 def matchClose( nall, matchcount, matchindex, dd = 10.*60./86400.) :
     """
@@ -312,9 +313,9 @@ def matchClose( nall, matchcount, matchindex, dd = 10.*60./86400.) :
     return matchcount, matchindex
                 
 
-def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, \
+def plotHistogram( nDir, rs_in, nDay, mjdRef, doTransit, raTransit, decTransit, \
                    EventDirs, nall, matchtimes, matchcount, matchgallon, \
-                   matchgallat, nUnique):
+                   matchgallat, flags, nUnique):
     """
     plot several histograms of the event count versus time of day
     where:
@@ -344,13 +345,13 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
     utcOffsetSecs = utcOffset.total_seconds() + 1.
     utcOffsetSecs = int(utcOffsetSecs)
     utcOffsetHours = utcOffsetSecs/3600.
-    utcparts = np.zeros(nday+1)
-    deltat = 24./float(nday)
-    for iDay in range(nday):
-        utcparts[iDay] = float(iDay*24./float(nday))
+    utcparts = np.zeros(nDay+1)
+    deltat = 24./float(nDay)
+    for iDay in range(nDay):
+        utcparts[iDay] = float(iDay*24./float(nDay))
 
     # to finish plot need to duplicate last point
-    utcparts[nday] = 24.
+    utcparts[nDay] = 24.
     if calendar == "":
         utcstr = str(rs.utc)
         strparts = utcstr.split()
@@ -383,7 +384,7 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
         nEve = EventDirs[iDir]['n']
         counts = copy.deepcopy( EventDirs[iDir]['counts'])
 #        if verbose:
-#            for iDay in range(nday):
+#            for iDay in range(nDay):
 #                if counts[iDay] > 0:
 #                    print("%5d %8.3f %5d" % ( iDay, utcparts[iDay], counts[iDay]))
 
@@ -391,12 +392,10 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
         labelparts = alabel.split("-")
         alabel = "%4s:%4d" % (labelparts[0], nEve)
         # duplicate the last value to complete the plot
-        counts = np.append( counts, counts[nday-1])
+        counts = np.append( counts, counts[nDay-1])
         ybottom = yoffsets[iDir]
 # time epsilon to unhide multiple events
         plt.step( utcparts, counts + yoffsets[iDir], where="post", label=alabel)
-#        plt.bar( utcparts, counts, bottom=ybottom, align="center", \
-#        plt.bar( utcparts, counts, bottom=ybottom, align="edge", \
         plt.bar( utcparts, counts, width=deltat, bottom=ybottom, align="edge", \
                   label=None, color=barcolors[iDir])
         #                  where='post', label=alabel)
@@ -404,7 +403,7 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
 
 # Redefine yoffset as step between printing lines
     yoffset = ytop / 30
-    y0 = 2*yoffset
+    y0 = yoffset
 
 # now annoated Az, El, Ra Dec
     alabel = " AZ,El:  %5.1f,%5.1f" % (rs.telaz, rs.telel)
@@ -577,6 +576,7 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
     # now draw vertical lines for events
     iplot = 0
     # for all matched events
+    
     for iii in range(nall):
         if flagGroups:    # If not flagging groups, skip this processing
             continue
@@ -590,18 +590,24 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
         icolor = iplot % 6
         plt.axvline( x4, color=verticalcolors[icolor], linestyle='dashed')
         # if a single match
-        if matchcount[iii] == 1:
-            alabel = "  %5.1f,%5.1f" % (matchgallon[iii],matchgallat[iii])
-            ax.annotate(alabel, xy=( x4, y0), xytext=(x4 , y0), \
-                            arrowprops=dict(facecolor='black', shrink=.003),)
-        elif matchcount[iii] > 1:
-            alabel = "  %5.1f,%5.1f (%d)" % (matchgallon[iii],matchgallat[iii], matchcount[iii])
-            ax.annotate(alabel, xy=( x4, y0), xytext=(x4 , y0), \
-                            arrowprops=dict(facecolor='black', shrink=.003),)
-        if matchcount[iii] >= 1:
-            y0 = y0 + yoffset
-            iplot = iplot + 1
-            # keep from going off the plot
+        if flags[iii] == " ":
+            alabel = "o %.1f,%.1f" % ( matchgallon[iii], matchgallat[iii])
+        elif  flags[iii] == "X" or flags[iii] == "C" or flags[iii] == "M":
+            alabel = "%s %.1f,%.1f" % (flags[iii], matchgallon[iii], matchgallat[iii])
+        else:
+            alabel = "%sx %.1f,%.1f" % (flags[iii], matchgallon[iii], matchgallat[iii])
+
+        if flags[iii] == "M":
+            ax.annotate(alabel, xy=( x4, y0), xytext=(x4 , y0), fontsize=12, color='red')
+        elif flags[iii] == "C":
+            ax.annotate(alabel, xy=( x4, y0), xytext=(x4 , y0), fontsize=11, color='green')
+        elif flags[iii] == "X":
+            ax.annotate(alabel, xy=( x4, y0), xytext=(x4 , y0), fontsize=10, color='blue')
+        else:
+            ax.annotate(alabel, xy=( x4, y0), xytext=(x4 , y0), fontsize=9, color='black')
+        y0 = y0 + yoffset
+        iplot = iplot + 1
+        # keep from going off the plot
         if y0 > ytop - (2 * yoffset):
             y0 = 2 * yoffset
     # now finish up labels
@@ -615,12 +621,12 @@ def plotHistogram( nDir, rs_in, nday, mjdRef, doTransit, raTransit, decTransit, 
 #        plt.xlabel("Time (UTC hours, %s offset: %2.0f hours) (Distinct Event Count: %d)" % (timezone, utcOffsetHours, nUnique), fontsize=18)
         plt.xlabel("Time (UTC hours) (Distinct Event Count: %d)" % (nUnique), fontsize=18)
 
-    if nday == 24:
+    if nDay == 24:
         plt.ylabel("Count of Events/Hour", fontsize=18)
-    elif nday == 1440:
+    elif nDay == 1440:
         plt.ylabel("Count of Events/Minute", fontsize=18)
     else:
-        nminute = int(1440.001/float(nday))
+        nminute = int(1440.001/float(nDay))
         plt.ylabel("Count of Events/%d Minutes" % (nminute), fontsize=18)
 
     plt.xlim(0.,24.05) # 24 hours/per day
@@ -682,7 +688,7 @@ def main():
 # dirs is the list of names of directories that match the input string.
 # nDir is the count of directory names
     dirs, nDir = findDirs( inList, calendar)
-    nEvents = np.zeros(nDir) # init the counts of events in each directory
+    nEvents = np.zeros(nDir, dtype=int) # init the counts of events in each directory
 
     iDir = 0
     # look though all directories
@@ -716,7 +722,6 @@ def main():
     # for each of the directories, count the events per fraction of a day)
     nDir = iDir # keep track of directory count
     mjdRef = 0.
-
     # for each directory, find the reference mjd, which is earliest mjd in list
     for iDir in range( nDir): 
         mjds =  eventDirs[ iDir]['mjds']
@@ -727,6 +732,7 @@ def main():
 
     if nDir > 0:
         print( "MJD reference: %12.6f" % (mjdRef))
+
     rs = radioastronomy.Spectrum()
     nTotal = 0   # count total number of events in all directories
     # next, for each directory, count eventNames in each hour/part of a day
@@ -738,14 +744,14 @@ def main():
         nEve = session['n']
         nTotal = nTotal + nEve
         mjds = session['mjds']
-        countsInDt = np.zeros(nday)   # initialize the counts per fraction of a day
+        countsInDt = np.zeros(nDay, dtype=int)   # initialize the counts per fraction of a day
         # now count events in each range
         for iEve in range(nEve):
             dMjd = mjds[iEve] - mjdRef
             # compute index into counts as a fraction of a day.
-            iDay = int((dMjd*nday))
+            iDay = int((dMjd*nDay))
             # wrap around day fraction
-            iDay = iDay % nday
+            iDay = iDay % nDay
             # these counts are only for a single telescope
             # to plot events as a function of time.
             countsInDt[iDay] = countsInDt[iDay]+1
@@ -775,14 +781,14 @@ def main():
     # init total per telescope
     telTotals = np.zeros(nDir)
     # now print events as a function of time, for each telescope if any has an event
-    for iDay in range(nday):
+    for iDay in range(nDay):
         eventsFound = False
         for iDir in range(nDir):
             if countsMatrix[iDir][iDay] != 0:
                 eventsFound = True
                 continue
         if eventsFound:
-            utcN = float(iDay*24./float(nday))
+            utcN = float(iDay*24./float(nDay))
             print("%5.1f " % (utcN), end = "")
             for iDir in range(nDir):
                 print("%5d " % (countsMatrix[iDir][iDay]), end =  "")
@@ -804,75 +810,109 @@ def main():
 
     if nDir < 1:
         exit()
-    nMatch, eventList = findMatches( nDir, eventDirs, telNames, tOffset = tOffset, verbose=True)
-    print("Total number of sets of matches: %d" % (nMatch))
-    eventTrim = trimEvents( nMatch, eventList, nDir, eventDirs)
+    nMatch, eventList = findMatches( nDir, eventDirs, telNames, tOffset = tOffset, verbose=False)
 
     nMin = 3
-    nRemain, eventFinal = compressEvents( nMatch, eventTrim, nMin=nMin, verbose = True)
+    nRemain, eventFinal = compressEvents( nMatch, eventList, nMin=nMin, verbose = False)
     print("##############################################################################")
     print("Compressed %d events to %d events with minimum number of telescopes=%d" % \
           (nMatch, nRemain, nMin))
 
-    rs = radioastronomy.Spectrum()
-
-    matchtimes = np.zeros(nRemain)
-    matchcounts = np.zeros(nRemain)
-    matchgallon = np.zeros(nRemain)
-    matchgallat = np.zeros(nRemain)
+    print("##############################################################################")
+    eventTrim = trimEvents( nRemain, eventFinal, nDir, eventDirs)
 
     verbose = False
+    
+    if verbose:
+        for iGroup in range( nRemain):
+            aEvent = eventTrim[iGroup]
+            aveMjd = aEvent['mjd']
+            matches = aEvent['list']
+            showMatch( iGroup, aveMjd, nDir, matches, eventDirs)
 
+    # group matches before plotting
+    print("##############################################################################")
+    nGroup, nTen, nHundred, nThousand, groupEvents = groupMatches( mjdRef, \
+                                    nRemain, nDir, eventTrim, nDay, verbose = True)
+    print("Grouped %d events into %d Groups" % \
+          (nRemain, nGroup))
+    print("In Groups, %3d with > 10 members, %d with > 100 and %d > 1000 members" % \
+          (nTen, nHundred, nThousand))
+
+    rs = radioastronomy.Spectrum()
+
+    matchtimes = np.zeros(nGroup)
+    matchcounts = np.zeros(nGroup)
+    matchgallon = np.zeros(nGroup)
+    matchgallat = np.zeros(nGroup)
+
+#    verbose = False
+
+    verbose = True
+    
     # initialize the file list
     files = []
+    groupFlags = [ ]
     # now fill arrays with coordinates and info
-    iMatch = 0
-    for lll in range(nRemain): 
-        amatch = eventFinal[ lll] 
-        matches = amatch['list']
-        nTel = amatch['count']
+    for iGroup in range(nGroup): 
+        aGroup = groupEvents[ iGroup] 
+        groupFlags.append( aGroup['flag'])
+        matches = aGroup['list']
+        # count becomes number of events in a group
+        nEvents = int(aGroup['count'])
+        matchtimes[iGroup] = aGroup['mjd']
+        matchcounts[iGroup] = nEvents
+        files = []
+        nTel = 0
+        aveGalLon = 0.
+        aveGalLat = 0.
         for iDir in range(nDir):
             iMatch = matches[iDir]
             if iMatch != NOMATCH:
                 # find file name in sets of names
                 fileName = eventDirs[iDir]['events'][iMatch]
-                files.append( fileName)
+                if doPlot:
+                    files.append( fileName)
                 rs.read_spec_ast( fileName)
                 rs.azel2radec()
-                # now pass info 
-                matchtimes[lll] = amatch['mjd']
-                matchcounts[lll] =  int(amatch['count'])
-                matchgallon[lll] = rs.gallon
-                matchgallat[lll] = rs.gallat
-        aveMjd = amatch['mjd']
+                aveGalLon = aveGalLon + rs.gallon
+                aveGalLat = aveGalLat + rs.gallat
+                nTel = nTel + 1
+        # now pass info
+        if nTel > 0:
+            matchgallon[iGroup] = aveGalLon/nTel
+            matchgallat[iGroup] = aveGalLat/nTel
+        else:
+            print("No Telescopes for Event/Group %d!" % (iGroup))
+            
         if verbose:
-            showMatch( lll, aveMjd, nDir, matches, eventDirs)
-        iMatch = iMatch + 1
+            aveMjd = aGroup['mjd']
+            showMatch( iGroup, aveMjd, nDir, matches, eventDirs)
+                             
+        if doPlot:
+            if not doOffset:
+                yoffset = 0.
+            
+            plotcmd = "~/Research/analyze/E -Y %.2f %s " % (yoffset, files)
+            os.system(plotcmd)
+            
                
-
     # if only one directory, plot histogram without matches.
     if nDir == 1:
-        plotHistogram( nDir, rs, nday, mjdRef, doTransit, \
+        plotHistogram( nDir, rs, nDay, mjdRef, doTransit, \
                        raTransit, decTransit, \
-                       eventDirs, 0, [ 0., 0.], [ 0, 0], [ 0., 0.], [0., 0.], 0)
+                       eventDirs, 0, [ 0., 0.], [ 0, 0], [ 0., 0.], [0., 0.], [" "], 0)
         exit()
-
-    if doPlot:
-        if not doOffset:
-            yoffset = 0.
-            
-        plotcmd = "~/Research/analyze/E -Y %.2f %s " % (yoffset, files)
-        os.system(plotcmd)
 
     if doLog:
         logFile.close()
-    print( "Count of Events and Event Groups: %d" % (nRemain))
+    print( "Count of Events and Event Groups: %d" % (nGroup))
 
 # now have a list of single events and multiple events, plot histogram
-    plotHistogram( nDir, rs, nday, mjdRef, doTransit, \
+    plotHistogram( nDir, rs, nDay, mjdRef, doTransit, \
                    raTransit, decTransit, \
-                   eventDirs, nRemain, matchtimes, matchcounts, \
-                   matchgallon, matchgallat, nRemain)
+                   eventDirs, nGroup, matchtimes, matchcounts, \
+                   matchgallon, matchgallat, groupFlags, nGroup)
 
 # now count all events happening within .1 degrees of other events.
 
