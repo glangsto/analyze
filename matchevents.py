@@ -1,5 +1,7 @@
 #Python find matchs in data directories
 #HISTORY
+#25Oct06 GIL log successful fits to event groups, use getUtcOffset
+#25Oct03 GIL fit group matches
 #25Sep30 GIL group matches
 #25Sep29 GIL group events and catagorize
 #25Sep24 GIL modularize 
@@ -89,6 +91,8 @@ from findTime import findTime
 from findDate import findDirs, readEventsInDir
 from findMatches import *
 from groupMatches import *
+import utcOffset
+
 
 nargs = len(sys.argv)
 if nargs < 2:
@@ -280,9 +284,115 @@ if doLog:
             print( "Writing to Log file: %s" % (outName))
     else:   # else neither path nor file exist, write a new file
         logFile = open(logFileName, 'w')
-    print( "# Log of events on %s" % (calendar), file=logFile)
-    print( "#  Tel   Directory             Event File            Ra     Dec     GLon    GLat N Flashes", file=logFile)
-         
+#    print( " Event File                     GLon    GLat N Flashes", file=logFile)
+
+def mjd_to_ymd(mjd):
+    """
+    Converts a Modified Julian Date (MJD) to a year, month, and day tuple.
+    """
+    # MJD 0 corresponds to November 17, 1858, 00:00:00 UTC
+    mjd_epoch = datetime.datetime(1858, 11, 17, 0, 0, 0)
+
+    # Calculate the timedelta from the MJD epoch
+    # We subtract 0.5 from MJD because MJD starts at midnight, while JD starts at noon.
+    # However, since we are directly working with datetime objects and their difference in days,
+    # we can simply add the MJD value as days to the epoch.
+    target_date = mjd_epoch + datetime.timedelta(days=mjd)
+
+    return target_date.year, target_date.month, target_date.day, \
+        target_date.hour, target_date.minute, target_date.second
+
+def logEvent( logFile, files, event, gallon, gallat):
+    """
+    logEvent() adds one event to the event log
+    where
+    logFile = file pointer to open log file
+    files   = composed of this event
+    event   = event to be added to the log
+    """
+
+    iEvent = int( event['nmatch'])
+    aFlag  = event['flag']
+    nTel   = int( event['count'])
+    print("#Event: %5d nTel: %2d flag: '%s' Gal Lon,lat: %7.2f %7.2f" % ( iEvent, nTel, aFlag, gallon, gallat), file=logFile)
+    for afile in files:
+        # aline file names by adding a space for shorter names
+        fileparts = afile.split("-")
+        aTel = fileparts[0]
+        if len(aTel) < 4:
+            aspace = " "
+        else:
+            aspace = ""
+        print("%s%s" % (aspace, afile), file=logFile)
+          
+    return
+
+def logGroups( logFile, calendar, nDir, nGroup, nTen, nHundred, nThousand, groupEvents, verbose = True):
+    """
+    logGroups() = writes summary of the events and groups found for this date
+    where
+    logFile = pointer to open log file
+    nGroup  = total number of groups found
+    nTen    = number of groups with between 10 and 99 members   (X)
+    nHundred = number of groups with 100 to 999 members         (C)
+    nThousand = number of groups with more than 999 members     (M)
+    """
+    print( "", file=logFile)
+    print(     "#DATE    =%s" % (calendar), file=logFile)
+    print(     "#NTEL    =%5d" % (nDir), file=logFile)
+    print(     "#NMATCH  =%5d" % (nGroup), file=logFile)
+    if nTen > 0:
+        print( "#TEN     =%5d" % (nTen), file=logFile)
+    if nHundred > 0:
+        print( "#HUNDRED =%5d" % (nHundred), file=logFile)
+    if nThousand > 0:
+        print( "#THOUSAND=%5d" % (nThousand), file=logFile)
+#    print( "#  Tel   Directory             Event File            Ra     Dec     GLon    GLat N Flashes", file=logFile)
+
+    return
+    # end of logGroups()
+
+def logFits( logFile, rs, nFit, fits, mjdRef, verbose = True):
+    """
+    logFits() adds successful fits to groups of events to the event log
+    where
+    logFile  = open file pointer to log file
+    rs       = radio spectrum of one of the files for the fit
+    nFit     = number of succesful fits
+    fits     = array of fit objects
+    mjdRef   = reference MJD for this observing session
+    """
+    print( "#NFIT    =%5d" % (nFit), file=logFile)
+    for iFit in range(nFit):
+        time = fits[iFit]['time']
+        mjd = mjdRef + time
+
+        # Convert MJD to astropy Time object (assumes UTC scale)
+        time_obj = Time(mjd, format='mjd', scale='utc')
+
+        # Convert astropy Time object to Python datetime object (in UTC)
+        utc_datetime = time_obj.to_datetime()
+
+        # Convert datetime object to a floating-point Unix timestamp (seconds since epoch)
+        utc_float_timestamp = utc_datetime.timestamp()
+        utcYYmmmDD = utcOffset.strAst( utc_datetime)
+        
+        utcstr = str(utc_datetime)
+        print(f"MJD: {mjd}")
+        print(f"UTC Datetime: {utc_datetime}")
+        print(f"UTC AST time: {utcYYmmmDD}")
+        print(f"UTC Floating-Point Timestamp: {utc_float_timestamp}")
+
+        peak  = fits[iFit]['peak']
+        rms   = fits[iFit]['rms']
+        stdDev  = fits[iFit]['stdDev']
+        fwhm  = fits[iFit]['fwhm']
+        print("Fit%2d %7.1f+/-%4.0f %s" % (iFit, peak, rms, utcYYmmmDD), file=logFile)
+        print("Time  %7.1f+/-%5.1f hours == +/- %6.2f minutes" % (time*24., fwhm*24., fwhm*1440.), file=logFile)
+        
+    return
+    # end of logFits()
+
 # count directories with events
 inList = sys.argv[ifile:-1]
 # count number of directories events matching input
@@ -311,8 +421,8 @@ def matchClose( nall, matchcount, matchindex, dd = 10.*60./86400.) :
                 matchcount[kkk] = -1
                 matchindex[kkk] = -1
     return matchcount, matchindex
+    # end of matchClose()
                 
-
 def plotHistogram( nDir, rs_in, nDay, mjdRef, doTransit, raTransit, decTransit, \
                    EventDirs, nall, matchtimes, matchcount, matchgallon, \
                    matchgallat, flags, nUnique):
@@ -329,23 +439,13 @@ def plotHistogram( nDir, rs_in, nDay, mjdRef, doTransit, raTransit, decTransit, 
     fig, ax = plt.subplots( figsize=(12,6))
 
     rs = copy.deepcopy(rs_in)
-
-    # get local timezon and utc offset
-    batcmd="/bin/date +%Z"
-    timezone = subprocess.check_output(batcmd, shell=True)
-    parts = timezone.split()
-    # fix strange problem with zone sometimes coming back in quotes like b'EST'
-    try:
-        timezone = str(parts[0], 'UTF-8')
-    except:
-        timezone = str(parts[0])
-
+    utc = rs.utc
+    utcStr = utc.strftime("%Y-%m-%d")
     # prepart to compute local time
-    utcOffset = datetime.datetime.utcnow() - datetime.datetime.now()
-    utcOffsetSecs = utcOffset.total_seconds() + 1.
-    utcOffsetSecs = int(utcOffsetSecs)
-    utcOffsetHours = utcOffsetSecs/3600.
+    utcOffsetHours = - utcOffset.getUtcOffset( utcStr)
+    
     utcparts = np.zeros(nDay+1)
+    # now prepare to plot
     deltat = 24./float(nDay)
     for iDay in range(nDay):
         utcparts[iDay] = float(iDay*24./float(nDay))
@@ -424,7 +524,7 @@ def plotHistogram( nDir, rs_in, nDay, mjdRef, doTransit, raTransit, decTransit, 
     print("Utc: %s, Local Midnight Utc: %s" % (utcstr, utcmidnight))
     # prepart to compute local time
 #    utcOffsetHours = time.timezone/3600.
-    print( "Time zone %s is offset %5.1f hours from UTC" % (timezone, utcOffsetHours))
+#    print( "Time zone %s is offset %5.1f hours from UTC" % (timezone, utcOffsetHours))
 
     # annoate plot for local midnight
     rs.utc = utcmidnight
@@ -736,6 +836,7 @@ def main():
     rs = radioastronomy.Spectrum()
     nTotal = 0   # count total number of events in all directories
     # next, for each directory, count eventNames in each hour/part of a day
+    totalCountsInDt = np.zeros(nDay, dtype=int)   # initialize the counts per fraction of a day
     for iDir in range( nDir):
         filename = eventDirs[ iDir]['events'][0]
         rs.read_spec_ast( filename)
@@ -793,8 +894,9 @@ def main():
             for iDir in range(nDir):
                 print("%5d " % (countsMatrix[iDir][iDay]), end =  "")
                 telTotals[iDir] = telTotals[iDir] + countsMatrix[iDir][iDay]
+                totalCountsInDt[iDay] = totalCountsInDt[iDay] + countsMatrix[iDir][iDay]
             print("")
-
+        
     print("Total:", end = "")
     for iDir in range( nDir):
         print("%5d " % (int(telTotals[iDir])), end = "")
@@ -804,8 +906,7 @@ def main():
         print("")
         # there are (nDir-1)! possible pairs
         print("       Count of matches with other telescopes")
-        
-
+ 
     matchCounts = np.zeros( nDir)
 
     if nDir < 1:
@@ -832,28 +933,36 @@ def main():
 
     # group matches before plotting
     print("##############################################################################")
-    nGroup, nTen, nHundred, nThousand, groupEvents = groupMatches( mjdRef, \
-                                    nRemain, nDir, eventTrim, nDay, verbose = True)
+    nGroup, nTen, nHundred, nThousand, groupEvents = groupMatches( \
+                        mjdRef, nRemain, nDir, eventTrim, nDay, verbose = True)
     print("Grouped %d events into %d Groups" % \
           (nRemain, nGroup))
     print("In Groups, %3d with > 10 members, %d with > 100 and %d > 1000 members" % \
           (nTen, nHundred, nThousand))
 
-    rs = radioastronomy.Spectrum()
+    if doLog:
+          logGroups( logFile, calendar, nDir, nGroup, nTen, nHundred, nThousand, groupEvents)
+
+    rs.azel2radec()
+
+    if nTen + nHundred + nThousand > 0:
+        nFit, fits = groupFit( nDay, totalCountsInDt, nGroup, groupEvents, nFitMax = 3, verbose=True)
+        if nFit > 0:
+            print(" Found %3d fits to groups of events" % (nFit))
+            logFits( logFile, rs, nFit, fits, mjdRef, verbose = True)
 
     matchtimes = np.zeros(nGroup)
     matchcounts = np.zeros(nGroup)
     matchgallon = np.zeros(nGroup)
     matchgallat = np.zeros(nGroup)
 
-#    verbose = False
-
+    # for the time being force debug
     verbose = True
     
     # initialize the file list
     files = []
     groupFlags = [ ]
-    # now fill arrays with coordinates and info
+    # now fill arrays with coordinates and info, for plotting
     for iGroup in range(nGroup): 
         aGroup = groupEvents[ iGroup] 
         groupFlags.append( aGroup['flag'])
@@ -871,7 +980,7 @@ def main():
             if iMatch != NOMATCH:
                 # find file name in sets of names
                 fileName = eventDirs[iDir]['events'][iMatch]
-                if doPlot:
+                if doPlot or doLog:
                     files.append( fileName)
                 rs.read_spec_ast( fileName)
                 rs.azel2radec()
@@ -884,11 +993,14 @@ def main():
             matchgallat[iGroup] = aveGalLat/nTel
         else:
             print("No Telescopes for Event/Group %d!" % (iGroup))
+        aGroup['count'] = nTel
             
         if verbose:
             aveMjd = aGroup['mjd']
             showMatch( iGroup, aveMjd, nDir, matches, eventDirs)
-                             
+
+        if doLog:
+              logEvent( logFile, files, aGroup, matchgallon[iGroup], matchgallat[iGroup])
         if doPlot:
             if not doOffset:
                 yoffset = 0.
@@ -896,7 +1008,7 @@ def main():
             plotcmd = "~/Research/analyze/E -Y %.2f %s " % (yoffset, files)
             os.system(plotcmd)
             
-               
+
     # if only one directory, plot histogram without matches.
     if nDir == 1:
         plotHistogram( nDir, rs, nDay, mjdRef, doTransit, \

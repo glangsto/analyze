@@ -239,7 +239,7 @@ def findMatches( nDir, eventDirs, telNames, tOffset = OneMjdSec, verbose = False
                     matches[jDir] = jMatch
                     matchDts[jDir] = dt
                     nPair = nPair+1
-                    if int(nPair/10000)*10000 == nPair and nPair > 0:
+                    if int(nPair/30000)*30000 == nPair and nPair > 0:
                         print( "Matching events: Telescopes %3d,%3d Events (%5d, %5d)" % \
                                (iDir, jDir, iEve, jMatch))
             # end for all other telescpes
