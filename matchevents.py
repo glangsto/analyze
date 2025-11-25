@@ -1,5 +1,6 @@
 #Python find matchs in data directories
 #HISTORY
+#25Nov19 GIL fix mjds index out of range
 #25Oct06 GIL log successful fits to event groups, use getUtcOffset
 #25Oct03 GIL fit group matches
 #25Sep30 GIL group matches
@@ -825,10 +826,17 @@ def main():
     # for each directory, find the reference mjd, which is earliest mjd in list
     for iDir in range( nDir): 
         mjds =  eventDirs[ iDir]['mjds']
-        if mjdRef == 0:
-            mjdRef = int(mjds[0])
-        if int(mjds[0]) < mjdRef:
-            mjdRef = int(mjds[iDir])
+        nmjds = len(mjds)
+        if nmjds == 0:
+            continue
+        if nmjds == 1:
+            anmjd = int(mjds)
+        elif iDir < nmjds:
+            anmjd = int(mjds[iDir])
+        if mjdRef == 0:        # if no MJDs yet, use first
+            mjdRef = anmjd
+        if anmjd < mjdRef:     # if this MJD is earlier, use it
+            mjdRef = anmjd
 
     if nDir > 0:
         print( "MJD reference: %12.6f" % (mjdRef))

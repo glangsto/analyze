@@ -1,19 +1,12 @@
 #Python Script to fix set of NSF events or spectra
 #The list of header items to fix is given in help.
 #These include El (elevation) and Az (azimuth)
-#HISTORY
-#25OCT08 GIL remove plotting, hoping to speed up 
-#25OCT02 GIL check if file exists before processing
-#23APR25 GIL if fixing center frequency also update xdata
-#23MAR31 GIL add count of files fixed, add gain1
-#21APR09 GIL deal with note files add fix telescope altitude
-#19NOV22 GIL don't plot spectra
-#19SEP24 GIL turn off plotting by default
-#19FEB20 GIL initial version
+#HISTORY
+#25OCT10 GIL speed up processing
+#25OCT08 GIL speed up processing
 #
 import sys
 import radioastronomy
-import interpolate
 import numpy as np
 import os
 
@@ -180,7 +173,7 @@ while iii < nargs:
 #print "Afix: ",aFix, iii
 # if nothing to fix, give help
 if aFix == False:
-    print("FIX: Fix observing file parameters")
+    print("FASTFIX: Fix observing file parameters")
     print("Usage: Fix [-el elevation] [-az azimuth]... <file 1> [<file 2>] ... [<file N>]")
     print("Where optionally the following paramters may be fixed")
     print(" -az  Telescope azimuth in degrees")
@@ -206,15 +199,14 @@ if aFix == False:
 nFix = 0
 nfiles = nargs-ifile
 # create the default file structure
-rs = radioastronomy.Spectrum()
+#rs = radioastronomy.Spectrum()
+
+tempname = /tmp/fastfix.tmp
+outname = ""
 
 for iii in range(nfiles):
 
     filename = sys.argv[iii+ifile]
-
-#    if not os.path.exists( filename):
-#       print("Input file name: %s does not exist!" % (filename))
-#        continue
 
     if not os.path.isfile( filename):
         print("Input argument: %s is not a file:" % (filename))
@@ -230,62 +222,237 @@ for iii in range(nfiles):
     except PermissionError:
         print(f"Error: Permission denied to access the file '{filename}'.")
     
-#    print filename
-    rs.read_spec_ast( filename)
+    outfile = open(outname, 'w')
+    infile = open(filename, 'f')
+
+    if verbose:
+        print filename
+
+    try:
+        with open(filename, 'r', encoding='ascii') as infile, \
+             open(outname, 'w', encoding='ascii') as outfile:
+            for line in infile:
+                keyvalue = '# NOTEA     '
+                if keyvalue in line:
+                    if verbose:
+                        
+        outfile.write(outline)
+        self.noteB = self.noteB.replace('\n', '')
+        self.noteB = self.noteB.strip()
+        keyvalue = '# NOTEB     '
+        outfile.write(outline)
+        self.observer = self.observer.replace('\n', '')
+        self.observer = self.observer.strip()
+        keyvalue = '# OBSERVER  '
+        outfile.write(outline)
+        self.device = self.device.replace('\n', '')
+        self.device = self.device.strip()
+        keyvalue = '# DEVICE    '
+        outfile.write(outline)
+        self.datadir = self.datadir.replace('\n', '')
+        self.datadir = self.datadir.strip()
+        keyvalue = '# DATADIR   '
+        outfile.write(outline)
+        self.site = self.site.replace('\n', '')
+        self.site = self.site.strip()
+        keyvalue = '# SITE      '
+        outfile.write(outline)
+        self.city = self.city.replace('\n', '')
+        self.city = self.city.strip()
+        keyvalue = '# CITY      '
+        outfile.write(outline)
+        self.region = self.region.replace('\n', '')
+        self.region = self.region.strip()
+        keyvalue = '# REGION    '
+        outfile.write(outline)
+        self.country = self.country.replace('\n', '')
+        self.country = self.country.strip()
+        keyvalue = '# COUNTRY   '
+        outfile.write(outline)
+        self.telType = self.telType.replace('\n', '')
+        self.telType = self.telType.strip()
+        keyvalue = '# TELTYPE   '
+        outfile.write(outline)
+        self.frame = self.frame.replace('\n', '')
+        self.frame = self.frame.strip()
+        keyvalue = '# FRAME     '
+        outfile.write(outline)
+        ngains = len(self.gains)
+        if ngains > 0:
+        keyvalueline = '# GAIN1     '
+            outfile.write(outline)
+        if ngains > 1:
+        keyvalueline = '# GAIN2     '
+            outfile.write(outline)
+        if ngains > 2:
+        keyvalueline = '# GAIN3     '
+            outfile.write(outline)
+        if ngains > 3:
+        keyvalueline = '# GAIN4     '
+            outfile.write(outline)
+        keyvalue = '# Count     '
+        outfile.write(outline)
+        # match SETI/GUPPI KEYWORDS
+        # https://www.cv.nrao.edu/~pdemores/GUPPI_Raw_Data_Format/
+#       keyvaluee = '# CenterFreq'
+        keyvalue = '# REFFREQ   '
+        outfile.write(outline)
+        keyvalue = '# OBSFREQ   '
+        outfile.write(outline)
+#       keyvaluee = '# Bandwidth '
+        keyvalue = '# OBSBW     '
+        outfile.write(outline)
+        keyvalue = '# Duration  '
+        outfile.write(outline)
+        keyvalue = '# DeltaX    '
+        outfile.write(outline)
+        keyvalue = '# TSYS      '
+        outfile.write(outline)
+        keyvalue = '# TRX       '
+        outfile.write(outline)
+        keyvalue = '# TRMS      '
+        outfile.write(outline)
+        keyvalue = '# TINT      '
+        outfile.write(outline)
+        keyvalue = '# KPERC     '
+        outfile.write(outline)
+        keyvalue = '# GAINFACT  '
+        outfile.write(outline)
+        keyvalue = '# BUNIT     '
+        outfile.write(outline)
+        keyvalue = '# NCHAN     '
+        outfile.write(outline)
+        keyvalue = '# NSPEC     '
+        outfile.write(outline)
+        keyvalue = '# NTIME     '
+        outfile.write(outline)
+        keyvalue = '# NSAMPLES  '
+        outfile.write(outline)
+        keyvalue = '# EPEAK     '
+        outfile.write(outline)
+        keyvalue = '# ERMS      '
+        outfile.write(outline)
+        keyvalue = '# EMJD      '
+        outfile.write(outline)
+        keyvalue = '# REFCHAN   '
+        outfile.write(outline)
+        keyvalue = '# REFSAMPL  '
+        outfile.write(outline)
+        nave = self.nave
+        keyvalue = '# NAVE      '
+        outfile.write(outline)
+        nmedian = self.nmedian
+        keyvalue = '# NMEDIAN   '
+        outfile.write(outline)
+        keyvalue = '# Fft_rate  '
+        outfile.write(outline)
+        strnow = self.utc.isoformat()
+        dates = strnow.split('T')
+        datestr = dates[0] + ' ' + dates[1]
+        keyvalue = '# UTC       '
+        outfile.write(outline)
+        keyvalue = '# SECONDS   '
+        outfile.write(outline)
+        lststr = angles.fmt_angle(self.lst/15., s1=":", s2=":", pre=3)  # convert to hours
+        keyvalue = '# LST       '
+        outfile.write(outline)
+        keyvalue = '# AZ        '
+        outfile.write(outline)
+        keyvalue = '# EL        '
+        outfile.write(outline)
+        anglestr = angles.fmt_angle(float(self.tellon), s1=":", s2=":")
+        keyvalue = '# TELLON    '
+        outfile.write(outline)
+        anglestr = angles.fmt_angle(float(self.tellat), s1=":", s2=":")
+        keyvalue = '# TELLAT    '
+        outfile.write(outline)
+        keyvalue = '# TELALT    '
+        outfile.write(outline)
+        rastr = angles.fmt_angle(self.ra/15., s1=":", s2=":", pre=3) # convert to hours
+        keyvalue = '# RA        '
+        outfile.write(outline)
+        decstr = angles.fmt_angle(self.dec, s1=":", s2=":")
+        keyvalue = '# DEC       '
+        outfile.write(outline)
+        lonstr = angles.fmt_angle(self.gallon, s1=":", s2=":", pre=2)
+        keyvalue = '# GALLON    '
+        outfile.write(outline)
+        latstr = angles.fmt_angle(self.gallat, s1=":", s2=":", pre=2)
+        keyvalue = '# GALLAT    '
+        outfile.write(outline)
+        altstr = angles.fmt_angle(self.altsun, s1=":", s2=":", pre=1)
+        keyvalue = '# ALT_SUN   '
+        outfile.write(outline)
+        az_str = angles.fmt_angle(self.az_sun, s1=":", s2=":", pre=1)
+        keyvalue = '# AZ_SUN    '
+        outfile.write(outline)
+        keyvalue = '# ETAA      '
+        outfile.write(outline)
+        keyvalue = '# ETAB      '
+        outfile.write(outline)
+        keyvalue = '# POLANGLE  '
+        outfile.write(outline)
+        keyvalue = '# TELSIZEAM '
+        outfile.write(outline)
+        keyvalue = '# TELSIZEBM '
+        outfile.write(outline)
+        keyvalue = '# AST_VERS  '
+        outfile.write(outline)
+                
+                if search_string in line:
+                    modified_line = line.replace(search_string, replacement_string)
+                    outfile.write(modified_line)
+                else:
+                    outfile.write(line)
+        print(f"File '{input_filename}' processed. Output written to '{output_filename}'.")
+    except FileNotFoundError:
+        print(f"Error: The file '{input_filename}' was not found.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
     if newAz != NOVALUE:
-        rs.telaz = newAz
+        telaz = newAz
     if newEl != NOVALUE:
-        rs.telel = newEl
+        telel = newEl
     if newdAz != NOVALUE:
-        rs.teldaz = newdAz
+        teldaz = newdAz
     if newdEl != NOVALUE:
-        rs.teldel = newdEl
+        teldel = newdEl
     if newLat != NOVALUE:
-        rs.tellat = newLat
+        tellat = newLat
     if newLon != NOVALUE:
-        rs.tellon = newLon
+        tellon = newLon
     if newAlt != NOVALUE:
-        rs.telelev = newAlt
+        telelev = newAlt
     if newGain1 != NOVALUE:
-        rs.gains[0] = newGain1
+        gains[0] = newGain1
     if newGain2 != NOVALUE:
-        rs.gains[1] = newGain2
+        gains[1] = newGain2
     if newGain3 != NOVALUE:
-        rs.gains[2] = newGain3
+        gains[2] = newGain3
     if newAlt != NOVALUE:
-        rs.telelev = newAlt
+        telelev = newAlt
     if observer != "":
-        rs.observer = observer
+        observer = observer
     if device != "":
-        rs.device = device
+        device = device
     if note != "":
-        rs.noteA = note
+        noteA = note
     if telescope != "":
-        rs.site = telescope
+        site = telescope
     if newNTime > 0:
-        rs.nTime = newNTime
+        nTime = newNTime
     if newBan > 0:
-        rs.bandwidthHz = newBan * 1.E6
+        bandwidthHz = newBan * 1.E6
     if newCen > 0:
-        rs.centerFreqHz = newCen * 1.E6
+        centerFreqHz = newCen * 1.E6
     if newRefSample != NOVALUE:
-        rs.refSample = newRefSample
+        refSample = newRefSample
     if newRefChan != NOVALUE:
-        rs.refChan = newRefChan
+        refChan = newRefChan
     if newNChan != NOVALUE:
-        rs.nChan = newNChan
+        nChan = newNChan
 
-    rs.azel2radec()    # compute ra,dec from az,el and telescope location
-
-    # if changing center frequency or bandwidth, must also update X data
-    if newCen > 0 or newBan > 0:
-        nData = len(rs.xdata)
-        dX = rs.bandwidthHz / float(nData)
-        X0 = rs.centerFreqHz - (rs.refChan*dX)
-        for iii in range( rs.nChan):
-            rs.xdata[iii] = X0
-            X0 = X0 + dX
-    # now prepare to write
     parts = filename.split('/')
     nparts = len(parts)
     # get the file name without directory name
@@ -294,8 +461,10 @@ for iii in range(nfiles):
     # if no directory name
     if nparts == 1:
         dirname = "./"   # use current directory
+    elif nparts == 2:
+        dirname = parts[0]
     else:
-        dirname = ""
+        dirname = "./"
         for i in range(nparts-1):
             dirname = dirname + parts[i] + "/"
 #    print "Directory: ", dirname
@@ -304,7 +473,7 @@ for iii in range(nfiles):
     # if replacing original file
     if replace:
         try:
-            os.remove(filename)
+            os.remove(tempname)
         except:
             print("Cound not remove file: ",filename)
         outname = filename
@@ -354,3 +523,25 @@ for iii in range(nfiles):
     nFix = nFix + 1
 
 print("Fixed %d Files" % (nFix))
+
+def main():
+    """
+    Test file if no arguments
+    """
+
+    # Example usage:
+    input_file = "input.txt"
+    output_file = "output.txt"
+    string_to_find = "old_text"
+    string_to_replace_with = "new_text"
+
+    # Create a dummy input file for demonstration
+    with open(input_file, 'w', encoding='ascii') as f:
+        f.write("This is a line with old_text.\n")
+        f.write("Another line without the string.\n")
+        f.write("A third line containing old_text multiple times: old_text, old_text.\n")
+
+        modify_file_line(input_file, output_file, string_to_find, string_to_replace_with)
+
+    return
+
