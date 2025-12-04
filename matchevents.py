@@ -1,5 +1,6 @@
 #Python find matchs in data directories
 #HISTORY
+#25Dec02 GIL Sun RA and Dec postion match telescope
 #25Nov19 GIL fix mjds index out of range
 #25Oct06 GIL log successful fits to event groups, use getUtcOffset
 #25Oct03 GIL fit group matches
@@ -594,12 +595,12 @@ def plotHistogram( nDir, rs_in, nDay, mjdRef, doTransit, raTransit, decTransit, 
     xtransit = 24.*dt
 #    print("dt: %s dt=%7.3f  %7.3f" % (transit, dt, xtransit))
     alabel = " RA,Dec: %5.1f, %5.1f" % (rs.ra, rs.dec)
-    ya = ytop
+    ya = ytop - yoffset
     xa = xtransit
     ax.annotate(alabel, xy=( xa, ya), xytext =( xa, ya))
     # set elevation back to horn elevaiton
     alabel = " AZ,El: %5.1f, %5.1f" % (rs.az_sun, rs.altsun)
-    ya = ytop - yoffset
+    ya = ytop
     ax.annotate(alabel, xy=( xtransit, ya), xytext =( xtransit, ya))
     # restore telescope az and el
     rs.telaz = telaz

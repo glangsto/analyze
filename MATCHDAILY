@@ -17,8 +17,9 @@ else
     export dateToSort=$1
 fi
 
-export mylog=/home/karl/eventlog
-export matchkeys="-v -Q -ND 144 -N 3 -L "$mylog" -G -OF 0.5 -W /home/karl/match -C "$dateToSort
+export mylog=/home/karl/HornEvents.log
+#export matchkeys="-v -Q -ND 144 -N 3 -L "$mylog" -G -OF 0.5 -W /home/karl/match -C "$dateToSort
+export matchkeys="-v -Q -ND 144 -N 3 -L "$mylog" -G -OF 0.25 -W /home/karl/match -C "$dateToSort
 
 echo "Matching events from date: " $dateToSort
 echo "Using these Match params : " $matchkeys
