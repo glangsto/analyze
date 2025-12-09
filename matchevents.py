@@ -6,7 +6,7 @@
 #25Oct03 GIL fit group matches
 #25Sep30 GIL group matches
 #25Sep29 GIL group events and catagorize
-#25Sep24 GIL modularize 
+#25Sep24 GIL modularize
 #25Sep23 GIL find indexing problem with matched events.
 #25Sep17 GIL check match lists for repeats
 #25Sep16 GIL finish cleanup and repeat matching code
@@ -76,9 +76,8 @@
 #
 import sys
 import os
-import time
 import datetime
-import glob
+import copy
 import numpy as np
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -86,10 +85,7 @@ from astropy.coordinates import EarthLocation
 from astropy.time import Time
 from astropy.coordinates import AltAz
 import radioastronomy
-import subprocess
-import copy
 from jdutil import date_to_mjd
-from findTime import findTime
 from findDate import findDirs, readEventsInDir
 from findMatches import *
 from groupMatches import *
@@ -326,10 +322,10 @@ def logEvent( logFile, files, event, gallon, gallat):
         else:
             aspace = ""
         print("%s%s" % (aspace, afile), file=logFile)
-          
-    return
 
-def logGroups( logFile, calendar, nDir, nGroup, nTen, nHundred, nThousand, groupEvents, verbose = True):
+## return end of logEvent()
+
+def logGroups( logFile, calendar, nDir, nGroup, nTen, nHundred, nThousand):
     """
     logGroups() = writes summary of the events and groups found for this date
     where
@@ -354,7 +350,7 @@ def logGroups( logFile, calendar, nDir, nGroup, nTen, nHundred, nThousand, group
     return
     # end of logGroups()
 
-def logFits( logFile, rs, nFit, fits, mjdRef, verbose = True):
+def logFits( logFile, nFit, fits, mjdRef):
     """
     logFits() adds successful fits to groups of events to the event log
     where
@@ -378,7 +374,7 @@ def logFits( logFile, rs, nFit, fits, mjdRef, verbose = True):
         # Convert datetime object to a floating-point Unix timestamp (seconds since epoch)
         utc_float_timestamp = utc_datetime.timestamp()
         utcYYmmmDD = utcOffset.strAst( utc_datetime)
-        
+
         utcstr = str(utc_datetime)
         print(f"MJD: {mjd}")
         print(f"UTC Datetime: {utc_datetime}")
@@ -391,7 +387,7 @@ def logFits( logFile, rs, nFit, fits, mjdRef, verbose = True):
         fwhm  = fits[iFit]['fwhm']
         print("Fit%2d %7.1f+/-%4.0f %s" % (iFit, peak, rms, utcYYmmmDD), file=logFile)
         print("Time  %7.1f+/-%5.1f hours == +/- %6.2f minutes" % (time*24., fwhm*24., fwhm*1440.), file=logFile)
-        
+
     return
     # end of logFits()
 
@@ -407,7 +403,7 @@ def matchClose( nall, matchcount, matchindex, dd = 10.*60./86400.) :
     """
     Count nearby in time, but not close enough to be an exact match
     """
-    # for all events, 
+    # for all events,
     for iii in range(nall):
         # if an already counted match
         if matchcount[iii] < 1:
@@ -424,7 +420,7 @@ def matchClose( nall, matchcount, matchindex, dd = 10.*60./86400.) :
                 matchindex[kkk] = -1
     return matchcount, matchindex
     # end of matchClose()
-                
+
 def plotHistogram( nDir, rs_in, nDay, mjdRef, doTransit, raTransit, decTransit, \
                    EventDirs, nall, matchtimes, matchcount, matchgallon, \
                    matchgallat, flags, nUnique):
@@ -434,7 +430,6 @@ def plotHistogram( nDir, rs_in, nDay, mjdRef, doTransit, raTransit, decTransit, 
     nDir = number of telescopes
     nUnique - number of distinque events
     """
-    import subprocess
     import matplotlib.pyplot as plt
     import matplotlib.ticker as mticker
     global calendar
@@ -445,7 +440,7 @@ def plotHistogram( nDir, rs_in, nDay, mjdRef, doTransit, raTransit, decTransit, 
     utcStr = utc.strftime("%Y-%m-%d")
     # prepart to compute local time
     utcOffsetHours = - utcOffset.getUtcOffset( utcStr)
-    
+
     utcparts = np.zeros(nDay+1)
     # now prepare to plot
     deltat = 24./float(nDay)
@@ -459,7 +454,7 @@ def plotHistogram( nDir, rs_in, nDay, mjdRef, doTransit, raTransit, decTransit, 
         strparts = utcstr.split()
         calendar = strparts[0]
         print( 'Found Calendar date: %s' % (calendar))
-        
+
     countmax = np.zeros( nDir)
     yoffsets = np.zeros( nDir)
     yoffset = 0
@@ -501,7 +496,6 @@ def plotHistogram( nDir, rs_in, nDay, mjdRef, doTransit, raTransit, decTransit, 
         plt.bar( utcparts, counts, width=deltat, bottom=ybottom, align="edge", \
                   label=None, color=barcolors[iDir])
         #                  where='post', label=alabel)
-        maxcounts = np.max(counts)
 
 # Redefine yoffset as step between printing lines
     yoffset = ytop / 30
@@ -624,14 +618,10 @@ def plotHistogram( nDir, rs_in, nDay, mjdRef, doTransit, raTransit, decTransit, 
     # first need site location to get coordinates of galaxy
     asite = EarthLocation(lat=lat*u.deg, lon=lon*u.deg, height=height*u.m)
     tutc = utc0   # start at beginning of day to find transit utc
-    target = SkyCoord( ra=raTransit*u.deg, dec=decTransit*u.deg,
-                       unit='deg', \
-                       frame='icrs', location=asite, obstime=tutc)
     # must convert ras from degrees to hours
     xtransit = ((raTransit - ramidnight)/15.) + xmidnight
     if doTransit:
         tutc = utc0   # start at beginning of day to find transit utc
-        dutc = 0
         if xtransit > 24.:
             xtransit = xtransit - 24.
         if xtransit > 24.:
@@ -665,7 +655,6 @@ def plotHistogram( nDir, rs_in, nDay, mjdRef, doTransit, raTransit, decTransit, 
                 print( "MMM: %4d  %7.2f, %7.2f; %s" % \
                            (mmm, azel.galactic.l.degree, azel.galactic.b.degree, utc))
             bbb = azel.galactic.b.degree
-            lll = azel.galactic.l.degree
             utc = utc + dt
             ygal = yoffset/2.    # set gold galactic line placement at top
             if bbb < minlat and bbb > -minlat:
@@ -678,7 +667,7 @@ def plotHistogram( nDir, rs_in, nDay, mjdRef, doTransit, raTransit, decTransit, 
     # now draw vertical lines for events
     iplot = 0
     # for all matched events
-    
+
     for iii in range(nall):
         if flagGroups:    # If not flagging groups, skip this processing
             continue
@@ -742,7 +731,7 @@ def plotHistogram( nDir, rs_in, nDay, mjdRef, doTransit, raTransit, decTransit, 
         strticks[i] = str( xticks[i])
         xticks[i] = float(xticks[i])
     ax.set_xticks( xticks)
-   
+
     #    ax.set_xticklabels( strticks)
     ax.tick_params(which='major', width=3)
     ax.tick_params(which='minor', width=1)
@@ -825,7 +814,7 @@ def main():
     nDir = iDir # keep track of directory count
     mjdRef = 0.
     # for each directory, find the reference mjd, which is earliest mjd in list
-    for iDir in range( nDir): 
+    for iDir in range( nDir):
         mjds =  eventDirs[ iDir]['mjds']
         nmjds = len(mjds)
         if nmjds == 0:
@@ -905,7 +894,7 @@ def main():
                 telTotals[iDir] = telTotals[iDir] + countsMatrix[iDir][iDay]
                 totalCountsInDt[iDay] = totalCountsInDt[iDay] + countsMatrix[iDir][iDay]
             print("")
-        
+
     print("Total:", end = "")
     for iDir in range( nDir):
         print("%5d " % (int(telTotals[iDir])), end = "")
@@ -915,8 +904,6 @@ def main():
         print("")
         # there are (nDir-1)! possible pairs
         print("       Count of matches with other telescopes")
- 
-    matchCounts = np.zeros( nDir)
 
     if nDir < 1:
         exit()
@@ -932,7 +919,7 @@ def main():
     eventTrim = trimEvents( nRemain, eventFinal, nDir, eventDirs)
 
     verbose = False
-    
+
     if verbose:
         for iGroup in range( nRemain):
             aEvent = eventTrim[iGroup]
@@ -950,7 +937,7 @@ def main():
           (nTen, nHundred, nThousand))
 
     if doLog:
-          logGroups( logFile, calendar, nDir, nGroup, nTen, nHundred, nThousand, groupEvents)
+          logGroups( logFile, calendar, nDir, nGroup, nTen, nHundred, nThousand)
 
     rs.azel2radec()
 
@@ -958,7 +945,7 @@ def main():
         nFit, fits = groupFit( nDay, totalCountsInDt, nGroup, groupEvents, nFitMax = 3, verbose=True)
         if nFit > 0:
             print(" Found %3d fits to groups of events" % (nFit))
-            logFits( logFile, rs, nFit, fits, mjdRef, verbose = True)
+            logFits( logFile, nFit, fits, mjdRef)
 
     matchtimes = np.zeros(nGroup)
     matchcounts = np.zeros(nGroup)
@@ -967,13 +954,13 @@ def main():
 
     # for the time being force debug
     verbose = True
-    
+
     # initialize the file list
     files = []
     groupFlags = [ ]
     # now fill arrays with coordinates and info, for plotting
-    for iGroup in range(nGroup): 
-        aGroup = groupEvents[ iGroup] 
+    for iGroup in range(nGroup):
+        aGroup = groupEvents[ iGroup]
         groupFlags.append( aGroup['flag'])
         matches = aGroup['list']
         # count becomes number of events in a group
@@ -1003,7 +990,7 @@ def main():
         else:
             print("No Telescopes for Event/Group %d!" % (iGroup))
         aGroup['count'] = nTel
-            
+
         if verbose:
             aveMjd = aGroup['mjd']
             showMatch( iGroup, aveMjd, nDir, matches, eventDirs)
@@ -1013,17 +1000,17 @@ def main():
         if doPlot:
             if not doOffset:
                 yoffset = 0.
-            
+
             plotcmd = "~/Research/analyze/E -Y %.2f %s " % (yoffset, files)
             os.system(plotcmd)
-            
+
 
     # if only one directory, plot histogram without matches.
     if nDir == 1:
         plotHistogram( nDir, rs, nDay, mjdRef, doTransit, \
                        raTransit, decTransit, \
                        eventDirs, 0, [ 0., 0.], [ 0, 0], [ 0., 0.], [0., 0.], [" "], 0)
-        exit()
+        sys.exit()
 
     if doLog:
         logFile.close()
