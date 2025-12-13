@@ -2,6 +2,8 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#25Dec12 GIL add date to plot title
+#25Dec11 GIL write plots to a specified directory, optionally
 #25Aug15 GIL fix typos
 #25May02 GIL more x axis tics
 #25May01 GIL add more space above plot
@@ -22,6 +24,7 @@
 #19MAR11 GIL fix plot axies
 #19JAN16 GIL initial version
 #
+import os
 import matplotlib as mpl
 #import matplotlib.pyplot as plt
 import sys
@@ -58,9 +61,10 @@ lastn = -1
 if nargs < 2:
     print("E: Plot Events")
     print("Usage: ")
-    print(" E [-A] [-P] [-T 'My Plot Title'] fileNames ")
+    print(" E [-A] [-P] [-O '~/match/date'] [-T 'My Plot Title'] fileNames ")
     print("where:")
     print("  -T <plot title String> Add Title to the plot")
+    print("  -O <output directory> to write the plots")
     print("  -P write PNG and PDF files instead of showing plot")
     print("  -A Show Az,El instead of Ra,Dec")
     print("  -B <sample> Set first sample to plot (default is 1/4 of samples)")
@@ -76,6 +80,8 @@ if nargs < 2:
 namearg = 1
 iarg = 1          # start searching for input flags
 doPlotFile = False
+doWritePlot = False
+outDir = ""
 
 # for all arguments, read list and exit when no flag argument found
 while iarg < nargs:
@@ -83,7 +89,13 @@ while iarg < nargs:
         iarg = iarg+1
         mytitle = sys.argv[iarg]
         print('Plot title: ', mytitle)
-    elif sys.argv[iarg].upper() == '-D':   # if debugging
+    elif sys.argv[iarg].upper() == '-O':   # now look for flags with arguments
+        iarg = iarg+1
+        outDir = sys.argv[iarg]
+        doWritePlot = True
+        doPlotFile = True
+        print('Output Plot directory: ', outDir)
+    elif sys.argv[iarg].upper() == '-D':   # if debugging        
         doDebug = True
         print("-D Additional Debug printing.")
     elif sys.argv[iarg].upper() == '-A':   # if labeling AzEl
@@ -137,29 +149,42 @@ for iii in range(namearg, min(nargs,25)):
 
 #    print("GAL Lon,Lat: %8.3f, %8.3f"  % (rs.gallon, rs.gallat))
 
+# expecting a full name like
+#/media/karl/pi11-events-25Oct28/25-10-28T125303_894.eve
+
     parts = filename.split('/')
     nparts = len(parts)
-    aname = parts[nparts-1]
-    parts = aname.split('.')
-    aname = parts[0]
-    parts = aname.split('T')
-    date  = parts[0]
-    time  = parts[1]
+    # get the date+time part
+    atime = parts[nparts-1]
+    dateparts = atime.split('.')
+    aname = dateparts[0]
+    # now split the date and the time
+    dateparts = aname.split('T')
+    date  = dateparts[0]
+    time  = dateparts[1]
+    if firstdate == "":
+        firstdate = date + "T" + time
 
-# if the pi??-events name is present get index
+# default telescope number
     itel = intel
-    piparts = filename.split('-events')
-    # if '-events' in the file 
-    if len(piparts) > 0:
-        telparts = piparts[0]
-#        print(telparts)
-        # if directory starts with pi
-        if telparts[0:2] == "pi":
+    dayName = ""
+# if the pi??-events-25Dec11 name is present get index
+    if nparts > 2:
+        dirName = parts[nparts-2]
+        piparts = dirName.split('-events-')
+        piname = piparts[0]
+        if piname[0:2] == "pi":
             # keep the integer value
-            telparts = telparts[2:]
-#            print(telparts)
-            itel = int(telparts)
-            
+            telnumber = piname[2:]
+            itel = int(telnumber)
+            # print(piname, itel)
+        filePath = piparts[1]
+        # get date name string, ie 25Dec12
+        dateName = filePath.split('/')
+        dayName = dateName[0]
+    else:
+        print(parts)
+        
     if firstdate == "":
         firstdate = date
     lastdate = date
@@ -184,12 +209,11 @@ for iii in range(namearg, min(nargs,25)):
     gallat = rs.gallat
     ra = rs.ra
     dec = rs.dec
+    
     if doAzEl:
-       label = '%s A,E: %5.1f,%5.1f' % ( time,rs.telaz,rs.telel)
+        label = '%2d: %s A,E: %5.1f,%5.1f' % ( itel, time,rs.telaz,rs.telel)
     else:
-        label = '%s R,D: %6.2f,%6.2f, Lon,Lat=%5.1f,%5.1f' % ( time,rs.ra,rs.dec,gallon,gallat)
-    if itel > 0:
-        label = ("%d: " % (itel)) + label
+        label = '%2d: %s' % ( itel, time)
     if (xa < 0) or (lastn != rs.nSamples):
           xa = int(rs.nSamples/4)
     if (xb < 0) or (lastn != rs.nSamples):
@@ -246,7 +270,8 @@ for iii in range(namearg, min(nargs,25)):
     count = rs.count
 
     if mytitle == "":
-        mytitle = rs.site
+        mytitle = "%s RA,Dec: %7.2f,%7.2f; GLon, GLat: %7.2f,%7.2f" % \
+            (dayName, ra,dec, gallon, gallat)
 
     ypeak = max( -ymin, ymax)
     if yrms > 0:
@@ -254,9 +279,9 @@ for iii in range(namearg, min(nargs,25)):
     else:
         snr = 0.
 
-    print((' Ra: %6.2f Dec: %6.2f Max: %8.3f +/- %7.3f SNR: %6.1f ; %s %s' % (ra, dec, ypeak, yrms, snr, count, label)))
+    print((' Ra: %6.2f Dec: %6.2f Max: %8.3f +/- %7.3f SNR: %6.1f ; %s' % (ra, dec, ypeak, yrms, snr, label)))
     if nplot <= 0:
-        title = mytitle + " Az,El: %6.1f,%6.1f - %s" % (rs.telaz, rs.telel, date)
+        title = mytitle + " Az,El: %6.1f,%6.1f" % (rs.telaz, rs.telel)
         fig,ax1 = plt.subplots(figsize=(10,6))
 #        fig.set_window_title(title)
     nplot = nplot + 1
@@ -283,13 +308,22 @@ if not doMag:
 #    else:
     dY = abs( yoffset/2.)
     plt.ylim(yallmin-(dY/2.),yallmax+(3*dY))
-    
+
+# if writing the plot to an output directory
+if doWritePlot:
+    # create the full path, if the user provided an output dir
+    os.makedirs(outDir, exist_ok=True)
+
 if doPlotFile:
     if fileTag == "":
-        fileTag = "E-" + firstdate
-    outpng = fileTag + ".png"
+        fileTag = "E-" + firstdate 
+    if outDir != "":        
+        outpng = "%s/%s.png" % (outDir,fileTag)
+        outpdf = "%s/%s.pdf" % (outDir,fileTag)
+    else:
+        outpng = "%s.png" % (fileTag)
+        outpdf = "%s.pdf" % (fileTag)
     plt.savefig(outpng,bbox_inches='tight')
-    outpdf = fileTag + ".pdf"
     plt.savefig(outpdf,bbox_inches='tight')
     print( "Wrote files %s and %s" % (outpng, outpdf))
 else:
