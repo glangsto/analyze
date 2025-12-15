@@ -2,6 +2,7 @@
 #import matplotlib.pyplot as plt
 #plot the raw data from the observation
 #HISTORY
+#25Dec13 GIL fix selecting telescope number from different types of file names
 #25Dec12 GIL add date to plot title
 #25Dec11 GIL write plots to a specified directory, optionally
 #25Aug15 GIL fix typos
@@ -124,7 +125,6 @@ while iarg < nargs:
         break
     iarg = iarg+1
 
-
 # end of reading arguments
 # to create plots in cronjobs, must use a different backend
 if doPlotFile:
@@ -169,7 +169,7 @@ for iii in range(namearg, min(nargs,25)):
     itel = intel
     dayName = ""
 # if the pi??-events-25Dec11 name is present get index
-    if nparts > 2:
+    if nparts > 1:
         dirName = parts[nparts-2]
         piparts = dirName.split('-events-')
         piname = piparts[0]
@@ -178,11 +178,14 @@ for iii in range(namearg, min(nargs,25)):
             telnumber = piname[2:]
             itel = int(telnumber)
             # print(piname, itel)
+        else:
+            print( "Did not Find 'pi' part of telescope name: %s" % (piname))
         filePath = piparts[1]
         # get date name string, ie 25Dec12
         dateName = filePath.split('/')
         dayName = dateName[0]
     else:
+        print("Did not find Telescope number in event Name")
         print(parts)
         
     if firstdate == "":
@@ -281,7 +284,7 @@ for iii in range(namearg, min(nargs,25)):
 
     print((' Ra: %6.2f Dec: %6.2f Max: %8.3f +/- %7.3f SNR: %6.1f ; %s' % (ra, dec, ypeak, yrms, snr, label)))
     if nplot <= 0:
-        title = mytitle + " Az,El: %6.1f,%6.1f" % (rs.telaz, rs.telel)
+        title = mytitle + " Az,El: %6.1f,%6.1f " % (rs.telaz, rs.telel)
         fig,ax1 = plt.subplots(figsize=(10,6))
 #        fig.set_window_title(title)
     nplot = nplot + 1
@@ -291,7 +294,8 @@ for iii in range(namearg, min(nargs,25)):
 
     plt.plot(xv, yv+y0, colors[nplot-1], linestyle=linestyles[nplot-1],label=label)
     y0 = y0 + yoffset
-plt.title(title)
+
+plt.title(mytitle)
 plt.xlabel('Time Offset From Event (micro-seconds)')
 plt.ylabel('Intensity (Counts)')
 plt.legend(loc='upper right')
@@ -301,19 +305,17 @@ xticks = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]
 #plt.xticks(float(xticks), str(xticks))
             
 if not doMag:
-#    if y0 > 0.:
-#        plt.ylim(yallmin,yallmax+y0*.666)
-#    elif y0 < 0.:
-#        plt.ylim(yallmin+y0*.666,yallmax)
-#    else:
+
     dY = abs( yoffset/2.)
     plt.ylim(yallmin-(dY/2.),yallmax+(3*dY))
 
-# if writing the plot to an output directory
-if doWritePlot:
-    # create the full path, if the user provided an output dir
-    os.makedirs(outDir, exist_ok=True)
-
+# create the full path, if the user provided an output dir
+if len(outDir) > 0:
+    try:
+        os.makedirs(outDir, exist_ok=True)
+    except:
+        outDir = outDir
+    
 if doPlotFile:
     if fileTag == "":
         fileTag = "E-" + firstdate 

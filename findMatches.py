@@ -4,6 +4,7 @@
 #25Sep23 GIL initial version from code in matchevents.py
 
 import sys
+import shutil
 import os
 import copy
 import numpy as np
@@ -88,6 +89,42 @@ def showMatch ( matchIndex, aveMjd, nDir, matches, eventDirs):
             continue
         filei = eventDirs[iDir]['events'][iMatch]
         print( "file %2d: %5d: %s" % (iDir, iMatch, f"{filei:>45}"))
+    return
+
+def copyMatch ( matchIndex, outDir, aveMjd, nDir, matches, eventDirs):
+    """
+    copyMatch() copies flashes for a match to output directories
+    where
+    matchIndex == integer identifing this match
+    nDir == number of telescopes
+    matches == index to event matching in each telescope (length nDir)
+    eventDirs == structure containing lists of events for each telescope
+    """
+    nMatch = 0
+    for iDir in range( nDir):
+        iMatch = matches[iDir]
+        if iMatch != NOMATCH:
+            nMatch = nMatch + 1
+    if nMatch <= 0:
+#        print("No Matches for Match Index: %5d" % (matchIndex))
+        return
+    print( "Match Index %5d (%d) Ave Mjd = %12.6f" % (matchIndex, nMatch, aveMjd))
+
+    for iDir in range( nDir):
+        iMatch = matches[iDir]
+        if iMatch == NOMATCH:
+            continue
+        filei = eventDirs[iDir]['events'][iMatch]
+        print( "copying %2d: %5d: %s" % (iDir, iMatch, f"{filei:>45}"))
+        fileparts = filei.split('/')
+        fileDir = outDir + "/" + fileparts[0]
+        try:  # first try and create the directory
+            os.makedirs(fileDir)
+            print( "Creating directory: %s" % (fileDir))
+        except:
+            pass
+        # now copy event flie
+        shutil.copy(filei, fileDir)
     return
 
 def showEvent ( nDir, event, eventDirs):
