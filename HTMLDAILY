@@ -1,0 +1,42 @@
+#!/bin/bash
+# Daily look for yesterday's matchs
+# HISTORY
+# 24OCT15 GIL use explicit directories to make cronjobs work
+# 24SEP01 GIL Initial veersion
+cd /media/karl
+
+# change this line for each new computer system
+export analyze=~/Research/analyze
+export analyze=/home/karl/Research/analyze
+
+# now use input date.  Default is to use Yeseterday
+if [ -z "$1" ]
+then
+    export dateToSort=`$analyze/Yesterday`
+else
+    export dateToSort=$1
+fi
+
+export mylog=/home/karl/HornEvents.log
+#export matchkeys="-v -Q -ND 144 -N 3 -L "$mylog" -G -OF 0.5 -W /home/karl/match -C "$dateToSort
+export matchkeys="-v -Q -ND 144 -N 3 -L "$mylog" -G -OF 0.25 -Y -.333 -O /home/karl/match -C "$dateToSort
+export matchkeys="-v -Q -ND 144 -N 3 -L "$mylog" -G -OF 0.25 -Y -.333 -O /media/karl/match -C "$dateToSort
+
+echo "Matching events from date: " $dateToSort
+echo "Using these Match params : " $matchkeys
+
+# find the matchevent program
+if [ -e ltmlevents.py ]
+then
+    python htmlevents.py $matchkeys 
+else
+    if [ -e ~/Research/analyze/htmlevents.py ]
+    then
+       python ~/Research/analyze/htmlevents.py $matchkeys
+    else 
+	if [ -e ~/bin/htmlevents.py ]
+	then
+	    python ~/bin/htmlevents.py $matchkeys
+	fi
+    fi     
+fi

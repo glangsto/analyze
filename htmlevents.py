@@ -96,12 +96,12 @@ from findMatches import *
 from groupMatches import *
 import utcOffset
 from plotHistogram import *
-
+from eventDay import eventDaySummary
 
 nargs = len(sys.argv)
 if nargs < 2:
-    print("MATCH: Match events listed in several directories")
-    print("Usage: MATCH [-OF seconds] [-D] [-C Date] [-E] [-N <n>] [-G] [dir1 dir2 dir3 dir4 ...]")
+    print("HTMLMATCH: Match events listed in several directories")
+    print("Usage: HTMLMATCH [-OF seconds] [-D] [-C Date] [-E] [-N <n>] [-G] [dir1 dir2 dir3 dir4 ...]")
     print("Where:")
     print(" -OF Optionally the user provides the maximum time offset (secs) to call a match")
     print(" -C  Optionally provide a calendar date (ie 19Nov17) instead of directories")
@@ -477,6 +477,7 @@ def writeHornSummary( summaryFile, dirname, nShort, nLong, az, el):
     outstr = "%s %5d %5d %6.1f %6.1f" % (dirname, nShort, nLong, az, el)
 
     summaryFile.write(outstr)
+    # end of write file
     return
 
 def main():
@@ -739,7 +740,8 @@ def main():
                    matchgallon, matchgallat, groupFlags, nGroup)
 
 # now count all events happening within .1 degrees of other events.
-
+    eventDaySummary( directoryDate, calendar, directoryDate + "/index.html")
+    
 if __name__ == "__main__":
     main()
 
