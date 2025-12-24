@@ -1,5 +1,6 @@
 #Python find matchs in data directories and write html
 #HISTORY
+#25Dec22 GIL clean up logging of fit to groups of matches
 #25Dec15 GIL separate out plotHistograms and update for new arguments
 #25Dec12 GIL copy matched event files to directories
 #25Dec13 GIL write histograms to directory of date
@@ -322,6 +323,23 @@ def logEvent( logFile, files, event, gallon, gallat):
 
 ## return end of logEvent()
 
+def htmlEventLog( htmlEventFile, calendar, aFile, aveMjd, event, gallon, gallat, ra, dec):
+    """
+    logEvent() adds one event to the event log
+    where
+    logFile = file pointer to open log file
+    files   = composed of this event
+    event   = event to be added to the log
+    """
+
+    aFlag  = event['flag']
+    nTel   = int( event['count'])
+    print("%s %s %12.4f %2d '%s' %7.2f %7.2f %7.2f %7.2f" % \
+          ( calendar, aFile, aveMjd, nTel, aFlag, gallon, gallat, ra, dec),
+          file=htmlEventFile)
+    
+## return end of htmlEventLog()
+
 def logGroups( logFile, calendar, nDir, nGroup, nTen, nHundred, nThousand):
     """
     logGroups() = writes summary of the events and groups found for this date
@@ -332,79 +350,24 @@ def logGroups( logFile, calendar, nDir, nGroup, nTen, nHundred, nThousand):
     nHundred = number of groups with 100 to 999 members         (C)
     nThousand = number of groups with more than 999 members     (M)
     """
-    print( "", file=logFile)
-    print(     "#DATE    =%s" % (calendar), file=logFile)
-    print(     "#NTEL    =%5d" % (nDir), file=logFile)
-    print(     "#NMATCH  =%5d" % (nGroup), file=logFile)
-    if nTen > 0:
-        print( "#TEN     =%5d" % (nTen), file=logFile)
-    if nHundred > 0:
-        print( "#HUNDRED =%5d" % (nHundred), file=logFile)
-    if nThousand > 0:
-        print( "#THOUSAND=%5d" % (nThousand), file=logFile)
-#    print( "#  Tel   Directory             Event File            Ra     Dec     GLon    GLat N Flashes", file=logFile)
+#    print( "", file=logFile)
+    print( "#%s %2d %5d %5d %5d %5d" % \
+           (calendar, nDir, nGroup, nTen, nHundred, nThousand), \
+           file=logFile)
 
     return
     # end of logGroups()
-
-def htmlGroups( directoryDate, calendar, nDir, \
-                nGroup, nTen, nHundred, nThousand, \
-                nFit, fits, mjdRef):
-    """
-    htmlGroups() creates a web page for this days events
-    where
-    directoryDate = directory to contain web page
-    nGroup  = total number of groups found
-    nTen    = number of groups with between 10 and 99 members   (X)
-    nHundred = number of groups with 100 to 999 members         (C)
-    nThousand = number of groups with more than 999 members     (M)
-    n
-    """
-
-    htmlName = "%s/%s.html" % (directoryDate, calendar)
-    htmlFile = open( htmlName, 'w')
-
-    print("<html>Summary of events on %s </html>" % (calendar), file=htmlFile)
-    print("<h1>Summary of events detected by %d telescopes on %s<h1>" %
-          (nDir, calendar), file=htmlFile)
-
-    if nGroup <= 0:
-        print("<p><h2>No Events matched on %s</h2>" % (calendar),
-          file=htmlFile)
-    else:
-        print("<p><h2>%d Events matched on %s</h2>" % (nGroup, calendar),
-          file=htmlFile)
-
-        print("<p><table border='2'>",
-              file=htmlFile)
-        print("<tr><td>Day</td><td>Isolated</td><td>Few</td><td>Groups</td><td>Groups</td><td>Groups of</td></tr>",
-              file=htmlFile)
-        print("<tr><td>    </td><td>Events</td>  <td>Events</td><td>10 or more</td><td>100 or more</td><td> 1000 or more</td></tr>",
-              file=htmlFile)
-
-        print("<tr><td> %s</td><td>%d</td><td>%d</td><td>%d</td><td>%d</td><td>%d</td></tr>" % (calendar, nGroup, nTen, nHundred, nThousand),
-              file=logFile)
-        # finish table
-        print("</table><p>", file=htmlFile)
-
-    print('<a href="../index.html"> Year </a>', file=htmlFIle)
-    print( "", file=logFile)
-    close( htmlFile)
-    
-    return
-    # end of htmlGroups()
 
 def logFits( logFile, nFit, fits, mjdRef):
     """
     logFits() adds successful fits to groups of events to the event log
     where
     logFile  = open file pointer to log file
-    rs       = radio spectrum of one of the files for the fit
     nFit     = number of succesful fits
     fits     = array of fit objects
     mjdRef   = reference MJD for this observing session
     """
-    print( "#NFIT    =%5d" % (nFit), file=logFile)
+
     for iFit in range(nFit):
         time = fits[iFit]['time']
         mjd = mjdRef + time
@@ -420,17 +383,19 @@ def logFits( logFile, nFit, fits, mjdRef):
         utcYYmmmDD = utcOffset.strAst( utc_datetime)
 
         utcstr = str(utc_datetime)
-        print(f"MJD: {mjd}")
-        print(f"UTC Datetime: {utc_datetime}")
-        print(f"UTC AST time: {utcYYmmmDD}")
-        print(f"UTC Floating-Point Timestamp: {utc_float_timestamp}")
+#        print(f"MJD: {mjd}")
+#        print(f"UTC Datetime: {utc_datetime}")
+#        print(f"UTC AST time: {utcYYmmmDD}")
+#        print(f"UTC Floating-Point Timestamp: {utc_float_timestamp}")
 
         peak  = fits[iFit]['peak']
         rms   = fits[iFit]['rms']
         stdDev  = fits[iFit]['stdDev']
         fwhm  = fits[iFit]['fwhm']
-        print("Fit%2d %7.1f+/-%4.0f %s" % (iFit, peak, rms, utcYYmmmDD), file=logFile)
-        print("Time  %7.1f+/-%5.1f hours == +/- %6.2f minutes" % (time*24., fwhm*24., fwhm*1440.), file=logFile)
+        utcYYparts = utcYYmmmDD.split('T')
+        print("#FIT %s %7.3f+/-%.3f %6.3f %s     %12.4f %7.1f+/-%.1f" % \
+              (utcYYparts[0], time*24., stdDev*24.,\
+               fwhm*24., utcYYparts[1], mjd, peak, rms), file=logFile)
 
     return
     # end of logFits()
@@ -567,6 +532,9 @@ def main():
         session['counts'] = countsInDt
         eventDirs[ iDir] = copy.deepcopy(session)
 
+    nFit = 0
+    fits = []
+    
     if nDir > 0:                 # deal with finding no telescopes
         print("Count of Events in Time interval for each Telescope ")
         print("                    Telescope")
@@ -641,12 +609,21 @@ def main():
     nGroup, nTen, nHundred, nThousand, groupEvents = groupMatches( \
                         mjdRef, nRemain, nDir, eventTrim, nDay, verbose = True)
     print("Grouped %d events into %d Groups" % (nRemain, nGroup))
-    print("Groups, %3d with > 10 members, %d with > 100 and %d > 1000 members" % \
+    print("Groups, %3d  > 10 members, %d > 100 and %d > 1000 members" % \
           (nTen, nHundred, nThousand))
 
     # create full path and open log file
     logFile, directoryDate = logDirectory( calendar, outDirName, \
                                            eventLogName)
+    #expecting a long file name ending with "25Dec/25Dec23"
+    nDirDate = len( directoryDate)
+    # need to trim out the last 7 characters to write to a month dir
+    htmlFileName = directoryDate[0:nDirDate-7] + calendar[0:5] + "-Events.txt"
+    
+    htmlEventFile = open( htmlFileName, 'a', encoding='utf-8')
+    print("Openned Monthly event File %s " % (htmlFileName))
+    logGroups( htmlEventFile, calendar, nDir, nGroup, nTen, nHundred, nThousand)
+    
     if doLog:
         logGroups( logFile, calendar, nDir, nGroup, nTen, nHundred, nThousand)
 
@@ -656,7 +633,7 @@ def main():
         nFit, fits = groupFit( nDay, totalCountsInDt, nGroup, groupEvents, nFitMax = 3, verbose=True)
         if nFit > 0:
             print(" Found %3d fits to groups of events" % (nFit))
-            logFits( logFile, nFit, fits, mjdRef)
+            logFits( htmlEventFile, nFit, fits, mjdRef)
 
     matchtimes = np.zeros(nGroup)
     matchcounts = np.zeros(nGroup)
@@ -714,6 +691,9 @@ def main():
         if doLog:
               logEvent( logFile, files, aGroup, \
                         matchgallon[iGroup], matchgallat[iGroup])
+
+        htmlEventLog( htmlEventFile, calendar, fileName, aveMjd, aGroup,
+                        matchgallon[iGroup], matchgallat[iGroup], rs.ra, rs.dec)
         if doPlot:
             plotcmd = "~/Research/analyze/E -O %s -Y %.2f %s " % \
                 (directoryDate, yoffset, fileNames)
@@ -740,7 +720,9 @@ def main():
                    matchgallon, matchgallat, groupFlags, nGroup)
 
 # now count all events happening within .1 degrees of other events.
-    eventDaySummary( directoryDate, calendar, directoryDate + "/index.html")
+    eventDaySummary( directoryDate, calendar, nGroup,
+                     nFit, fits, mjdRef, 
+                     directoryDate + "/index.html")
     
 if __name__ == "__main__":
     main()

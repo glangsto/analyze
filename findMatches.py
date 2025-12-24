@@ -1,5 +1,6 @@
 #Python find matchs in data directories
 #HISTORY
+#25Dec17 GIL add copying files to html directory
 #25Sep24 GIL Fix Not verbose only functions
 #25Sep23 GIL initial version from code in matchevents.py
 
@@ -88,7 +89,7 @@ def showMatch ( matchIndex, aveMjd, nDir, matches, eventDirs):
         if iMatch == NOMATCH:
             continue
         filei = eventDirs[iDir]['events'][iMatch]
-        print( "file %2d: %5d: %s" % (iDir, iMatch, f"{filei:>45}"))
+#        print( "file %2d: %5d: %s" % (iDir, iMatch, f"{filei:>45}"))
     return
 
 def copyMatch ( matchIndex, outDir, aveMjd, nDir, matches, eventDirs):
@@ -115,7 +116,7 @@ def copyMatch ( matchIndex, outDir, aveMjd, nDir, matches, eventDirs):
         if iMatch == NOMATCH:
             continue
         filei = eventDirs[iDir]['events'][iMatch]
-        print( "copying %2d: %5d: %s" % (iDir, iMatch, f"{filei:>45}"))
+#        print( "copying %2d: %5d: %s" % (iDir, iMatch, f"{filei:>45}"))
         fileparts = filei.split('/')
         fileDir = outDir + "/" + fileparts[0]
         try:  # first try and create the directory
@@ -124,7 +125,13 @@ def copyMatch ( matchIndex, outDir, aveMjd, nDir, matches, eventDirs):
         except:
             pass
         # now copy event flie
-        shutil.copy(filei, fileDir)
+        # must replace .eve with .txt
+        if len(fileparts) > 1:
+            nameparts = fileparts[1].split(".")
+            if len( nameparts) > 1:
+                newName = outDir + "/" + fileparts[0]  # output directory
+                newName = newName + "/" + nameparts[0] + ".txt" # new name
+                shutil.copy(filei, newName)
     return
 
 def showEvent ( nDir, event, eventDirs):
