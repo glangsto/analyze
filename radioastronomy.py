@@ -3,6 +3,7 @@
 Class defining a Radio Frequency Spectrum
 Includes reading and writing ascii files
 HISTORY
+26May25 GIL add option read_spec_ast to read only the file header
 24Mar02 GIL add telescope lean (dL) to the structure
 23Sep25 GIL add filename to spectra structure
 22Jun11 GIL if doComputeX is false, use pre-calculated X values
@@ -1088,7 +1089,7 @@ class Spectrum(object):
         # should not return from here, as end of header is detected above
         return linecount
 
-    def read_spec_ast(self, fullname, doDebug=False):
+    def read_spec_ast(self, fullname, doDebug=False, headerOnly=False):
         """
         Read an ascii radio Spectrum file or an event in radio samples and
         fill a Spectrum object
@@ -1112,7 +1113,12 @@ class Spectrum(object):
             return
         self.filename = fullname
 # read the whole file into a single variable, which is a list of every row of the file.
-        inlines = f2.readlines()
+        # if only need the header lines 
+        if headerOnly:
+            # headers are < 80 lines long, no more than 80 characters
+            inlines = f2.readlines( 80*80)
+        else:
+            inlines = f2.readlines()
         f2.close()
 
 # initialize some variable to be lists:
@@ -1123,6 +1129,9 @@ class Spectrum(object):
         linecount = self.parse_spec_header( inlines)
         datastart = linecount - 1
         datacount = 0
+        # if only need the header lines 
+        if headerOnly:
+            return
         if doDebug:
             print ("%3d Header lines; First data line: %s" % \
                    ( linecount,inlines[datastart]))
