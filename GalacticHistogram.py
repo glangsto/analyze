@@ -3,11 +3,19 @@
 #optionally plot histogram
 #to test use:  python GalacticLatitudeHistogram.py data
 #HISTORY
+#26May28 Gil add option for event histograms in plot, remove ReadGalactic
 #26May25 Gil annotate the plot with telescope and elevation
 #26May24 Gil initial version
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
+import fullpath
+
+# types for histograms
+NONTYPE = 0
+ASTTYPE = 1
+EVETYPE = 2
+HOTTYPE = 3
 
 class GalacticLatitudeHistogram:
     def __init__(self, bin_width_deg=5):
@@ -42,137 +50,120 @@ class GalacticLatitudeHistogram:
     def bin_centers(self):
         return 0.5 * (self.edges[:-1] + self.edges[1:])
 
-    def plot(self, title="Galactic Latitude Histogram", show=True):
+    def plot(self, title="Galactic Latitude Histogram", date="", show=True, \
+             plotType=ASTTYPE):
         """
-        plot() allows diagnosis of issues with observations
+        plot() allows shows galactic distribution and
+        diagnosis of issues with observations
         """
         centers = self.bin_centers()
         # convert fraction of day to minutes
-        norm_hist = self.normalized() * 1440.
-
+        if plotType == ASTTYPE: 
+            norm_hist = self.normalized() * 1440.
+        else:
+            norm_hist = self.normalized()
+            
         plt.figure(figsize=(10, 6))
         plt.bar(centers, norm_hist, width=self.bin_width, \
                 align="center", edgecolor="black")
         plt.xlabel("Galactic Latitude (deg)", fontsize=18)
-        plt.ylabel("Observing Time (Minutes)",fontsize=18)
+        if plotType == EVETYPE:
+            plt.ylabel("Event Signal/Noise Ratio",fontsize=18)
+        else:
+            plt.ylabel("Observing Time (Minutes)",fontsize=18)
         # special galactic latitude range for northern observations
         #        plt.xlim(-75., 90.)
         plt.xticks(fontsize=14)
         plt.yticks(fontsize=14)
         plt.title(title, fontsize=20)
+        histmax = max( norm_hist)
+        # annoate plot with date
+        plt.text( -80., histmax*.95, date, fontsize=18)
         plt.grid(True, linestyle="--", alpha=0.5)
 
         # print("Check of Scaling: %7.1f" % (norm_hist.sum()))
         if show:
             plt.show()
+    # end of plot
+        return centers, norm_hist
 
-#Optionally run a diagnotic test
-def main():
+def createLogName( logDirectory, date, telIndex):
+    # assume date string has format 26May28
+    # will separate measurement logs into years, months then days
+    dateYear = str(date[0:2])    # two digits of year in date string: 26
+    yearMonth = str(date[0:5])   # get Year+Month:  26May
+    # create /home/karl/daily/2026/26May/26May28 string
+    fullPath = logDirectory + "/20" + dateYear + "/" + yearMonth + "/" + date
+    # create the directories leading to the log file
+    fullpath.fullpath( fullPath)
+    # finally prepare to write log file
+    fullPath = fullPath + ("/spectraHistogram+%02d.log" % telIndex)
+    return fullPath
+
+def writeHistogram( logDirectory, date, dataDir, telIndex, degree, \
+                    centers, norm_hist):
     """
-    Main executable testing histogram
+    Write out the histogram of Observation Durations verse galactic Latitudes
     """
-    import radioastronomy
-    import nameToIndex
-    import astropy
-    
-    ifile = 1
-    degrees = 4.
-    
-    nargs = len(sys.argv)
-    if nargs < 2:
-        print('GalacticHistogram: Count fraction of time in Galactic Latitude rranges')
-        print('usage: GalaceticHistogram [-D degrees] dir1')
-        print('where: ')
-        print('       -D  <number> degree width of histogram bin')
-        print('       -V  optionally print verbose debugging info')
-        print('  dir1     Directory to compute histogram of observations')
-        exit()
-
-    dir1 = sys.argv[ifile]
-    telIndex = nameToIndex.getIndex( dir1)
-
-    # creast a list of files in the input directory
-    from os import listdir
-    from os.path import isfile, join
-    files1 = [f for f in listdir(dir1) if isfile(join(dir1, f))]
-    
-    print("Degree width of histogram bins: %0.1f " % (degrees))
-
-    print("%5d Files in Directory: %s" % (len(files1), dir1))
-#    print files
-
-    rs = radioastronomy.Spectrum()
-
-    obs1s = files1
-    nFile = 0
-    nHot = 0
-    minel = 99.
-    maxel = -99.
-    minaz = 365.
-    maxaz = -365.
-    # now for all files
-    for filename in files1:
-        parts = filename.split(".")
-        nparts = len(parts)
-        if nparts < 2:   # if not fooo.eve type file name
-            continue
-        if parts[nparts-1] == "ast":
-            obs1s[nFile] = filename
-            nFile = nFile + 1
-        elif parts[nparts-1] == "hot":
-            nHot = nHot + 1
-        else:
-            continue
-
-    glh = GalacticLatitudeHistogram( bin_width_deg=degrees)
-    # now get event signficances
-    iii = 0
-    total = 0.
-    for filename in obs1s:
-        fullname = join(dir1, filename)
-        rs.read_spec_ast( fullname, headerOnly=True)
-        rs.azel2radec()    # compute ra,dec from az,el
-        tint = rs.durationSec
-        lat = rs.gallat
-        total = total + tint
-        # now add to histogram 
-        glh.add_measurement( lat, tint)
-        if 50 * int(iii/50) == iii:
-            print("File %5d: az,el = %5.1f,%6.1f => %5.1f,%6.1f" % \
-                  (iii, rs.telaz, rs.telel, rs.gallon, rs.gallat))
-
-        # keep track of location of observations
-        if rs.telel > maxel:
-            maxel = rs.telel
-        if rs.telel < minel:
-            minel = rs.telel
-        if rs.telaz > maxaz:
-            maxaz = rs.telaz
-        if rs.telaz < minaz:
-            minaz = rs.telaz
-    
-        iii = iii + 1
-
-    title = "Tel %2d: Galactic Latitude Histogram" % telIndex
-    if maxaz == minaz:
-        title = title + (" Az: %.1f" % maxaz)
-    else:
-        title = title + (" Az: %.1f to %.1f" % (minaz, maxaz))
-    if maxel == minel:
-        title = title + (" El: %.1f" % maxel)
-    else:
-        title = title + (" El: %.1f to %.1f" % (minel, maxel))
-    # now plot histogram
-    glh.plot( title = title)
-
-    print(title)
-    print("Fraction of time Observing %.1f %s" % \
-          (glh.total_time_sec/864., "%"))
+    fullPath = createLogName( logDirectory, date, telIndex)
+    f = open( fullPath, 'w')
+    f.write("#DATE     = %s \n" % (date))
+    f.write("#TELINDEX = %d \n" % (telIndex))
+    f.write("#DATADIR  = %s \n" % (dataDir))
+    f.write("#BINWIDTH = %8.1f / Degrees \n" % (degree))
+    nHist = len( norm_hist)
+    f.write("#Center   Duration \n")
+    f.write("# (deg)     (min)  \n")
+    for iii in range( nHist):
+        f.write("%8.1f %8.2f \n" % \
+                (centers[iii], norm_hist[iii]))
+# end of writeHistogram()
     return
 
-if __name__ == "__main__":
-    main()
-
-
-
-    
+def readHistogram( dataDir):
+    """
+    read the histogram of Observation Durations verse galactic Latitudes
+    """
+    # open and read all lines
+    f = open( dataDir, 'r')
+    # read
+    lines = f.readlines()
+    f.close()
+    centers = []
+    samples = []
+    telIndex = 0
+    date = ""
+    datadir = ""
+    degrees = 4.
+    # for all lines in file
+    for oneline in lines:
+        # remove extra spaces
+        aline = " ".join(oneline.split())
+        aChar = aline[0]
+        lineparts = aline.split(" ")
+        nparts = len(lineparts)
+        #ignore blank, partial lines
+        if nparts < 1:
+            continue
+        print(lineparts)
+        if lineparts[0] == "#DATE":
+            date = lineparts[2]
+        elif lineparts[0] == "#TELINDEX":
+            telIndex = int(lineparts[2])
+        elif lineparts[0] == "#DATADIR":
+            dataDir = lineparts[2]
+        elif lineparts[0] == "#BINWIDTH":
+            degree = float( lineparts[2])
+        elif aChar == "#":
+            continue
+        if nparts == 2:
+            centers.append( float(lineparts[0]))
+            samples.append( float(lineparts[1]))
+    # end for all lines
+    # now convert to arrays
+    centers = np.array(centers)
+    samples = np.array( samples)
+    print("centers  : %s" % (type(centers)))
+    print("samples  : %s" % (type(samples)))
+    return date, dataDir, telIndex, degree, centers, samples
+# end of readHistogram()
