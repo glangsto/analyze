@@ -51,7 +51,7 @@ class GalacticLatitudeHistogram:
         return 0.5 * (self.edges[:-1] + self.edges[1:])
 
     def plot(self, title="Galactic Latitude Histogram", date="", show=True, \
-             plotType=ASTTYPE):
+             plotType=ASTTYPE, color="", label=""):
         """
         plot() allows shows galactic distribution and
         diagnosis of issues with observations
@@ -61,11 +61,19 @@ class GalacticLatitudeHistogram:
         if plotType == ASTTYPE: 
             norm_hist = self.normalized() * 1440.
         else:
-            norm_hist = self.normalized()
+            norm_hist = self.counts
             
-        plt.figure(figsize=(10, 6))
-        plt.bar(centers, norm_hist, width=self.bin_width, \
-                align="center", edgecolor="black")
+        plt.figure(figsize=(8, 6))
+        if color == "":
+            color = "dodgerblue"
+            #  print("In Galactic Histogram: %s" % (label))
+        if label == "":
+            plt.bar(centers, norm_hist, width=self.bin_width, \
+                align="center", edgecolor="black", color=color)
+        else:
+            plt.bar(centers, norm_hist, width=self.bin_width, \
+                    align="center", edgecolor="black", color=color, \
+                    label=label)
         plt.xlabel("Galactic Latitude (deg)", fontsize=18)
         if plotType == EVETYPE:
             plt.ylabel("Event Signal/Noise Ratio",fontsize=18)
@@ -75,11 +83,12 @@ class GalacticLatitudeHistogram:
         #        plt.xlim(-75., 90.)
         plt.xticks(fontsize=14)
         plt.yticks(fontsize=14)
-        plt.title(title, fontsize=20)
         histmax = max( norm_hist)
+        plt.text( -85., histmax*.95, date, fontsize=18)
+        plt.title(title, fontsize=20)
         # annoate plot with date
-        plt.text( -80., histmax*.95, date, fontsize=18)
         plt.grid(True, linestyle="--", alpha=0.5)
+        plt.legend()
 
         # print("Check of Scaling: %7.1f" % (norm_hist.sum()))
         if show:
@@ -97,7 +106,7 @@ def createLogName( logDirectory, date, telIndex):
     # create the directories leading to the log file
     fullpath.fullpath( fullPath)
     # finally prepare to write log file
-    fullPath = fullPath + ("/spectraHistogram+%02d.log" % telIndex)
+    fullPath = fullPath + ("/Histogram-%s-%02d.log" % (date, telIndex))
     return fullPath
 
 def writeHistogram( logDirectory, date, dataDir, telIndex, degree, \
@@ -145,7 +154,7 @@ def readHistogram( dataDir):
         #ignore blank, partial lines
         if nparts < 1:
             continue
-        print(lineparts)
+        #print(lineparts)
         if lineparts[0] == "#DATE":
             date = lineparts[2]
         elif lineparts[0] == "#TELINDEX":
@@ -163,7 +172,7 @@ def readHistogram( dataDir):
     # now convert to arrays
     centers = np.array(centers)
     samples = np.array( samples)
-    print("centers  : %s" % (type(centers)))
-    print("samples  : %s" % (type(samples)))
+    #   print("centers  : %s" % (type(centers)))
+    #   print("samples  : %s" % (type(samples)))
     return date, dataDir, telIndex, degree, centers, samples
 # end of readHistogram()

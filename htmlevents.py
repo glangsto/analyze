@@ -309,6 +309,8 @@ def logEvent( logFile, files, event, gallon, gallat):
 
     iEvent = int( event['nmatch'])
     aFlag  = event['flag']
+    if aFlag == ' ':
+        aflag = '1'
     nTel   = int( event['count'])
     print("#Event: %5d nTel: %2d flag: '%s' Gal Lon,lat: %7.2f %7.2f" % ( iEvent, nTel, aFlag, gallon, gallat), file=logFile)
     for afile in files:
@@ -333,6 +335,9 @@ def htmlEventLog( htmlEventFile, calendar, aFile, aveMjd, event, gallon, gallat,
     """
 
     aFlag  = event['flag']
+    # flag spaces confuses downstream processing
+    if aFlag == ' ':
+        aFlag = '1'   # call a single event
     nTel   = int( event['count'])
     print("%s %s %12.4f %2d '%s' %7.2f %7.2f %7.2f %7.2f" % \
           ( calendar, aFile, aveMjd, nTel, aFlag, gallon, gallat, ra, dec),
@@ -705,7 +710,7 @@ def main():
         plotHistogram( directoryDate, calendar, nDir, rs, nDay, mjdRef, \
                        transitObject, raTransit, decTransit, \
                        eventDirs, nall, [ 0., 0.], [ 0, 0], [ 0., 0.], \
-                       [0., 0.], [" "], 0)
+                       [0., 0.], [" "], 0, doQuiet)
         sys.exit()
 
     if doLog:
@@ -717,7 +722,7 @@ def main():
     plotHistogram( directoryDate, calendar, nDir, rs, nDay, mjdRef,
                    transitObject, raTransit, decTransit, \
                    eventDirs, nGroup, matchtimes, matchcounts, \
-                   matchgallon, matchgallat, groupFlags, nGroup)
+                   matchgallon, matchgallat, groupFlags, nGroup, doQuiet)
 
 # now count all events happening within .1 degrees of other events.
     eventDaySummary( directoryDate, calendar, nGroup,

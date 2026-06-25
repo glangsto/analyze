@@ -176,8 +176,32 @@ def ReadGalactic( dirname, degrees=4., show=True):
     if plotType == GalacticHistogram.ASTTYPE:
         norm_hist = glh.normalized() * 1440.
     else:
-        norm_hist = glh.normalized()
+        norm_hist = glh.counts
     return date, telIndex, centers, norm_hist
+
+def eventsCalibrated( centers, width, spectraHistogram, events):
+    """
+    plot the observing-time calibrated distribution of events
+    """
+    plt.figure(figsize=(10, 6))
+    plt.bar(centers, spectraHistogram, width=width, \
+            align="center", edgecolor="black", fill=False)
+    plt.xlabel("Galactic Latitude (deg)", fontsize=18)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    plt.ylabel("Event Signal/Noise Ratio",fontsize=18)
+    nx = len(centers)
+    ys = np.zeros(nx)
+    ymax = max( spectraHistogram)
+    for iii in range (nx):
+        if spectraHistogram[iii] > 0.:
+            ys[iii] = ymax*events[iii]/spectraHistogram[iii]
+    plt.bar(centers, ys, width=width, \
+            align="center", edgecolor="black")
+    plt.show()
+    return
+# end of eventsCalibrated()
+
 
 if __name__ == "__main__":
     '''
@@ -278,13 +302,14 @@ Example:
     if args.EventDirs != None:
         eventDirs = args.EventDirs
         for anEventDir in eventDirs:
-            eventDate, eventIndex, eventCenters, eventSamples = \
+            eventDate, eventIndex, eventCenters, events = \
                 ReadGalactic(anEventDir, degrees=degrees)
             if nEvent == 0:
-                eventSums = eventSamples
+                eventSums = events
             else:
-                eventSums = eventSums + eventSamples
+                eventSums = eventSums + events
             nEvent = nEvent + 1
 
-            
+    # now plot sum calibrated for duration in different galactic latitudes
+    eventsCalibrated( centers, degrees, samples, eventSums)
 
